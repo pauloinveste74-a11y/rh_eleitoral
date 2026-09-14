@@ -107,9 +107,11 @@ export default async function EditarPessoaPage({
       <div className="flex flex-col gap-6">
         <PersonForm mode="edit" personId={id} defaultValues={defaultValues} />
 
-        {person.status === "rascunho" && (
-          <SendForApprovalCard personId={id} cities={cities ?? []} />
-        )}
+        <SendForApprovalCard
+          personId={id}
+          cities={cities ?? []}
+          status={person.status}
+        />
 
         <Card>
           <CardHeader>

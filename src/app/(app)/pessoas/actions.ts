@@ -539,11 +539,7 @@ export async function sendForApproval(
     }),
   });
 
-  // Não revalida a própria página de edição aqui: o cartão "Enviar para
-  // aprovação" só é renderizado quando status === "rascunho" — se essa
-  // rota revalidasse imediatamente, o cartão (e a mensagem de sucesso
-  // que ele mostra) desapareceria antes do usuário conseguir vê-la. A
-  // página volta a ficar em sincronia na próxima navegação normal.
+  revalidatePath(`/pessoas/${personId}/editar`);
   revalidatePath("/pessoas");
   revalidatePath("/aprovacoes");
   return { status: "success" };
