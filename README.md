@@ -2,18 +2,19 @@
 
 Sistema de gestão de pessoas, operações e pagamentos para campanha eleitoral.
 
-> **Fase atual: 7 — Auditoria.** Sobre a base técnica (Fase 1A), **Pessoas**
+> **Fase atual: 8 — Relatórios.** Sobre a base técnica (Fase 1A), **Pessoas**
 > (Fase 1B), **multi-tenant** por campanha (Fase 1C —
 > [Multi-tenant](#multi-tenant)), **Aprovações** (Fase 2), **Financeiro**
-> (Fase 3 — pagamentos avulsos e em lote, [Financeiro](#financeiro)) e
-> **Despesas** (Fase 6 — reembolso com comprovante, [Despesas](#despesas)),
-> o sistema agora tem uma tela de **auditoria**: lista/busca/pagina os
-> eventos gravados em `audit_logs`, resolvendo o nome do autor de cada
-> evento (ver [Auditoria](#auditoria)). A numeração de fase aqui segue o
-> rótulo original dos placeholders da Fase 1A, não uma sequência 1-2-3-4 —
-> ver a tabela em [Próxima fase](#próxima-fase) para o mapeamento
-> completo. Os módulos restantes (Ponto, Operações, Relatórios) serão
-> implementados em fases seguintes.
+> (Fase 3 — pagamentos avulsos e em lote, [Financeiro](#financeiro)),
+> **Despesas** (Fase 6 — reembolso com comprovante, [Despesas](#despesas))
+> e **Auditoria** (Fase 7 — trilha de eventos, [Auditoria](#auditoria)), o
+> sistema agora tem três **relatórios gerenciais** (Financeiro, Pessoas,
+> Aprovações) com filtro amplo (período, status, categoria, eixo/cidade/
+> equipe) e exportação em CSV (ver [Relatórios](#relatórios)). A numeração
+> de fase aqui segue o rótulo original dos placeholders da Fase 1A, não
+> uma sequência 1-2-3-4 — ver a tabela em [Próxima fase](#próxima-fase)
+> para o mapeamento completo. Os módulos restantes (Ponto, Operações)
+> serão implementados em fases seguintes.
 
 ## Stack
 
@@ -157,15 +158,18 @@ src/
       financeiro/       # pagamentos avulsos/lote financeiro → tesouraria (Fase 3)
       despesas/         # reembolso de despesa com comprovante (Fase 6)
       auditoria/        # trilha de auditoria: lista/busca/paginação (Fase 7)
-      relatorios/       # placeholder — Fase 8
+      relatorios/       # financeiro/pessoas/aprovações, filtros + CSV (Fase 8)
       configuracoes/    # gestão territorial: eixos/cidades/equipes (Fase 2)
     proxy.ts            # (fora de app/, ver abaixo) proteção de rotas
   components/
     ui/                 # componentes acessíveis reutilizáveis (botão, input, card...)
     layout/             # shell do painel (sidebar, topbar, navegação)
+    relatorios/         # campos de filtro compartilhados entre os 3 relatórios (Fase 8)
   lib/
     supabase/           # clientes Supabase (browser, servidor, proxy)
     validations/        # esquemas Zod
+    reports/            # consultas compartilhadas entre tela e exportação CSV (Fase 8)
+    csv.ts              # geração de CSV (Fase 8)
     nav-items.ts        # itens da navegação principal
   types/
     database.ts         # tipos do schema Supabase (regenerar quando o projeto existir)
@@ -536,6 +540,57 @@ auditoria com um `insert` direto dentro da própria função
 `SECURITY DEFINER`, já que `audit_logs` não tem política de `INSERT`
 para nenhum papel de cliente.
 
+## Relatórios
+
+Três relatórios gerenciais somente leitura, cada um com filtro amplo e
+exportação CSV — sem tabela nova: consultam as tabelas de domínio já
+existentes (`payments`, `expenses`, `people`, `audit_logs`), então herdam
+automaticamente o isolamento de campanha e as restrições de RLS de cada
+uma (ver [Políticas de RLS criadas](#políticas-de-rls-criadas)). Toda a
+lógica de consulta fica em `src/lib/reports/` (`financeiro.ts`,
+`pessoas.ts`, `aprovacoes.ts`, `territory-scope.ts`), compartilhada entre
+a tela (`page.tsx`) e o endpoint de exportação (`export/route.ts`) de
+cada relatório — os dois nunca divergem porque chamam exatamente a mesma
+função.
+
+- **Financeiro** (`/relatorios/financeiro`): combina `payments` e
+  `expenses` em uma lista única, filtrável por período (`created_at` —
+  data de lançamento, não de pagamento, porque um registro `pendente`
+  ainda não tem `payment_date`/data de decisão), tipo (pagamento/despesa),
+  status, categoria (despesas) e território. Mostra totais (pago,
+  pendente, rejeitado/cancelado) e a lista, limitada a 500 linhas na tela
+  (5000 na exportação CSV).
+- **Pessoas** (`/relatorios/pessoas`): funil de contagem por status
+  (respeitando período/território, mas não o filtro de status — mostra a
+  distribuição completa), mais uma lista detalhada já filtrada por
+  status, com as mesmas capacidades de período/território/exportação.
+- **Aprovações** (`/relatorios/aprovacoes`): não existe uma tabela
+  dedicada de aprovações — o histórico é extraído de `audit_logs`
+  (ações `pessoa.aprovacao.aprovar`/`pessoa.aprovacao.rejeitar`, gravadas
+  por `decide_approval()` desde a Fase 2), com autor resolvido via
+  `profiles` (mesma mecânica da tela de Auditoria). **Herda a mesma
+  restrição de leitura de `audit_logs`**: só `administrador`/`auditor` da
+  campanha (mais o super admin) conseguem ver este relatório — um
+  coordenador de cidade/eixo, que é quem de fato toma essas decisões, não
+  tem acesso a ele (ver "Riscos e pendências desta fase").
+- **Filtro de território** (`src/lib/reports/territory-scope.ts`):
+  `payments`/`expenses`/`audit_logs` não têm coluna de eixo/cidade/equipe
+  própria, então o filtro por território resolve primeiro os
+  `person_id`s com vínculo `organizational_assignments` **vigente**
+  batendo com o eixo/cidade/equipe escolhido, e depois filtra a tabela
+  de destino por esses IDs. Isso reflete o vínculo **atual** da pessoa,
+  não o vínculo no momento de um evento passado (um pagamento ou uma
+  aprovação antigos podem ter ocorrido quando a pessoa estava em outra
+  cidade/eixo) — limitação aceita conscientemente para esta fase.
+- **Exportação CSV**: cada relatório tem um botão "Exportar CSV" que
+  linka para `.../export?<mesmos filtros da URL>` — um Route Handler
+  (`GET`) que roda a mesma consulta sem o teto de 500 linhas da tela
+  (teto de 5000 na exportação), gera o CSV (`;` como separador e BOM
+  UTF-8, formato que o Excel em pt-BR espera) via `src/lib/csv.ts` e
+  devolve com `Content-Disposition: attachment`. Roda sob o mesmo proxy
+  de autenticação de qualquer outra rota (`src/proxy.ts`) — sem sessão,
+  redireciona para `/login` como as demais.
+
 ## Segurança
 
 - Nenhuma credencial ou chave secreta está versionada. `.env.example`
@@ -551,6 +606,24 @@ para nenhum papel de cliente.
 
 ## Riscos e pendências desta fase
 
+- **Relatório de Aprovações inacessível a coordenadores (Fase 8)**: por
+  usar `audit_logs` como fonte, herda a política `audit_logs_select`
+  (`administrador`/`auditor` da campanha, mais o super admin). Um
+  coordenador de cidade/eixo — que decide as aprovações — não consegue
+  ver `/relatorios/aprovacoes`. Endurecer isso exigiria abrir
+  `audit_logs` (ou criar uma view derivada) para coordenadores, o que não
+  foi pedido nesta fase; documentado aqui em vez de decidido
+  unilateralmente.
+- **Filtro de território dos relatórios reflete o vínculo atual, não o
+  histórico**: ver "Filtro de território" em
+  [Relatórios](#relatórios) — um pagamento ou aprovação antigos, feitos
+  quando a pessoa estava em outra cidade/eixo, aparecem sob a cidade/eixo
+  **atual** dela, não a de então.
+- **Relatórios não testados manualmente na UI** (mesma limitação já
+  registrada nas fases anteriores — bateria de testes interativos desta
+  sessão segue interrompida a pedido do usuário): filtros combinados,
+  paginação implícita (teto de 500/5000 linhas) e os três CSVs exportados
+  não foram abertos/conferidos num Excel real.
 - **Isolamento entre campanhas não testado com um segundo usuário real**:
   as políticas de RLS da Fase 1C foram conferidas por leitura/Advisors e
   por consulta SQL direta (que roda como `postgres`, contornando RLS —
@@ -785,13 +858,28 @@ para nenhum papel de cliente.
   usuário `auditor` puro (não-admin) não foi exercitado ponta a ponta,
   só verificado por leitura da política.
 
+**Fase 8:**
+
+- Sem migração nova — os três relatórios consultam tabelas e políticas de
+  RLS já existentes (`payments`, `expenses`, `people`, `audit_logs`,
+  `organizational_assignments`, `profiles`).
+- Telas `/relatorios`, `/relatorios/financeiro`, `/relatorios/pessoas`,
+  `/relatorios/aprovacoes` e os três endpoints `.../export` criados —
+  `npm run typecheck`/`lint`/`build` sem erros.
+- **Não verificado manualmente na UI**: mesma limitação já registrada nas
+  fases anteriores. Em particular, nenhuma combinação de filtros foi
+  exercitada na prática, nenhum dos três CSVs foi baixado/aberto num
+  Excel real, e o acesso ao relatório de Aprovações com um usuário
+  `auditor`/coordenador não-admin não foi testado (ver "Riscos e
+  pendências desta fase").
+
 ## Próxima fase
 
 A numeração de fase usada neste README mistura dois esquemas: a
 numeração **original dos placeholders** criados na Fase 1A (Pessoas=2,
-Aprovações=3, Ponto/Operações=4, Financeiro=5, Despesas=6,
-**Auditoria=7**, Relatórios=8) e a numeração **real de entrega** desta
-sessão (1A → 1B → 1C → 2 → 3 → 6 → 7, pulando os números cujos módulos
+Aprovações=3, Ponto/Operações=4, Financeiro=5, Despesas=6, Auditoria=7,
+**Relatórios=8**) e a numeração **real de entrega** desta sessão
+(1A → 1B → 1C → 2 → 3 → 6 → 7 → 8, pulando os números cujos módulos
 ainda não foram construídos). Mapeamento completo:
 
 | Nº do placeholder original | Módulo            | Nº real de entrega | Status       |
@@ -801,35 +889,39 @@ ainda não foram construídos). Mapeamento completo:
 | Fase 4                     | Ponto / Operações | —                  | ⏳ pendente  |
 | Fase 5                     | Financeiro        | Fase 3             | ✅ concluído |
 | Fase 6                     | Despesas          | Fase 6             | ✅ concluído |
-| **Fase 7**                 | **Auditoria**     | **esta entrega**   | ✅ concluído |
-| Fase 8                     | Relatórios        | —                  | ⏳ pendente  |
+| Fase 7                     | Auditoria         | Fase 7             | ✅ concluído |
+| **Fase 8**                 | **Relatórios**    | **esta entrega**   | ✅ concluído |
 
 Módulos **Pessoas** (Fase 1B), **Multi-tenant** (Fase 1C), **Aprovações**
-(Fase 2), **Financeiro** (Fase 3, incluindo lote), **Despesas** (Fase 6)
-e **Auditoria** (Fase 7) estão funcionais. Pendências que ficaram
-deliberadamente fora do escopo mínimo, para retomar quando fizer
-sentido:
+(Fase 2), **Financeiro** (Fase 3, incluindo lote), **Despesas** (Fase 6),
+**Auditoria** (Fase 7) e **Relatórios** (Fase 8) estão funcionais. Só
+resta **Ponto** e **Operações** (Fase 4) como módulos ainda placeholder.
+Pendências que ficaram deliberadamente fora do escopo mínimo, para
+retomar quando fizer sentido:
 
 1. Verificação manual/end-to-end do lote de pagamentos
-   (`/financeiro/lote/novo`), de Despesas (`/despesas/novo`) e da tela de
-   Auditoria (`/auditoria`) — não testados nesta sessão.
+   (`/financeiro/lote/novo`), de Despesas (`/despesas/novo`), da tela de
+   Auditoria (`/auditoria`) e dos três relatórios (`/relatorios/*`,
+   inclusive os CSVs exportados) — não testados nesta sessão.
 2. Teste de isolamento entre campanhas E teste dos fluxos de
    aprovação/financeiro/despesas, com usuários de teste reais (segunda
-   campanha, coordenador/financeiro/tesouraria não-admin) — ver "Riscos e
-   pendências desta fase".
+   campanha, coordenador/financeiro/tesouraria/auditor não-admin) — ver
+   "Riscos e pendências desta fase".
 3. Visão geral de "minha cidade"/"meu eixo" para um coordenador fora do
-   fluxo de aprovação (hoje só vê a pessoa que está na etapa dele).
+   fluxo de aprovação (hoje só vê a pessoa que está na etapa dele) — o
+   relatório de Aprovações não cobre isso, porque um coordenador não
+   consegue lê-lo (ver "Riscos e pendências desta fase").
 4. Tela de atribuição de papel (coordenador, financeiro, tesouraria —
    hoje só via SQL).
 5. Decisão em massa para um lote inteiro (hoje é por pagamento
-   individual); conciliação bancária e exportação PDF/Excel de
-   pagamentos/despesas; reembolso parcial/parcelado.
-6. Atomicidade real entre `people` e as tabelas satélite (função Postgres
+   individual); conciliação bancária; reembolso parcial/parcelado.
+6. Exportação em PDF/Excel dos relatórios (hoje só CSV) e gráficos (hoje
+   só barras de funil simples em HTML/CSS).
+7. Atomicidade real entre `people` e as tabelas satélite (função Postgres
    consolidada), caso falhas parciais se mostrem um problema recorrente.
-7. Seletor/indicador de campanha na UI para o super admin de plataforma.
-8. OCR de documentos, assinatura eletrônica de contrato e exportação
-   PDF/Excel — dependem dos módulos que os utilizam.
+8. Seletor/indicador de campanha na UI para o super admin de plataforma.
+9. OCR de documentos e assinatura eletrônica de contrato — dependem dos
+   módulos que os utilizam.
 
 Para o próximo módulo funcional, a navegação já criada na Fase 1A aponta
-para **Ponto**, **Operações** ou **Relatórios** como sequência natural, a
-depender da prioridade da campanha.
+para **Ponto** e **Operações** — os dois únicos placeholders restantes.
