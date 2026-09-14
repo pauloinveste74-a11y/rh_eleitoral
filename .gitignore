@@ -30,8 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files (nunca versionar segredos)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +40,22 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea
+Thumbs.db
+
+# dados sensíveis e planilhas — NUNCA versionar (seções 18 e 19)
+# Planilha real de migração, documentos pessoais, extratos bancários e
+# quaisquer exports com dados reais de pessoas devem ficar fora do Git.
+*.xlsx
+*.xls
+*.csv
+*.ofx
+/planilhas/
+/documentos/
+/extratos/
+/dados-reais/
+/supabase/migration-staging/real/
