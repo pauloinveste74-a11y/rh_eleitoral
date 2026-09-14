@@ -270,6 +270,142 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["audit_logs"]["Insert"]>;
         Relationships: [];
       };
+      person_addresses: {
+        Row: {
+          id: string;
+          person_id: string;
+          zip_code: string;
+          street: string;
+          number: string | null;
+          complement: string | null;
+          neighborhood: string;
+          city: string;
+          state: string;
+          created_by: string | null;
+          updated_by: string | null;
+        } & Timestamps;
+        Insert: Partial<Timestamps> & {
+          id?: string;
+          person_id: string;
+          zip_code: string;
+          street: string;
+          number?: string | null;
+          complement?: string | null;
+          neighborhood: string;
+          city: string;
+          state: string;
+          created_by?: string | null;
+          updated_by?: string | null;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["person_addresses"]["Insert"]
+        >;
+        Relationships: [];
+      };
+      person_bank_accounts: {
+        Row: {
+          id: string;
+          person_id: string;
+          bank_code: string;
+          bank_name: string | null;
+          agency: string;
+          agency_digit: string | null;
+          account_number: string;
+          account_digit: string | null;
+          account_type: "corrente" | "poupanca";
+          pix_key_type: "cpf" | "email" | "telefone" | "aleatoria" | null;
+          pix_key: string | null;
+          created_by: string | null;
+          updated_by: string | null;
+        } & Timestamps;
+        Insert: Partial<Timestamps> & {
+          id?: string;
+          person_id: string;
+          bank_code: string;
+          bank_name?: string | null;
+          agency: string;
+          agency_digit?: string | null;
+          account_number: string;
+          account_digit?: string | null;
+          account_type: "corrente" | "poupanca";
+          pix_key_type?: "cpf" | "email" | "telefone" | "aleatoria" | null;
+          pix_key?: string | null;
+          created_by?: string | null;
+          updated_by?: string | null;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["person_bank_accounts"]["Insert"]
+        >;
+        Relationships: [];
+      };
+      person_electoral_data: {
+        Row: {
+          id: string;
+          person_id: string;
+          voter_id: string | null;
+          electoral_zone: string | null;
+          electoral_section: string | null;
+          voter_city: string | null;
+          voter_state: string | null;
+          created_by: string | null;
+          updated_by: string | null;
+        } & Timestamps;
+        Insert: Partial<Timestamps> & {
+          id?: string;
+          person_id: string;
+          voter_id?: string | null;
+          electoral_zone?: string | null;
+          electoral_section?: string | null;
+          voter_city?: string | null;
+          voter_state?: string | null;
+          created_by?: string | null;
+          updated_by?: string | null;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["person_electoral_data"]["Insert"]
+        >;
+        Relationships: [];
+      };
+      person_documents: {
+        Row: {
+          id: string;
+          person_id: string;
+          document_type:
+            | "rg"
+            | "cpf"
+            | "comprovante_residencia"
+            | "titulo_eleitor"
+            | "carteira_trabalho"
+            | "outro";
+          storage_path: string;
+          file_name: string;
+          mime_type: string;
+          file_size_bytes: number;
+          status: "ativo" | "removido";
+          uploaded_by: string | null;
+        } & Timestamps;
+        Insert: Partial<Timestamps> & {
+          id?: string;
+          person_id: string;
+          document_type:
+            | "rg"
+            | "cpf"
+            | "comprovante_residencia"
+            | "titulo_eleitor"
+            | "carteira_trabalho"
+            | "outro";
+          storage_path: string;
+          file_name: string;
+          mime_type: string;
+          file_size_bytes: number;
+          status?: "ativo" | "removido";
+          uploaded_by?: string | null;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["person_documents"]["Insert"]
+        >;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -280,6 +416,19 @@ export interface Database {
       is_admin: {
         Args: Record<string, never>;
         Returns: boolean;
+      };
+      log_audit_event: {
+        Args: {
+          p_action: string;
+          p_entity_table: string;
+          p_entity_id: string | null;
+          p_before_data?: Json | null;
+          p_after_data?: Json | null;
+          p_reason?: string | null;
+          p_result?: string;
+          p_related_request_id?: string | null;
+        };
+        Returns: string;
       };
     };
     Enums: Record<string, never>;
