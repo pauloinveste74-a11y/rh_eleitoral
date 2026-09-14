@@ -51,7 +51,7 @@ export default async function UsuariosPage() {
 
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, full_name, email, status")
+    .select("id, full_name, email, phone, status")
     .order("full_name");
 
   const profileIds = (profiles ?? []).map((p) => p.id);
@@ -101,6 +101,7 @@ export default async function UsuariosPage() {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>E-mail</TableHead>
+                  <TableHead>Telefone</TableHead>
                   <TableHead>Papéis</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
@@ -114,6 +115,9 @@ export default async function UsuariosPage() {
                       </Link>
                     </TableCell>
                     <TableCell>{p.email}</TableCell>
+                    <TableCell>
+                      {p.phone || <span className="text-slate-400">—</span>}
+                    </TableCell>
                     <TableCell>
                       {(rolesByProfile.get(p.id) ?? []).length === 0 ? (
                         <span className="text-slate-400">Sem papel atribuído</span>

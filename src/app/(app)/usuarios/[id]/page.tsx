@@ -16,6 +16,8 @@ import {
 import { AssignRoleForm } from "@/components/usuarios/assign-role-form";
 import { RemoveRoleButton } from "@/components/usuarios/remove-role-button";
 import { ToggleStatusButton } from "@/components/usuarios/toggle-status-button";
+import { PhoneForm } from "@/components/usuarios/phone-form";
+import { ResendAccessLinkButton } from "@/components/usuarios/resend-access-link-button";
 
 export const metadata: Metadata = { title: "Usuário" };
 
@@ -54,7 +56,7 @@ export default async function UsuarioDetailPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, full_name, email, status")
+    .select("id, full_name, email, phone, status")
     .eq("id", id)
     .maybeSingle();
   if (!profile) notFound();
@@ -92,6 +94,26 @@ export default async function UsuarioDetailPage({
             </Badge>
           </div>
           <ToggleStatusButton profileId={profile.id} status={profile.status} />
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Contato e link de acesso</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <PhoneForm profileId={profile.id} phone={profile.phone} />
+          <div>
+            <p className="mb-2 text-sm text-slate-500 dark:text-slate-400">
+              Gere um novo link para compartilhar manualmente por e-mail ou
+              WhatsApp — útil se o convite original se perdeu ou expirou.
+            </p>
+            <ResendAccessLinkButton
+              profileId={profile.id}
+              email={profile.email}
+              phone={profile.phone}
+            />
+          </div>
         </CardContent>
       </Card>
 

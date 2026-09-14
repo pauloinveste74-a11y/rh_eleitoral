@@ -162,6 +162,7 @@ export interface Database {
           person_id: string | null;
           full_name: string;
           email: string;
+          phone: string | null;
           status: "ativo" | "suspenso" | "inativo";
         } & Timestamps;
         Insert: Partial<Timestamps> & {
@@ -171,6 +172,7 @@ export interface Database {
           person_id?: string | null;
           full_name: string;
           email: string;
+          phone?: string | null;
           status?: "ativo" | "suspenso" | "inativo";
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;

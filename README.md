@@ -176,6 +176,7 @@ src/
     reports/            # consultas compartilhadas entre tela e exportação CSV (Fase 8)
     csv.ts              # geração de CSV (Fase 8)
     site-url.ts         # URL pública do site, para o redirectTo do convite (Fase 9)
+    whatsapp.ts         # link wa.me a partir de um telefone (Fase 9)
     nav-items.ts        # itens da navegação principal
   types/
     database.ts         # tipos do schema Supabase (regenerar quando o projeto existir)
@@ -424,7 +425,8 @@ Detalhes de colunas, checks e comentários estão em
 `supabase/migrations/0008_financeiro_lote.sql`,
 `supabase/migrations/0009_despesas.sql`,
 `supabase/migrations/0010_auditoria_profiles_visibility.sql` e
-`supabase/migrations/0011_usuarios_rh_access.sql`.
+`supabase/migrations/0011_usuarios_rh_access.sql` e
+`supabase/migrations/0012_usuarios_telefone.sql`.
 
 ## Políticas de RLS criadas
 
@@ -634,11 +636,14 @@ de quem já está.
   chamando tem `has_role(['administrador', 'rh'])` — só depois usa o
   cliente admin, que ignora RLS por completo e não sabe quem é o
   chamador, então essa ordem importa.
-- **Fluxo de convite**: `inviteUser()` chama
-  `auth.admin.inviteUserByEmail()` (dispara um e-mail do próprio
-  Supabase Auth com um link de confirmação), e na sequência atualiza o
-  `profiles` recém-criado pelo trigger com o `campaign_id` de quem
-  convidou (usando o cliente admin, porque a política normal de
+- **Fluxo de convite (revisado — ver "Telefone e WhatsApp" abaixo)**:
+  `inviteUser()` chama `auth.admin.generateLink({ type: "invite" })`, que
+  cria o usuário e devolve o link de acesso (`action_link`) **sem enviar
+  nenhum e-mail sozinho** — diferente do `inviteUserByEmail()` usado na
+  primeira versão desta fase, que mandava e-mail mas nunca expunha o
+  link, inviabilizando compartilhar por outro canal. Na sequência,
+  atualiza o `profiles` recém-criado pelo trigger com `campaign_id` e
+  `phone` (usando o cliente admin, porque a política normal de
   `profiles_update` não aceita editar uma linha com `campaign_id` nulo —
   e é nulo até esse passo, já que `handle_new_user()` não sabe a
   campanha no momento do cadastro). Depois disso, atribuir papéis segue o
@@ -664,9 +669,27 @@ de quem já está.
   — é uma pendência registrada abaixo, não uma proteção real ainda.
 - **Toda ação grava auditoria** (`usuario.convidar`,
   `usuario.papel.atribuir`, `usuario.papel.remover`,
-  `usuario.suspender`/`usuario.reativar`) via `log_audit_event()`, já que
-  quem chama estas Server Actions é sempre `administrador`/`rh` (os
-  únicos papéis autorizados a chamar essa função diretamente).
+  `usuario.suspender`/`usuario.reativar`,
+  `usuario.link_acesso.gerar`) via `log_audit_event()`, já que quem chama
+  estas Server Actions é sempre `administrador`/`rh` (os únicos papéis
+  autorizados a chamar essa função diretamente).
+- **Telefone e WhatsApp** (complemento pedido logo após a entrega
+  inicial): `profiles.phone` (migração `0012`, campo livre, mesmo padrão
+  de `people.phone` — sem checagem de formato) é capturado no convite e
+  editável a qualquer momento em `/usuarios/[id]`
+  (`src/components/usuarios/phone-form.tsx`). O convite passou a usar
+  `generateLink()` em vez de `inviteUserByEmail()` justamente para expor
+  o link (`ShareAccessLink`, em `src/components/usuarios/`): um campo
+  somente-leitura com o link, um botão "Copiar link", um botão "Enviar
+  por WhatsApp" (abre `wa.me/<telefone>?text=...` numa nova aba — só
+  aparece quando há telefone cadastrado; `src/lib/whatsapp.ts` assume
+  Brasil, prefixando `55` quando o número tem 10-11 dígitos) e um botão
+  "Enviar por e-mail" (`mailto:`, abre o cliente de e-mail do próprio
+  admin — não depende mais do mailer do Supabase, que tem limite de
+  envio baixo por padrão). Em `/usuarios/[id]` existe também "Gerar novo
+  link de acesso" (`resendAccessLink()`, usa `type: "magiclink"` em vez
+  de `type: "invite"` porque funciona mesmo se o e-mail já foi
+  confirmado) — útil quando o convite original se perde ou expira.
 
 ## Segurança
 
@@ -713,18 +736,27 @@ de quem já está.
   pelo perfil em si. Foi a decisão explícita do usuário
   ("administrador e rh" gerenciam usuários); registrado aqui porque é uma
   ampliação de privilégio real.
-- **Convite não testado ponta a ponta**: nunca foi enviado um convite de
+- **Convite não testado ponta a ponta**: nunca foi gerado um convite de
   verdade nesta sessão (a `SUPABASE_SERVICE_ROLE_KEY` não está
   configurada — ver acima —, e a bateria de testes interativos desta
   sessão segue interrompida a pedido do usuário). Em particular, não
-  verifiquei na prática: se o e-mail chega (depende do emailer padrão do
-  Supabase, com limite de envio baixo — configurar SMTP próprio é
-  recomendado para uso real), se o link de convite estabelece sessão em
-  `/convite` como esperado (a implementação assume `detectSessionInUrl`
-  do `@supabase/ssr`, confirmada por leitura do código-fonte da
-  biblioteca, não por teste ao vivo), e se `redirectTo` precisa estar
+  verifiquei na prática: se `action_link` retornado por `generateLink()`
+  tem exatamente o formato que a implementação de `/convite` espera
+  (`auth/v1/verify?type=...&token=...&redirect_to=...`, confirmado só
+  por leitura do código-fonte de `@supabase/auth-js`, não por teste ao
+  vivo), se o link estabelece sessão em `/convite` como esperado (mesma
+  ressalva sobre `detectSessionInUrl`), e se `redirectTo` precisa estar
   cadastrado nas "Redirect URLs" do Supabase Auth (painel > Authentication
   > URL Configuration) — **provavelmente precisa**, e isso não foi feito.
+  O link "Enviar por e-mail" (`mailto:`) e o botão "Copiar link" não
+  dependem do mailer do Supabase (só o link em si, que sempre é gerado
+  independente de e-mail funcionar) — reduz o risco desse ponto
+  específico, mas não substitui o teste real.
+- **Heurística de telefone do `wa.me` não testada**: `buildWhatsAppLink()`
+  (`src/lib/whatsapp.ts`) assume Brasil e prefixa `55` quando o número
+  tem 10-11 dígitos — não testei com um número real se o WhatsApp Web
+  abre a conversa corretamente; é só uma conveniência de formatação, o
+  admin vê o destinatário antes de enviar.
 - **Relatório de Aprovações inacessível a coordenadores (Fase 8)**: por
   usar `audit_logs` como fonte, herda a política `audit_logs_select`
   (`administrador`/`auditor` da campanha, mais o super admin). Um
@@ -1008,9 +1040,24 @@ de quem já está.
   sempre), como o fluxo **não pode** ter sido testado ainda, porque
   `SUPABASE_SERVICE_ROLE_KEY` não está configurada em nenhum ambiente.
   Ver "Riscos e pendências desta fase" para a lista completa do que
-  falta confirmar assim que a chave for adicionada (entrega do e-mail,
+  falta confirmar assim que a chave for adicionada (link de convite,
   estabelecimento de sessão em `/convite`, Redirect URLs no Supabase
   Auth).
+
+**Fase 9 (complemento — telefone/WhatsApp):**
+
+- Migração `0012` (`profiles.phone`, campo livre) aplicada com sucesso no
+  mesmo projeto — Security Advisor sem alertas novos.
+- Convite trocado de `inviteUserByEmail()` para `generateLink({ type:
+  "invite" })`, pra expor o link em vez de só mandar e-mail — ver
+  "Telefone e WhatsApp" em [Usuários](#usuários) pra o motivo. Componente
+  `ShareAccessLink` (copiar/WhatsApp/e-mail), Server Action
+  `resendAccessLink()` (`type: "magiclink"`) e `updatePhone()`
+  criados — `npm run typecheck`/`lint`/`build` sem erros.
+- **Não verificado**: mesma limitação da entrega original desta fase —
+  `SUPABASE_SERVICE_ROLE_KEY` ainda não configurada, então nada deste
+  fluxo (incluindo o link `wa.me` com um número de telefone real) foi
+  exercitado de verdade.
 
 ## Próxima fase
 

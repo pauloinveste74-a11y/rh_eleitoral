@@ -7,8 +7,17 @@ export const inviteUserSchema = z.object({
     .min(3, { error: "Informe o nome completo." })
     .max(200),
   email: z.email({ error: "Informe um e-mail válido." }).trim().toLowerCase(),
+  // Mesmo padrão de people.phone (src/lib/validations/person.ts): campo
+  // livre, sem validação de formato no banco nem aqui além do tamanho —
+  // usado só para montar o link do wa.me, que já tolera formatação solta.
+  phone: z.string().trim().max(20).optional().or(z.literal("")),
 });
 export type InviteUserInput = z.infer<typeof inviteUserSchema>;
+
+export const updatePhoneSchema = z.object({
+  phone: z.string().trim().max(20).optional().or(z.literal("")),
+});
+export type UpdatePhoneInput = z.infer<typeof updatePhoneSchema>;
 
 /**
  * `coordenador_cidade` exige `cityId`, `coordenador_eixo` exige `axisId` —
