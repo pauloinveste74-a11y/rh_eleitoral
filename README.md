@@ -18,6 +18,76 @@ Sistema de gestão de pessoas, operações e pagamentos para campanha eleitoral.
 > adição), não uma sequência 1-2-3-4 — ver a tabela em
 > [Próxima fase](#próxima-fase) para o mapeamento completo. Os módulos
 > restantes (Ponto, Operações) serão implementados em fases seguintes.
+>
+> **Iniciativa nova em andamento**: uma especificação separada
+> (`docs/IMPLEMENTACAO_CADASTRO_IMPORTACAO_DESPESAS.md`) pede autocadastro
+> por convite, cadeia de coordenação, importação em lote por Excel e uma
+> reformulação de Despesas com autorizador/alçada — ver
+> [MVP — Cadastro, Convite, Coordenação, Importação e Despesas](#mvp--cadastro-convite-coordenação-importação-e-despesas)
+> logo abaixo. A **Etapa 1** (camada de banco, migrações `0013`–`0021`)
+> está aplicada e verificada em produção; a UI (Etapa 2 em diante) ainda
+> não existe.
+
+## MVP — Cadastro, Convite, Coordenação, Importação e Despesas
+
+Especificação própria (`docs/IMPLEMENTACAO_CADASTRO_IMPORTACAO_DESPESAS.md`,
+20 seções), pedida à parte da numeração de fases acima. Trabalho dividido em
+6 etapas verificáveis (seção 19 do documento); plano detalhado de cada etapa
+fica em `C:\Users\LENOVO\.claude\plans\hidden-yawning-pillow.md` (arquivo
+local do agente, não versionado no repositório).
+
+**Etapa 1 — camada de banco (concluída e verificada):**
+
+- Migrações `0013`–`0021` aplicadas ao projeto `pjjarkxwwzqiajlvpsdx` (via
+  Supabase CLI, `supabase db push`, pelo próprio usuário — o MCP do
+  Supabase esteve indisponível nesta sessão no momento da aplicação).
+  Histórico de migrações (`supabase_migrations.schema_migrations`)
+  registrado manualmente depois, porque o `db push` não deixou rastro lá
+  apesar de ter criado o schema corretamente.
+- 15 tabelas novas, todas com RLS habilitada: `registration_invites`,
+  `coordination_relationships`, `registration_submissions`,
+  `registration_field_reviews`, `correction_requests`, `import_batches`,
+  `import_staging_records`, `import_row_errors`, `data_conflicts`,
+  `expense_categories`, `expense_authorization_rules`, `expense_documents`,
+  `expense_approvals`, `notifications` — mais `person_documents` e
+  `expenses` ganhando colunas novas (nenhuma tabela recriada).
+- `people`: CPF e título de eleitor deixam de ser únicos globalmente e
+  passam a ser únicos **por campanha**, só entre cadastros ativos (índices
+  únicos parciais) — a mesma pessoa real pode ter cadastro em campanhas
+  diferentes. `status` ganha 8 valores novos (aditivo).
+- `coordination_relationships`: cadeia de coordenação pessoa→pessoa, com
+  trigger de prevenção de ciclo (CTE recursiva).
+- `redeem_registration_invite()`: primeira função do projeto liberada para
+  o papel `anon` (protegida por token aleatório, não por RLS/sessão) — é
+  como o contratado, sem login tradicional, acessa o próprio convite.
+- `create_expense()`/`decide_expense()` **não mudaram de assinatura** —
+  `/despesas` em produção continua funcionando exatamente como antes; as
+  colunas/tabelas novas de despesas ficam prontas e não obrigatórias até a
+  Etapa 5 escrever o código que as usa.
+- **Verificado** (Supabase Advisors + simulação de sessão via
+  `set local role authenticated; set local request.jwt.claims = ...` em
+  transações com `rollback`, direto no banco real): nenhum alerta de
+  segurança novo além do `redeem_registration_invite` (esperado);
+  usuário sem `profile_roles` não enxerga nenhuma linha das tabelas novas;
+  `administrador` grava normalmente dentro da própria campanha; inserir um
+  vínculo de coordenação fora da campanha é rejeitado por
+  `check_same_campaign()`; criar um ciclo de coordenação (A coordena B,
+  tentar fazer B coordenar A) é rejeitado pelo trigger; cadastrar um CPF
+  já ativo na mesma campanha é rejeitado pelo índice único parcial.
+- `npm run typecheck`/`lint`/`build` — sem erros (nenhum código de
+  aplicação foi alterado nesta etapa, só SQL).
+- **Riscos/pendências**: RLS de `coordination_relationships`/
+  `registration_submissions`/etc. hoje só libera `administrador`/`rh` — o
+  contratado (sem login Supabase Auth tradicional, só um link com token)
+  ainda não tem acesso modelado; fica para a Etapa 2, quando o mecanismo
+  de sessão dele for decidido.
+
+**Próxima etapa (2 — não iniciada)**: autocadastro do contratado —
+decidir o mecanismo de sessão dele, formulário por etapas, upload de
+documento, seleção de coordenador com fallback
+"meu coordenador não está na lista" (grava em `data_conflicts`),
+submissão criando `registration_submissions`. Primeiro ponto em que a RLS
+desenhada na Etapa 1 precisa ser revisitada para dar acesso ao contratado.
 
 ## Stack
 

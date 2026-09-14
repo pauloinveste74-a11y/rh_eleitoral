@@ -77,6 +77,14 @@ README, seção "Modelo de dados"):
 - `0011`: `rh` ganha leitura/edição de outros `profiles` (pra tela de
   Usuários).
 - `0012`: `profiles.phone`.
+- `0013`–`0021`: **camada de banco de uma iniciativa nova e separada**
+  (spec `docs/IMPLEMENTACAO_CADASTRO_IMPORTACAO_DESPESAS.md` — autocadastro
+  por convite, cadeia de coordenação, importação por Excel, despesas com
+  autorizador/alçada). Aplicadas e verificadas (advisors + testes de RLS
+  simulados) — ver seção própria "MVP — Cadastro, Convite, Coordenação,
+  Importação e Despesas" no `README.md` para o detalhe completo. **Só
+  banco — nenhuma UI existe ainda para essas tabelas** (isso é a Etapa 2
+  em diante, não iniciada).
 
 ## O que falta para o sistema funcionar de ponta a ponta
 
