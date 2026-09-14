@@ -26,12 +26,32 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, email")
+    .select("full_name, email, campaign_id, is_platform_admin")
     .eq("id", user.id)
     .maybeSingle();
 
   const userLabel =
     profile?.full_name ?? profile?.email ?? user.email ?? "Usuário";
 
-  return <AppShell userLabel={userLabel}>{children}</AppShell>;
+  let campaignName: string | undefined;
+  if (profile?.campaign_id) {
+    const { data: campaign } = await supabase
+      .from("campaigns")
+      .select("name")
+      .eq("id", profile.campaign_id)
+      .maybeSingle();
+    campaignName = campaign?.name;
+  }
+
+  const campaignLabel = profile?.is_platform_admin
+    ? campaignName
+      ? `${campaignName} · Super admin`
+      : "Super admin (todas as campanhas)"
+    : campaignName;
+
+  return (
+    <AppShell userLabel={userLabel} campaignLabel={campaignLabel}>
+      {children}
+    </AppShell>
+  );
 }

@@ -86,6 +86,7 @@ export interface Database {
         Row: {
           id: string;
           axis_id: string;
+          campaign_id: string;
           name: string;
           state: string;
           is_administrative_region: boolean;
@@ -94,6 +95,7 @@ export interface Database {
         Insert: Partial<Timestamps> & {
           id?: string;
           axis_id: string;
+          campaign_id?: string;
           name: string;
           state: string;
           is_administrative_region?: boolean;
@@ -106,12 +108,14 @@ export interface Database {
         Row: {
           id: string;
           city_id: string;
+          campaign_id: string;
           name: string;
           status: "ativo" | "inativo";
         } & Timestamps;
         Insert: Partial<Timestamps> & {
           id?: string;
           city_id: string;
+          campaign_id?: string;
           name: string;
           status?: "ativo" | "inativo";
         };
@@ -121,6 +125,7 @@ export interface Database {
       people: {
         Row: {
           id: string;
+          campaign_id: string;
           full_name: string;
           social_name: string | null;
           cpf: string;
@@ -134,6 +139,7 @@ export interface Database {
         } & Timestamps;
         Insert: Partial<Timestamps> & {
           id?: string;
+          campaign_id?: string;
           full_name: string;
           social_name?: string | null;
           cpf: string;
@@ -151,6 +157,8 @@ export interface Database {
       profiles: {
         Row: {
           id: string;
+          campaign_id: string | null;
+          is_platform_admin: boolean;
           person_id: string | null;
           full_name: string;
           email: string;
@@ -158,6 +166,8 @@ export interface Database {
         } & Timestamps;
         Insert: Partial<Timestamps> & {
           id: string;
+          campaign_id?: string | null;
+          is_platform_admin?: boolean;
           person_id?: string | null;
           full_name: string;
           email: string;
@@ -237,6 +247,7 @@ export interface Database {
       audit_logs: {
         Row: {
           id: string;
+          campaign_id: string | null;
           occurred_at: string;
           actor_user_id: string | null;
           action: string;
@@ -253,6 +264,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          campaign_id?: string | null;
           occurred_at?: string;
           actor_user_id?: string | null;
           action: string;
@@ -274,6 +286,7 @@ export interface Database {
         Row: {
           id: string;
           person_id: string;
+          campaign_id: string;
           zip_code: string;
           street: string;
           number: string | null;
@@ -287,6 +300,7 @@ export interface Database {
         Insert: Partial<Timestamps> & {
           id?: string;
           person_id: string;
+          campaign_id?: string;
           zip_code: string;
           street: string;
           number?: string | null;
@@ -306,6 +320,7 @@ export interface Database {
         Row: {
           id: string;
           person_id: string;
+          campaign_id: string;
           bank_code: string;
           bank_name: string | null;
           agency: string;
@@ -321,6 +336,7 @@ export interface Database {
         Insert: Partial<Timestamps> & {
           id?: string;
           person_id: string;
+          campaign_id?: string;
           bank_code: string;
           bank_name?: string | null;
           agency: string;
@@ -342,6 +358,7 @@ export interface Database {
         Row: {
           id: string;
           person_id: string;
+          campaign_id: string;
           voter_id: string | null;
           electoral_zone: string | null;
           electoral_section: string | null;
@@ -353,6 +370,7 @@ export interface Database {
         Insert: Partial<Timestamps> & {
           id?: string;
           person_id: string;
+          campaign_id?: string;
           voter_id?: string | null;
           electoral_zone?: string | null;
           electoral_section?: string | null;
@@ -370,6 +388,7 @@ export interface Database {
         Row: {
           id: string;
           person_id: string;
+          campaign_id: string;
           document_type:
             | "rg"
             | "cpf"
@@ -387,6 +406,7 @@ export interface Database {
         Insert: Partial<Timestamps> & {
           id?: string;
           person_id: string;
+          campaign_id?: string;
           document_type:
             | "rg"
             | "cpf"
@@ -409,11 +429,19 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      current_campaign_id: {
+        Args: Record<string, never>;
+        Returns: string | null;
+      };
       has_role: {
         Args: { role_codes: string[] };
         Returns: boolean;
       };
       is_admin: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      is_platform_admin: {
         Args: Record<string, never>;
         Returns: boolean;
       };

@@ -392,7 +392,21 @@ export async function uploadPersonDocument(
     };
   }
 
-  const storagePath = `${personId}/${randomUUID()}-${sanitizeFileName(file.name)}`;
+  // Deriva o campaign_id do dono do documento (a pessoa), não do usuário
+  // que está fazendo o upload: um super admin pode estar editando uma
+  // pessoa de uma campanha diferente da sua própria, e o path/registro
+  // precisam ficar consistentes com a campanha real da pessoa.
+  const { data: person, error: personError } = await supabase
+    .from("people")
+    .select("campaign_id")
+    .eq("id", personId)
+    .maybeSingle();
+  if (personError || !person) {
+    return { status: "error", message: "Pessoa não encontrada." };
+  }
+  const campaignId = person.campaign_id;
+
+  const storagePath = `${campaignId}/${personId}/${randomUUID()}-${sanitizeFileName(file.name)}`;
 
   const { error: uploadError } = await supabase.storage
     .from("pessoas-documentos")
@@ -406,6 +420,7 @@ export async function uploadPersonDocument(
     .from("person_documents")
     .insert({
       person_id: personId,
+      campaign_id: campaignId,
       document_type: documentTypeRaw as (typeof documentTypes)[number],
       storage_path: storagePath,
       file_name: file.name,

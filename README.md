@@ -2,12 +2,15 @@
 
 Sistema de gestão de pessoas, operações e pagamentos para campanha eleitoral.
 
-> **Fase atual: 1B — Cadastro de Pessoa.** Além da base técnica da Fase 1A
-> (autenticação, navegação, modelo de dados inicial e RLS), o módulo
-> **Pessoas** já está funcional: cadastro com validação de CPF, endereço,
-> dados bancários e eleitorais, upload de documentos e listagem com busca e
-> paginação. Os demais módulos (Aprovações, Ponto, Financeiro, etc.) serão
-> implementados em fases seguintes — ver [Próxima fase](#próxima-fase).
+> **Fase atual: 1C — Multi-tenant.** Além da base técnica (Fase 1A) e do
+> módulo **Pessoas** (Fase 1B: cadastro com validação de CPF, endereço,
+> dados bancários e eleitorais, upload de documentos, listagem com busca e
+> paginação), o sistema agora isola dados **por campanha** (`campaign_id` +
+> RLS em toda tabela de domínio) — cada campanha eleitoral é um tenant
+> isolado, com um super administrador de plataforma que atravessa esse
+> isolamento (ver [Multi-tenant](#multi-tenant)). Os demais módulos
+> (Aprovações, Ponto, Financeiro, etc.) serão implementados em fases
+> seguintes — ver [Próxima fase](#próxima-fase).
 
 ## Stack
 
@@ -36,14 +39,15 @@ npm install
 
 > **Já existe um projeto Supabase em uso para esta campanha**
 > (`rh_eleitoral`, projeto `pjjarkxwwzqiajlvpsdx`, região `ca-central-1`),
-> com as migrações `0001`–`0004` aplicadas (schema base + tabelas satélite de
-> pessoa). **O seed fictício não foi aplicado neste projeto** — o banco
-> recebe dados reais desde o início da Fase 1B. Um `.env.local` já criado
-> localmente aponta para ele (arquivo ignorado pelo Git — não é versionado).
-> O deploy de produção está em <https://rh-eleitoral.vercel.app> (Vercel,
-> conectado ao repositório no GitHub, deploy automático a cada push em
-> `main`). Se você está clonando este repositório em outra máquina ou quer
-> um projeto próprio, siga os passos abaixo normalmente.
+> com as migrações `0001`–`0005` aplicadas (schema base + tabelas satélite
+> de pessoa + isolamento multi-tenant por campanha). **O seed fictício não
+> foi aplicado neste projeto** — o banco recebe dados reais desde o início
+> da Fase 1B. Um `.env.local` já criado localmente aponta para ele (arquivo
+> ignorado pelo Git — não é versionado). O deploy de produção está em
+> <https://rh-eleitoral.vercel.app> (Vercel, conectado ao repositório no
+> GitHub, deploy automático a cada push em `main`). Se você está clonando
+> este repositório em outra máquina ou quer um projeto próprio, siga os
+> passos abaixo normalmente.
 
 1. Crie um projeto gratuito em [supabase.com](https://supabase.com) (ou peça
    para quem administra a campanha criar e compartilhar o acesso).
@@ -56,12 +60,12 @@ npm install
    cp .env.example .env.local
    ```
 
-4. Aplique as migrações do banco, em ordem (`0001` a `0004`). Duas opções:
+4. Aplique as migrações do banco, em ordem (`0001` a `0005`). Duas opções:
 
    **Opção A — SQL Editor do Supabase Studio (mais simples):**
-   Abra cada arquivo em `supabase/migrations/` (0001, 0002, 0003, 0004),
-   copie o conteúdo e execute no SQL Editor do painel do Supabase, um de
-   cada vez, na ordem numérica.
+   Abra cada arquivo em `supabase/migrations/` (0001 a 0005), copie o
+   conteúdo e execute no SQL Editor do painel do Supabase, um de cada vez,
+   na ordem numérica.
 
    **Opção B — Supabase CLI:**
 
@@ -76,19 +80,37 @@ npm install
    Execute o conteúdo de `supabase/seed.sql` no SQL Editor. **Nunca execute
    este arquivo em um projeto de produção.**
 
-6. Crie o primeiro usuário administrador:
+6. Crie a primeira campanha (tenant) e o primeiro usuário administrador
+   (ver [Multi-tenant](#multi-tenant) para o modelo completo):
+
+   ```sql
+   insert into public.campaigns (name, slug) values ('Nome da Campanha', 'slug-da-campanha');
+   ```
+
    - No painel do Supabase, vá em **Authentication → Users → Add user** e
      crie um usuário com e-mail e senha (isso já cria automaticamente uma
-     linha em `public.profiles`, via trigger).
-   - No SQL Editor, associe o papel de administrador a esse usuário
-     (substitua o e-mail):
+     linha em `public.profiles`, via trigger — mas **sem** `campaign_id`
+     ainda).
+   - No SQL Editor, vincule esse usuário à campanha e ao papel de
+     administrador (substitua o e-mail e o slug):
 
      ```sql
+     update public.profiles
+       set campaign_id = (select id from public.campaigns where slug = 'slug-da-campanha')
+       where email = 'seu-email@exemplo.com';
+
      insert into public.profile_roles (profile_id, role_id)
      select p.id, r.id
      from public.profiles p, public.roles r
      where p.email = 'seu-email@exemplo.com'
        and r.code = 'administrador';
+     ```
+
+   - (Opcional) Para torná-lo **super administrador de plataforma**
+     (enxerga todas as campanhas, não só a própria):
+
+     ```sql
+     update public.profiles set is_platform_admin = true where email = 'seu-email@exemplo.com';
      ```
 
 ### 3. Rodar o projeto
@@ -190,67 +212,127 @@ sessão e bloquear o acesso não autenticado.
   `@radix-ui/react-*` + Tailwind), não um pacote de terceiros — mais fácil
   de auditar e adaptar à identidade visual da campanha depois.
 
-## Modelo de dados (Fase 1A + 1B)
+## Multi-tenant
 
-| Tabela                       | Descrição                                               |
-| ---------------------------- | ------------------------------------------------------- |
-| `campaigns`                  | Campanha eleitoral                                      |
-| `roles`                      | Catálogo de perfis de acesso (11 papéis da seção 5)     |
-| `axes`                       | Eixos da campanha                                       |
-| `cities`                     | Cidades / Regiões Administrativas                       |
-| `teams`                      | Equipes de campo                                        |
-| `people`                     | Cadastro único de pessoa (identidade essencial)         |
-| `profiles`                   | Usuário autenticado (1:1 com `auth.users`)              |
-| `profile_roles`              | Atribuição de papel a usuário, com escopo e vigência    |
-| `organizational_assignments` | Histórico de vínculo pessoa ↔ equipe/cidade/eixo/função |
-| `audit_logs`                 | Trilha de auditoria imutável                            |
-| `person_addresses`           | Endereço atual da pessoa (1:1, mutável)                 |
-| `person_bank_accounts`       | Conta bancária/PIX atual da pessoa (1:1, mutável)       |
-| `person_electoral_data`      | Dados do título de eleitor da pessoa (1:1, mutável)     |
-| `person_documents`           | Metadados de documentos anexados (1:N, soft-delete)     |
+Cada linha de `campaigns` é um **tenant isolado**: um cliente/candidato com
+seus próprios eixos, cidades, equipes, pessoas, documentos e auditoria,
+invisíveis para as demais campanhas. Um usuário pertence a **exatamente
+uma campanha** (`profiles.campaign_id`) — não há seletor de
+multi-campanha por login.
 
-Endereço, dados bancários e dados eleitorais são tratados como atributos
-mutáveis da pessoa (análogos a `people.phone`/`people.email`), não como
-histórico versionado — ao contrário de `organizational_assignments`. O
-histórico de alterações fica registrado em `audit_logs`
-(`before_data`/`after_data`), não em `valid_from`/`valid_until` próprios.
+- **Isolamento**: banco compartilhado, não projetos Supabase separados.
+  Toda tabela de domínio (`people`, os satélites de pessoa, `cities`,
+  `teams`, `audit_logs`, etc.) tem uma coluna `campaign_id` própria
+  (denormalizada, não só via join), e toda política de RLS exige
+  `campaign_id = current_campaign_id()` além dos checks de papel já
+  existentes. A função `public.current_campaign_id()` (`SECURITY DEFINER`)
+  devolve a campanha do usuário autenticado.
+- **Bucket de documentos**: o path no Storage passou a ser
+  `{campaignId}/{personId}/{uuid}-{arquivo}` (antes só
+  `{personId}/...`), e as políticas de `storage.objects` checam o primeiro
+  segmento do path.
+- **Super administrador de plataforma** (`profiles.is_platform_admin`):
+  atravessa o isolamento — enxerga e edita todas as campanhas. Hoje só
+  `pauloinvest74@gmail.com` tem essa flag; concedê-la é uma ação manual de
+  SQL (ver passo 6 do bootstrap acima), sem tela no app. **Limitação
+  conhecida**: como a interface não tem seletor de campanha, um super
+  admin vê pessoas de todas as campanhas misturadas na mesma listagem em
+  `/pessoas` — não há hoje uma visão "uma campanha de cada vez, à minha
+  escolha" para esse papel.
+- **Criar uma nova campanha** (provisionar um tenant) é exclusivo do super
+  admin (`campaigns_insert` exige `is_platform_admin()`) e continua sendo
+  um processo manual de SQL — não existe tela de onboarding de campanha.
+- **Novo usuário sem campanha**: o trigger que cria `profiles` ao
+  registrar um `auth.users` não atribui `campaign_id` (fica `null` até um
+  `UPDATE` manual) — por isso a coluna é nullable, ao contrário da maioria
+  das colunas `campaign_id` do sistema. Um usuário sem campanha e sem
+  `is_platform_admin` não enxerga nada, por padrão de segurança.
+- **`profile_roles.campaign_id`** (existente desde a Fase 1A, nullable)
+  não é mais usado para autorização — a fonte da verdade é
+  `profiles.campaign_id`, mais simples dado que um usuário só pertence a
+  uma campanha.
+
+Detalhes completos em `supabase/migrations/0005_multi_tenant_campaign_scoping.sql`.
+
+## Modelo de dados (Fase 1A + 1B + 1C)
+
+| Tabela                       | Descrição                                                                       |
+| ---------------------------- | ------------------------------------------------------------------------------- |
+| `campaigns`                  | Campanha eleitoral — cada linha é um tenant isolado                             |
+| `roles`                      | Catálogo de perfis de acesso (11 papéis da seção 5) — global, sem `campaign_id` |
+| `axes`                       | Eixos da campanha                                                               |
+| `cities`                     | Cidades / Regiões Administrativas                                               |
+| `teams`                      | Equipes de campo                                                                |
+| `people`                     | Cadastro único de pessoa (identidade essencial)                                 |
+| `profiles`                   | Usuário autenticado (1:1 com `auth.users`)                                      |
+| `profile_roles`              | Atribuição de papel a usuário, com escopo e vigência                            |
+| `organizational_assignments` | Histórico de vínculo pessoa ↔ equipe/cidade/eixo/função                         |
+| `audit_logs`                 | Trilha de auditoria imutável                                                    |
+| `person_addresses`           | Endereço atual da pessoa (1:1, mutável)                                         |
+| `person_bank_accounts`       | Conta bancária/PIX atual da pessoa (1:1, mutável)                               |
+| `person_electoral_data`      | Dados do título de eleitor da pessoa (1:1, mutável)                             |
+| `person_documents`           | Metadados de documentos anexados (1:N, soft-delete)                             |
+
+Todas as tabelas acima, exceto `campaigns` e `roles`, têm uma coluna
+`campaign_id` (ver [Multi-tenant](#multi-tenant)). Endereço, dados
+bancários e dados eleitorais são tratados como atributos mutáveis da
+pessoa (análogos a `people.phone`/`people.email`), não como histórico
+versionado — ao contrário de `organizational_assignments`. O histórico de
+alterações fica registrado em `audit_logs` (`before_data`/`after_data`),
+não em `valid_from`/`valid_until` próprios.
 
 Detalhes de colunas, checks e comentários estão em
-`supabase/migrations/0001_initial_schema.sql` e
-`supabase/migrations/0004_person_satellite_tables.sql`.
+`supabase/migrations/0001_initial_schema.sql`,
+`supabase/migrations/0004_person_satellite_tables.sql` e
+`supabase/migrations/0005_multi_tenant_campaign_scoping.sql`.
 
 ## Políticas de RLS criadas
 
-Todas as 14 tabelas têm RLS habilitado. Resumo:
+Todas as 14 tabelas têm RLS habilitado. Desde a Fase 1C, **toda** política
+abaixo tem um bypass adicional para `is_platform_admin()` (o super admin
+de plataforma vê/edita tudo, atravessando o filtro de campanha) — omitido
+no resumo por brevidade, ver [Multi-tenant](#multi-tenant). Resumo:
 
-- **`campaigns`, `roles`, `axes`, `cities`, `teams`**: leitura liberada a
-  qualquer usuário autenticado (dados de catálogo/organização, não
-  sensíveis); escrita restrita ao papel `administrador`.
-- **`people`**: leitura e escrita restritas a `administrador`/`rh`
-  (leitura também para `auditor`). Sem política de `DELETE` — exclusão é
-  sempre lógica via `status`.
+- **`campaigns`**: leitura/escrita restritas à própria campanha do usuário
+  (`campaign_id = current_campaign_id()`, ou `id = ...` no caso desta
+  tabela); `INSERT` (criar uma campanha nova) é exclusivo do super admin.
+- **`roles`**: catálogo global, sem `campaign_id` — leitura liberada a
+  qualquer usuário autenticado; escrita restrita ao papel `administrador`.
+- **`axes`, `cities`, `teams`**: leitura restrita à própria campanha do
+  usuário (antes era liberada para qualquer autenticado — corrigido na
+  Fase 1C); escrita restrita a `administrador` **dentro** da própria
+  campanha.
+- **`people`**: leitura e escrita restritas a `administrador`/`rh` **da
+  própria campanha** (leitura também para `auditor`). Sem política de
+  `DELETE` — exclusão é sempre lógica via `status`.
 - **`person_addresses`, `person_bank_accounts`, `person_electoral_data`,
   `person_documents`**: mesmo padrão de `people` — leitura para
-  `administrador`/`rh`/`auditor`, escrita para `administrador`/`rh`. Sem
-  `DELETE` (exclusão lógica via `status` em `person_documents`; satélites
-  1:1 são simplesmente sobrescritos).
+  `administrador`/`rh`/`auditor` da própria campanha, escrita para
+  `administrador`/`rh` da própria campanha. Sem `DELETE` (exclusão lógica
+  via `status` em `person_documents`; satélites 1:1 são simplesmente
+  sobrescritos).
 - **`profiles`**: cada usuário vê/edita apenas o próprio registro;
-  `administrador` vê/edita todos.
+  `administrador` vê/edita os demais perfis **da própria campanha** (antes
+  da Fase 1C, via todas as campanhas — corrigido).
 - **`profile_roles`**: cada usuário vê os próprios papéis;
-  `administrador`/`rh` administram todos.
+  `administrador`/`rh` administram os de perfis **da própria campanha**
+  (verificado via join em `profiles.campaign_id`, já que
+  `profile_roles.campaign_id` não é mais usado para autorização).
 - **`organizational_assignments`**: leitura para
-  `administrador`/`rh`/`auditor`; escrita para `administrador`/`rh`. Sem
-  `DELETE`.
-- **`audit_logs`**: leitura restrita a `administrador`/`auditor`; sem
-  `INSERT`/`UPDATE`/`DELETE` direto para usuários comuns — a única forma de
-  gravar é via a função `SECURITY DEFINER` `log_audit_event()` (ver
-  "Auditoria" abaixo), chamada pelas server actions do módulo Pessoas a
-  cada criação/edição.
+  `administrador`/`rh`/`auditor` da própria campanha; escrita para
+  `administrador`/`rh` da própria campanha. Sem `DELETE`.
+- **`audit_logs`**: leitura restrita a `administrador`/`auditor` da
+  própria campanha; sem `INSERT`/`UPDATE`/`DELETE` direto para usuários
+  comuns — a única forma de gravar é via a função `SECURITY DEFINER`
+  `log_audit_event()` (ver "Auditoria" abaixo), chamada pelas server
+  actions do módulo Pessoas a cada criação/edição.
 - **Storage — bucket `pessoas-documentos`** (privado): política de
   `INSERT` para `administrador`/`rh`, `SELECT` para
-  `administrador`/`rh`/`auditor`, sem `UPDATE`/`DELETE`. Leitura de arquivo
-  sempre via URL assinada de 60s gerada sob demanda — nunca há acesso
-  público direto ao objeto.
+  `administrador`/`rh`/`auditor`, ambas também checando que o primeiro
+  segmento do path bate com a campanha do usuário
+  (`{campaignId}/{personId}/...`), sem `UPDATE`/`DELETE`. Leitura de
+  arquivo sempre via URL assinada de 60s gerada sob demanda — nunca há
+  acesso público direto ao objeto.
 
 ## Auditoria
 
@@ -262,6 +344,9 @@ A partir da Fase 1B, `audit_logs` recebe gravações reais: a função
 linhas geradas por uma mesma submissão de formulário compartilham um
 `related_request_id`, permitindo correlacionar, por exemplo, a criação de
 uma pessoa com a gravação simultânea de seu endereço e dados bancários.
+Desde a Fase 1C, cada linha também grava `campaign_id` automaticamente
+(a campanha de quem disparou o evento), e a leitura de `audit_logs` (ver
+acima) respeita esse isolamento — exceto para o super admin de plataforma.
 
 ## Segurança
 
@@ -278,30 +363,40 @@ uma pessoa com a gravação simultânea de seu endereço e dados bancários.
 
 ## Riscos e pendências desta fase
 
-- **Verificação manual de ponta a ponta ainda pendente**: as mudanças desta
-  fase foram verificadas via `typecheck`/`lint`/`build`, aplicação real das
-  migrações no Supabase e conferência dos Advisors — mas o fluxo completo
-  na UI (login → criar pessoa → anexar documento → conferir `audit_logs`)
-  ainda não foi percorrido manualmente no ambiente de produção. Recomenda-se
-  fazer esse teste antes de considerar o módulo Pessoas pronto para uso
-  real (roteiro em "Testes realizados" abaixo).
-- **`has_role()`/`is_admin()`/`log_audit_event()` chamáveis via RPC por
-  usuários autenticados**: o Security Advisor aponta isso como alerta; é
-  intencional em todos os três casos — `has_role`/`is_admin` só revelam o
-  papel do próprio usuário (`profile_id = auth.uid()`), e `log_audit_event`
-  checa `has_role(['administrador','rh'])` internamente antes de gravar
-  qualquer linha, então não há exposição de dado de terceiros, escalonamento
-  de privilégio, nem risco de um usuário comum forjar entradas de auditoria.
+- **Isolamento entre campanhas não testado com um segundo usuário real**:
+  as políticas de RLS da Fase 1C foram conferidas por leitura/Advisors e
+  por consulta SQL direta (que roda como `postgres`, contornando RLS —
+  não prova nada sobre `authenticated`/`anon`), mas não há ainda um
+  segundo usuário de teste, sem `is_platform_admin`, numa segunda
+  campanha, confirmando pela UI que ele **não** vê os dados da primeira.
+  Criar esse teste é a validação mais importante pendente desta fase.
+- **UI sem seletor/indicador de campanha para o super admin**: hoje só
+  existe o ponto de vista "minha campanha" (usuário comum) ou "todas
+  misturadas, sem distinção visual" (super admin) em `/pessoas`. Não há
+  uma visão "uma campanha de cada vez, à minha escolha" para o super
+  admin — nem uma coluna indicando de qual campanha é cada linha quando
+  ele vê a lista combinada.
+- **Concessão de `is_platform_admin` é só via SQL**, sem tela — mesmo
+  processo manual de `campaigns_insert` (criar uma campanha nova).
+- **`has_role()`/`is_admin()`/`is_platform_admin()`/`current_campaign_id()`/
+  `log_audit_event()` chamáveis via RPC por usuários autenticados**: o
+  Security Advisor aponta isso como alerta; é intencional em todos os
+  casos — cada função só revela dado do próprio usuário chamador
+  (`profile_id`/`campaign_id`/`is_platform_admin` do próprio
+  `auth.uid()`), e `log_audit_event` checa `has_role(['administrador','rh'])`
+  internamente antes de gravar, então não há exposição de dado de
+  terceiros nem escalonamento de privilégio.
 - **PWA/offline**: apenas o `manifest.webmanifest` foi criado; não há
   Service Worker/cache offline ainda — depende de definir os ícones e a
   estratégia de cache junto com os módulos de campo (Ponto/Operações), que
   são os que realmente precisam funcionar offline.
-- **Escopo de visibilidade por hierarquia**: as políticas de RLS de
-  `people`/tabelas satélite/`organizational_assignments` liberam leitura
-  para `administrador`/`rh`/`auditor` de forma ampla. A visibilidade
-  restrita por eixo/cidade/equipe de um coordenador (seção 5) segue
-  pendente para uma fase futura, quando as telas de gestão territorial
-  existirem para validar as regras.
+- **Escopo de visibilidade por hierarquia dentro de uma campanha**: as
+  políticas de RLS de `people`/tabelas satélite/`organizational_assignments`
+  liberam leitura para `administrador`/`rh`/`auditor` de forma ampla
+  **dentro da própria campanha** (o isolamento _entre_ campanhas já existe
+  desde a Fase 1C). A visibilidade restrita por eixo/cidade/equipe de um
+  coordenador (seção 5) segue pendente para uma fase futura, quando as
+  telas de gestão territorial existirem para validar as regras.
 - **Sem atomicidade real entre `people` e as tabelas satélite**: cada
   gravação é uma chamada PostgREST separada (sem transação compartilhada).
   Uma falha parcial (ex.: pessoa criada, mas endereço não salvo) é
@@ -313,10 +408,13 @@ uma pessoa com a gravação simultânea de seu endereço e dados bancários.
   desacopladas ainda não criadas — entram quando os módulos que os usam
   (Documentos, Contratos, Relatórios) forem implementados.
 - **Tipos do Supabase escritos à mão**: `src/types/database.ts` foi
-  escrito manualmente para refletir as migrações `0001` e `0004`. Considere
-  regenerar com `npx supabase gen types typescript --project-id
+  escrito manualmente para refletir as migrações `0001`, `0004` e `0005`.
+  Considere regenerar com `npx supabase gen types typescript --project-id
 pjjarkxwwzqiajlvpsdx` quando o CLI/config local do Supabase for
-  configurado neste repositório (ainda não existe `supabase/config.toml`).
+  configurado neste repositório (ainda não existe `supabase/config.toml`)
+  — atenção: a geração automática não preserva union types como
+  `PersonStatus`, então uma migração completa para o arquivo gerado exige
+  reintroduzir esses tipos literais manualmente.
 - **Ícones do manifesto PWA**: `manifest.webmanifest` está sem ícones
   (nenhuma arte foi fornecida). Adicionar quando houver identidade visual
   definida para a campanha.
@@ -350,23 +448,50 @@ pjjarkxwwzqiajlvpsdx` quando o CLI/config local do Supabase for
   (tabelas ainda vazias em produção).
 - Deploy de produção (Vercel) com as env vars atualizadas: build remoto
   concluído com sucesso, `/` e `/login` respondendo como esperado.
-- **Não verificado nesta sessão**: o fluxo manual completo na UI (login →
-  `/pessoas` → criar pessoa com CPF de teste `111.444.777-35` → anexar
-  documento → conferir linha em `audit_logs` → confirmar que RLS bloqueia
-  um usuário sem papel `administrador`/`rh`/`auditor`). Ver roteiro em
-  "Riscos e pendências desta fase".
+- Teste end-to-end via Playwright (headless Chromium) contra a produção:
+  login como admin → `/pessoas` → criar pessoa com CPF de teste
+  `111.444.777-35` → redirect para edição confirmado → anexar documento →
+  linha gravada em `person_documents` e `audit_logs` (`pessoa.criar`,
+  `pessoa.documento.anexar`, com `actor_email` correto) → pessoa aparece
+  na listagem com badge "Rascunho" → busca por nome funciona. Nenhum erro
+  de console. **Não verificado**: bloqueio de RLS para um usuário sem
+  papel `administrador`/`rh`/`auditor` (faltava uma segunda conta de
+  teste).
+
+**Fase 1C:**
+
+- Migração `0005` (colunas `campaign_id`, funções
+  `current_campaign_id()`/`is_platform_admin()`, reescrita de todas as
+  políticas de RLS, path com prefixo de campanha no Storage) aplicada com
+  sucesso no projeto `pjjarkxwwzqiajlvpsdx`.
+- Backfill conferido via SQL: a campanha "Bia Kicis - Senadora" foi criada,
+  o admin (`pauloinvest74@gmail.com`) ficou com `is_platform_admin: true`
+  e vinculado a ela, a pessoa de teste "Maria Teste da Silva" migrada para
+  a mesma campanha, e os 2 registros pré-existentes de `audit_logs` com
+  `campaign_id` correto.
+- `npm run typecheck`, `npm run lint`, `npm run build` — sem erros.
+- Supabase Security Advisor e Performance Advisor checados após a
+  migração `0005`: nenhum alerta novo além dos já aceitos deliberadamente
+  (mesma lista de funções `SECURITY DEFINER` chamáveis via RPC, agora
+  incluindo `current_campaign_id`/`is_platform_admin`).
+- **Não verificado**: teste de isolamento com um segundo usuário/segunda
+  campanha reais (ver "Riscos e pendências desta fase").
 
 ## Próxima fase
 
-Módulo **Pessoas** (Fase 1B) está funcional. Pendências que ficaram
-deliberadamente fora do escopo mínimo, para retomar quando fizer sentido:
+Módulos **Pessoas** (Fase 1B) e **Multi-tenant** (Fase 1C) estão
+funcionais. Pendências que ficaram deliberadamente fora do escopo mínimo,
+para retomar quando fizer sentido:
 
-1. Verificação manual de ponta a ponta do fluxo de cadastro (ver acima).
+1. Teste de isolamento entre campanhas com um segundo usuário/segunda
+   campanha reais (ver "Riscos e pendências desta fase").
 2. Escopo de visibilidade por hierarquia (coordenador vê só sua
-   cidade/eixo/equipe) nas políticas de RLS de `people` e satélites.
+   cidade/eixo/equipe) **dentro de uma campanha**, nas políticas de RLS de
+   `people` e satélites.
 3. Atomicidade real entre `people` e as tabelas satélite (função Postgres
    consolidada), caso falhas parciais se mostrem um problema recorrente.
-4. OCR de documentos, assinatura eletrônica de contrato e exportação
+4. Seletor/indicador de campanha na UI para o super admin de plataforma.
+5. OCR de documentos, assinatura eletrônica de contrato e exportação
    PDF/Excel — dependem dos módulos que os utilizam.
 
 Para o próximo módulo funcional, a navegação já criada na Fase 1A aponta

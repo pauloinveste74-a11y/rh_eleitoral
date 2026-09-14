@@ -6,13 +6,15 @@ import { Topbar } from "./topbar";
 export function AppShell({
   children,
   userLabel,
+  campaignLabel,
 }: {
   children: ReactNode;
   userLabel: string;
+  campaignLabel?: string;
 }) {
   return (
     <div className="flex min-h-screen flex-col">
-      <Topbar userLabel={userLabel} />
+      <Topbar userLabel={userLabel} campaignLabel={campaignLabel} />
       <div className="flex flex-1">
         <aside className="hidden w-60 shrink-0 border-r border-slate-200 p-4 md:block dark:border-slate-800">
           <SidebarNav />
