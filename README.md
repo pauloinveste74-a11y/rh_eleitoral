@@ -2,16 +2,17 @@
 
 Sistema de gestão de pessoas, operações e pagamentos para campanha eleitoral.
 
-> **Fase atual: 3 — Financeiro.** Sobre a base técnica (Fase 1A), o módulo
-> **Pessoas** (Fase 1B), o isolamento **multi-tenant** por campanha (Fase
-> 1C — ver [Multi-tenant](#multi-tenant)) e o fluxo de **validação
-> territorial** (Fase 2 — ver [Aprovações](#aprovações)), o sistema agora
-> cobre **pagamentos avulsos e em lote**: `financeiro` lança um pagamento
-> (ou um lote para várias pessoas `ativo` de uma vez), `tesouraria` paga
-> ou rejeita cada um (ver [Financeiro](#financeiro)). Os demais módulos
-> (Ponto, Operações,
-> Despesas, etc.) serão implementados em fases seguintes — ver
-> [Próxima fase](#próxima-fase).
+> **Fase atual: 6 — Despesas.** Sobre a base técnica (Fase 1A), **Pessoas**
+> (Fase 1B), **multi-tenant** por campanha (Fase 1C —
+> [Multi-tenant](#multi-tenant)), **Aprovações** (Fase 2) e **Financeiro**
+> (Fase 3 — pagamentos avulsos e em lote, [Financeiro](#financeiro)), o
+> sistema agora cobre **reembolso de despesas**: `financeiro` registra o
+> gasto de uma pessoa `ativo` com comprovante anexado, `tesouraria` paga
+> ou rejeita (ver [Despesas](#despesas)). A numeração de fase aqui segue o
+> rótulo original dos placeholders da Fase 1A, não uma sequência 1-2-3-4 —
+> ver a tabela em [Próxima fase](#próxima-fase) para o mapeamento
+> completo. Os módulos restantes (Ponto, Operações, Auditoria,
+> Relatórios) serão implementados em fases seguintes.
 
 ## Stack
 
@@ -40,9 +41,9 @@ npm install
 
 > **Já existe um projeto Supabase em uso para esta campanha**
 > (`rh_eleitoral`, projeto `pjjarkxwwzqiajlvpsdx`, região `ca-central-1`),
-> com as migrações `0001`–`0008` aplicadas (schema base + tabelas satélite
+> com as migrações `0001`–`0009` aplicadas (schema base + tabelas satélite
 > de pessoa + isolamento multi-tenant por campanha + fluxo de aprovação +
-> pagamentos avulsos e em lote). **O seed fictício não
+> pagamentos avulsos/em lote + despesas). **O seed fictício não
 > foi aplicado neste projeto** — o banco recebe dados reais desde o início
 > da Fase 1B. Um `.env.local` já criado localmente aponta para ele (arquivo
 > ignorado pelo Git — não é versionado). O deploy de produção está em
@@ -62,10 +63,10 @@ npm install
    cp .env.example .env.local
    ```
 
-4. Aplique as migrações do banco, em ordem (`0001` a `0008`). Duas opções:
+4. Aplique as migrações do banco, em ordem (`0001` a `0009`). Duas opções:
 
    **Opção A — SQL Editor do Supabase Studio (mais simples):**
-   Abra cada arquivo em `supabase/migrations/` (0001 a 0008), copie o
+   Abra cada arquivo em `supabase/migrations/` (0001 a 0009), copie o
    conteúdo e execute no SQL Editor do painel do Supabase, um de cada vez,
    na ordem numérica.
 
@@ -153,7 +154,7 @@ src/
       ponto/            # placeholder — Fase 4
       operacoes/        # placeholder — Fase 4
       financeiro/       # pagamentos avulsos/lote financeiro → tesouraria (Fase 3)
-      despesas/         # placeholder — Fase 6
+      despesas/         # reembolso de despesa com comprovante (Fase 6)
       auditoria/        # placeholder — Fase 7
       relatorios/       # placeholder — Fase 8
       configuracoes/    # gestão territorial: eixos/cidades/equipes (Fase 2)
@@ -348,7 +349,33 @@ multiple>`) — `create_payment_batch()` cria uma linha em
 Detalhes completos em `supabase/migrations/0007_financeiro_payments.sql`
 e `supabase/migrations/0008_financeiro_lote.sql`.
 
-## Modelo de dados (Fase 1A + 1B + 1C + 2 + 3)
+## Despesas
+
+Diferente de Financeiro (a campanha paga a pessoa pelo trabalho),
+Despesas é **reembolso**: a pessoa gasta do próprio bolso por algo da
+campanha (combustível, material, alimentação, transporte, hospedagem,
+outro) e pede reembolso, com comprovante obrigatório. Mesmo fluxo de
+duas etapas e as mesmas regras de Financeiro (só pessoa `status =
+'ativo'`; `financeiro` lança, `tesouraria` paga/rejeita, `financeiro`
+cancela enquanto pendente; toda gravação via função `SECURITY DEFINER`
+— `create_expense()`/`decide_expense()`, sem policy de `INSERT`/`UPDATE`
+em `expenses` para o cliente).
+
+- **Comprovante**: `receipt_storage_path` é **obrigatório** (ao contrário
+  do `bank_snapshot` opcional de `payments`) — não dá pra registrar uma
+  despesa sem anexar o comprovante. Bucket privado `despesas-comprovantes`
+  (mesmos limites de `pessoas-documentos`: 10 MB, PDF/JPG/PNG), path
+  `{campaignId}/{personId}/{uuid}-{arquivo}`. O upload acontece **antes**
+  da chamada a `create_expense()` (a Storage API não pode ser chamada de
+  dentro de uma função `plpgsql`) — mesma ordem de
+  `uploadPersonDocument()` no módulo Pessoas.
+- **Categoria**: enum fixo (`combustivel`/`material`/`alimentacao`/
+  `transporte`/`hospedagem`/`outro`) — sem categorias customizáveis nesta
+  fase.
+
+Detalhes completos em `supabase/migrations/0009_despesas.sql`.
+
+## Modelo de dados (Fase 1A + 1B + 1C + 2 + 3 + 6)
 
 | Tabela                       | Descrição                                                                       |
 | ---------------------------- | ------------------------------------------------------------------------------- |
@@ -368,6 +395,7 @@ e `supabase/migrations/0008_financeiro_lote.sql`.
 | `person_documents`           | Metadados de documentos anexados (1:N, soft-delete)                             |
 | `payments`                   | Pagamento avulso ou de lote a uma pessoa (financeiro → tesouraria)              |
 | `payment_batches`            | Lote de pagamentos (período/valor/descrição uniformes)                          |
+| `expenses`                   | Reembolso de despesa a uma pessoa, com comprovante (financeiro → tesouraria)    |
 
 Todas as tabelas acima, exceto `campaigns` e `roles`, têm uma coluna
 `campaign_id` (ver [Multi-tenant](#multi-tenant)). Endereço, dados
@@ -381,12 +409,13 @@ Detalhes de colunas, checks e comentários estão em
 `supabase/migrations/0001_initial_schema.sql`,
 `supabase/migrations/0004_person_satellite_tables.sql`,
 `supabase/migrations/0005_multi_tenant_campaign_scoping.sql`,
-`supabase/migrations/0007_financeiro_payments.sql` e
-`supabase/migrations/0008_financeiro_lote.sql`.
+`supabase/migrations/0007_financeiro_payments.sql`,
+`supabase/migrations/0008_financeiro_lote.sql` e
+`supabase/migrations/0009_despesas.sql`.
 
 ## Políticas de RLS criadas
 
-Todas as 16 tabelas têm RLS habilitado. Desde a Fase 1C, **toda** política
+Todas as 17 tabelas têm RLS habilitado. Desde a Fase 1C, **toda** política
 abaixo tem um bypass adicional para `is_platform_admin()` (o super admin
 de plataforma vê/edita tudo, atravessando o filtro de campanha) — omitido
 no resumo por brevidade, ver [Multi-tenant](#multi-tenant). Resumo:
@@ -429,6 +458,13 @@ no resumo por brevidade, ver [Multi-tenant](#multi-tenant). Resumo:
   mesma campanha do pagamento).
 - **`payment_batches`**: mesma leitura de `payments`. Sem política de
   `INSERT`/`UPDATE`/`DELETE` — só `create_payment_batch()` grava aqui.
+- **`expenses`** (Fase 6): mesma leitura de `payments` (`administrador`/
+  `financeiro`/`tesouraria`/`auditor` da própria campanha). Sem política
+  de `INSERT`/`UPDATE` — só `create_expense()`/`decide_expense()` gravam.
+  Sem `DELETE`. Coberta pelo trigger `check_same_campaign()`. Bucket
+  `despesas-comprovantes` segue o mesmo padrão de `pessoas-documentos`
+  (path prefixado por campanha, `INSERT` para `administrador`/
+  `financeiro`, `SELECT` também para `tesouraria`/`auditor`).
 - **`profiles`**: cada usuário vê/edita apenas o próprio registro;
   `administrador` vê/edita os demais perfis **da própria campanha** (antes
   da Fase 1C, via todas as campanhas — corrigido).
@@ -572,9 +608,23 @@ para nenhum papel de cliente.
 - **OCR, assinatura eletrônica e geração de PDF/Excel**: interfaces
   desacopladas ainda não criadas — entram quando os módulos que os usam
   (Documentos, Contratos, Relatórios) forem implementados.
+- **Despesas não testadas com `financeiro`/`tesouraria` reais**: mesma
+  limitação já registrada para Aprovações/Financeiro — sessão de testes
+  interativos foi interrompida a pedido do usuário antes de chegar a este
+  módulo. Migração aplicada, Advisors conferidos, `typecheck`/`lint`/
+  `build` limpos, mas o formulário/upload de comprovante em si não foi
+  clicado numa sessão real.
+- **Comprovante sem validação de conteúdo além do mime-type**: o upload
+  aceita qualquer arquivo PDF/JPG/PNG dentro do limite de 10 MB — não há
+  verificação de que o conteúdo é de fato um comprovante legível (nem
+  antivírus/malware scan). Mesmo nível de confiança que
+  `pessoas-documentos` já tinha.
+- **Sem reembolso parcial ou parcelado**: uma despesa é paga integralmente
+  de uma vez (`pago`) ou rejeitada — não há conceito de pagamento parcial
+  nem parcelamento nesta fase mínima.
 - **Tipos do Supabase escritos à mão**: `src/types/database.ts` foi
-  escrito manualmente para refletir as migrações `0001`, `0004`, `0005`,
-  `0006`, `0007` e `0008`. Considere regenerar com
+  escrito manualmente para refletir as migrações `0001`, `0004`–`0009`.
+  Considere regenerar com
   `npx supabase gen types typescript --project-id pjjarkxwwzqiajlvpsdx`
   quando o CLI/config local do Supabase for configurado neste repositório
   (ainda não existe `supabase/config.toml`) — atenção: a geração
@@ -690,19 +740,44 @@ para nenhum papel de cliente.
   desta sessão foi interrompida a pedido do usuário antes de chegar a
   essa parte; a lógica de elegibilidade/atomicidade do lote foi revisada
   por leitura, não exercitada ponta a ponta.
+- Migração `0009` (tabela `expenses`, bucket `despesas-comprovantes`,
+  funções `create_expense()`/`decide_expense()`, `check_same_campaign()`
+  estendido de novo) aplicada com sucesso no mesmo projeto.
+  `npm run typecheck`/`lint`/`build` sem erros; Security Advisor sem
+  alertas novos além dos já aceitos. **Não verificado manualmente na UI**
+  (mesma limitação já registrada para o lote de pagamentos — sessão de
+  testes interrompida antes desta parte).
 
 ## Próxima fase
 
+A numeração de fase usada neste README mistura dois esquemas: a
+numeração **original dos placeholders** criados na Fase 1A (Pessoas=2,
+Aprovações=3, Ponto/Operações=4, Financeiro=5, **Despesas=6**,
+Auditoria=7, Relatórios=8) e a numeração **real de entrega** desta sessão
+(1A → 1B → 1C → 2 → 3 → 6, pulando os números cujos módulos ainda não
+foram construídos). Mapeamento completo:
+
+| Nº do placeholder original | Módulo            | Nº real de entrega | Status       |
+| -------------------------- | ----------------- | ------------------ | ------------ |
+| Fase 2                     | Pessoas           | Fase 1B            | ✅ concluído |
+| Fase 3                     | Aprovações        | Fase 2             | ✅ concluído |
+| Fase 4                     | Ponto / Operações | —                  | ⏳ pendente  |
+| Fase 5                     | Financeiro        | Fase 3             | ✅ concluído |
+| **Fase 6**                 | **Despesas**      | **esta entrega**   | ✅ concluído |
+| Fase 7                     | Auditoria         | —                  | ⏳ pendente  |
+| Fase 8                     | Relatórios        | —                  | ⏳ pendente  |
+
 Módulos **Pessoas** (Fase 1B), **Multi-tenant** (Fase 1C), **Aprovações**
-(Fase 2) e **Financeiro** (Fase 3, incluindo lote) estão funcionais.
-Pendências que ficaram deliberadamente fora do escopo mínimo, para
-retomar quando fizer sentido:
+(Fase 2), **Financeiro** (Fase 3, incluindo lote) e **Despesas** (Fase 6)
+estão funcionais. Pendências que ficaram deliberadamente fora do escopo
+mínimo, para retomar quando fizer sentido:
 
 1. Verificação manual/end-to-end do lote de pagamentos
-   (`/financeiro/lote/novo`) — não testado nesta sessão.
+   (`/financeiro/lote/novo`) e de Despesas (`/despesas/novo`) — não
+   testados nesta sessão.
 2. Teste de isolamento entre campanhas E teste dos fluxos de
-   aprovação/financeiro, com usuários de teste reais (segunda campanha,
-   coordenador/financeiro/tesouraria não-admin) — ver "Riscos e
+   aprovação/financeiro/despesas, com usuários de teste reais (segunda
+   campanha, coordenador/financeiro/tesouraria não-admin) — ver "Riscos e
    pendências desta fase".
 3. Visão geral de "minha cidade"/"meu eixo" para um coordenador fora do
    fluxo de aprovação (hoje só vê a pessoa que está na etapa dele).
@@ -710,7 +785,7 @@ retomar quando fizer sentido:
    hoje só via SQL).
 5. Decisão em massa para um lote inteiro (hoje é por pagamento
    individual); conciliação bancária e exportação PDF/Excel de
-   pagamentos.
+   pagamentos/despesas; reembolso parcial/parcelado.
 6. Atomicidade real entre `people` e as tabelas satélite (função Postgres
    consolidada), caso falhas parciais se mostrem um problema recorrente.
 7. Seletor/indicador de campanha na UI para o super admin de plataforma.
@@ -718,6 +793,5 @@ retomar quando fizer sentido:
    PDF/Excel — dependem dos módulos que os utilizam.
 
 Para o próximo módulo funcional, a navegação já criada na Fase 1A aponta
-para **Ponto**, **Operações**, **Despesas**, **Auditoria** ou
-**Relatórios** como sequência natural, a depender da prioridade da
-campanha.
+para **Ponto**, **Operações**, **Auditoria** ou **Relatórios** como
+sequência natural, a depender da prioridade da campanha.

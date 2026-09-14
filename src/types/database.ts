@@ -442,6 +442,54 @@ export interface Database {
         >;
         Relationships: [];
       };
+      expenses: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          person_id: string;
+          category:
+            | "combustivel"
+            | "material"
+            | "alimentacao"
+            | "transporte"
+            | "hospedagem"
+            | "outro";
+          amount_cents: number;
+          description: string;
+          expense_date: string;
+          receipt_storage_path: string;
+          status: "pendente" | "pago" | "rejeitado" | "cancelado";
+          payment_date: string | null;
+          requested_by: string | null;
+          decided_by: string | null;
+          decided_at: string | null;
+          decision_reason: string | null;
+        } & Timestamps;
+        Insert: Partial<Timestamps> & {
+          id?: string;
+          campaign_id?: string;
+          person_id: string;
+          category:
+            | "combustivel"
+            | "material"
+            | "alimentacao"
+            | "transporte"
+            | "hospedagem"
+            | "outro";
+          amount_cents: number;
+          description: string;
+          expense_date: string;
+          receipt_storage_path: string;
+          status?: "pendente" | "pago" | "rejeitado" | "cancelado";
+          payment_date?: string | null;
+          requested_by?: string | null;
+          decided_by?: string | null;
+          decided_at?: string | null;
+          decision_reason?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["expenses"]["Insert"]>;
+        Relationships: [];
+      };
       person_documents: {
         Row: {
           id: string;
@@ -526,6 +574,25 @@ export interface Database {
           p_description: string;
         };
         Returns: string;
+      };
+      create_expense: {
+        Args: {
+          p_person_id: string;
+          p_category: string;
+          p_amount_cents: number;
+          p_description: string;
+          p_expense_date: string;
+          p_receipt_storage_path: string;
+        };
+        Returns: string;
+      };
+      decide_expense: {
+        Args: {
+          p_expense_id: string;
+          p_decision: string;
+          p_reason?: string | null;
+        };
+        Returns: undefined;
       };
       create_payment_batch: {
         Args: {
