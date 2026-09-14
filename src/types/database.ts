@@ -389,6 +389,7 @@ export interface Database {
           id: string;
           campaign_id: string;
           person_id: string;
+          batch_id: string | null;
           amount_cents: number;
           description: string;
           status: "pendente" | "pago" | "rejeitado" | "cancelado";
@@ -403,6 +404,7 @@ export interface Database {
           id?: string;
           campaign_id?: string;
           person_id: string;
+          batch_id?: string | null;
           amount_cents: number;
           description: string;
           status?: "pendente" | "pago" | "rejeitado" | "cancelado";
@@ -414,6 +416,30 @@ export interface Database {
           decision_reason?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["payments"]["Insert"]>;
+        Relationships: [];
+      };
+      payment_batches: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          reference_period: string;
+          description: string;
+          amount_cents: number;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id?: string;
+          reference_period: string;
+          description: string;
+          amount_cents: number;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["payment_batches"]["Insert"]
+        >;
         Relationships: [];
       };
       person_documents: {
@@ -498,6 +524,15 @@ export interface Database {
           p_person_id: string;
           p_amount_cents: number;
           p_description: string;
+        };
+        Returns: string;
+      };
+      create_payment_batch: {
+        Args: {
+          p_reference_period: string;
+          p_description: string;
+          p_amount_cents: number;
+          p_person_ids: string[];
         };
         Returns: string;
       };

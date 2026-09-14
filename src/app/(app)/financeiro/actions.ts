@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
-import { paymentSchema } from "@/lib/validations/payment";
+import { paymentSchema, paymentBatchSchema } from "@/lib/validations/payment";
 import type { PaymentActionState } from "./action-state";
 
 export async function createPayment(
@@ -35,6 +35,43 @@ export async function createPayment(
     return {
       status: "error",
       message: error?.message || "Não foi possível criar o pagamento.",
+    };
+  }
+
+  revalidatePath("/financeiro");
+  redirect("/financeiro");
+}
+
+export async function createPaymentBatch(
+  _prevState: PaymentActionState,
+  formData: FormData,
+): Promise<PaymentActionState> {
+  const parsed = paymentBatchSchema.safeParse({
+    referencePeriod: String(formData.get("referencePeriod") ?? ""),
+    amountReais: String(formData.get("amountReais") ?? ""),
+    description: String(formData.get("description") ?? ""),
+    personIds: formData.getAll("personIds").map(String),
+  });
+  if (!parsed.success) {
+    return {
+      status: "error",
+      errors: parsed.error.flatten().fieldErrors,
+      message: "Corrija os campos destacados.",
+    };
+  }
+
+  const supabase = await createClient();
+  const { data: batchId, error } = await supabase.rpc("create_payment_batch", {
+    p_reference_period: parsed.data.referencePeriod,
+    p_description: parsed.data.description,
+    p_amount_cents: parsed.data.amountReais,
+    p_person_ids: parsed.data.personIds,
+  });
+
+  if (error || !batchId) {
+    return {
+      status: "error",
+      message: error?.message || "Não foi possível criar o lote de pagamentos.",
     };
   }
 

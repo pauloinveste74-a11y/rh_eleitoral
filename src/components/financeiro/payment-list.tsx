@@ -17,6 +17,7 @@ export type PaymentRow = {
   description: string;
   status: "pendente" | "pago" | "rejeitado" | "cancelado";
   date: string;
+  batchPeriod: string | null;
 };
 
 export function PaymentList({
@@ -43,6 +44,7 @@ export function PaymentList({
           <TableHead>Pessoa</TableHead>
           <TableHead>Valor</TableHead>
           <TableHead>Descrição</TableHead>
+          <TableHead>Lote</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Data</TableHead>
           <TableHead>Decisão</TableHead>
@@ -56,6 +58,7 @@ export function PaymentList({
             </TableCell>
             <TableCell>{formatCentsAsBRL(row.amountCents)}</TableCell>
             <TableCell>{row.description}</TableCell>
+            <TableCell>{row.batchPeriod ?? "—"}</TableCell>
             <TableCell>
               <PaymentStatusBadge status={row.status} />
             </TableCell>

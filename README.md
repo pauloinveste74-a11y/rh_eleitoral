@@ -6,9 +6,10 @@ Sistema de gestão de pessoas, operações e pagamentos para campanha eleitoral.
 > **Pessoas** (Fase 1B), o isolamento **multi-tenant** por campanha (Fase
 > 1C — ver [Multi-tenant](#multi-tenant)) e o fluxo de **validação
 > territorial** (Fase 2 — ver [Aprovações](#aprovações)), o sistema agora
-> cobre **pagamentos avulsos**: `financeiro` lança um pagamento para uma
-> pessoa `ativo`, `tesouraria` paga ou rejeita (ver
-> [Financeiro](#financeiro)). Os demais módulos (Ponto, Operações,
+> cobre **pagamentos avulsos e em lote**: `financeiro` lança um pagamento
+> (ou um lote para várias pessoas `ativo` de uma vez), `tesouraria` paga
+> ou rejeita cada um (ver [Financeiro](#financeiro)). Os demais módulos
+> (Ponto, Operações,
 > Despesas, etc.) serão implementados em fases seguintes — ver
 > [Próxima fase](#próxima-fase).
 
@@ -39,9 +40,9 @@ npm install
 
 > **Já existe um projeto Supabase em uso para esta campanha**
 > (`rh_eleitoral`, projeto `pjjarkxwwzqiajlvpsdx`, região `ca-central-1`),
-> com as migrações `0001`–`0007` aplicadas (schema base + tabelas satélite
+> com as migrações `0001`–`0008` aplicadas (schema base + tabelas satélite
 > de pessoa + isolamento multi-tenant por campanha + fluxo de aprovação +
-> pagamentos). **O seed fictício não
+> pagamentos avulsos e em lote). **O seed fictício não
 > foi aplicado neste projeto** — o banco recebe dados reais desde o início
 > da Fase 1B. Um `.env.local` já criado localmente aponta para ele (arquivo
 > ignorado pelo Git — não é versionado). O deploy de produção está em
@@ -61,10 +62,10 @@ npm install
    cp .env.example .env.local
    ```
 
-4. Aplique as migrações do banco, em ordem (`0001` a `0007`). Duas opções:
+4. Aplique as migrações do banco, em ordem (`0001` a `0008`). Duas opções:
 
    **Opção A — SQL Editor do Supabase Studio (mais simples):**
-   Abra cada arquivo em `supabase/migrations/` (0001 a 0007), copie o
+   Abra cada arquivo em `supabase/migrations/` (0001 a 0008), copie o
    conteúdo e execute no SQL Editor do painel do Supabase, um de cada vez,
    na ordem numérica.
 
@@ -151,7 +152,7 @@ src/
       aprovacoes/       # filas de validação cidade/eixo (Fase 2)
       ponto/            # placeholder — Fase 4
       operacoes/        # placeholder — Fase 4
-      financeiro/       # pagamentos avulsos financeiro → tesouraria (Fase 3)
+      financeiro/       # pagamentos avulsos/lote financeiro → tesouraria (Fase 3)
       despesas/         # placeholder — Fase 6
       auditoria/        # placeholder — Fase 7
       relatorios/       # placeholder — Fase 8
@@ -297,8 +298,8 @@ Detalhes completos em `supabase/migrations/0006_approvals_workflow.sql`.
 
 ## Financeiro
 
-Pagamento avulso por pessoa — sem folha recorrente nem lote nesta fase.
-Fluxo de duas etapas, espelhando os papéis `financeiro`/`tesouraria` do
+Pagamento avulso por pessoa, e também em lote (folha por período). Fluxo
+de duas etapas, espelhando os papéis `financeiro`/`tesouraria` do
 catálogo:
 
 ```
@@ -331,8 +332,21 @@ financeiro lança (pendente) → tesouraria decide: pago ou rejeitado
 - **Sem movimentação real de dinheiro**: o sistema só registra o status
   do pagamento (pendente/pago/rejeitado/cancelado) — não há integração
   com banco, PIX ou qualquer gateway de pagamento.
+- **Lote (`/financeiro/lote/novo`)**: `financeiro` escolhe um período de
+  referência (texto livre, ex.: "Setembro/2026"), um valor único e uma
+  descrição, e seleciona várias pessoas `ativo` de uma vez (`<select
+multiple>`) — `create_payment_batch()` cria uma linha em
+  `payment_batches` e uma linha em `payments` por pessoa selecionada
+  (todas com o mesmo `batch_id`, mesmo valor e mesma descrição), numa
+  única transação (tudo ou nada: se uma pessoa não for elegível, o lote
+  inteiro é revertido). Cada pessoa ainda recebe seu próprio
+  `bank_snapshot`. A **decisão** (pagar/rejeitar/cancelar) continua sendo
+  por pagamento individual — não existe "decidir o lote inteiro de uma
+  vez" nesta fase; a listagem em `/financeiro` mostra o período do lote
+  como uma coluna, para agrupar visualmente.
 
-Detalhes completos em `supabase/migrations/0007_financeiro_payments.sql`.
+Detalhes completos em `supabase/migrations/0007_financeiro_payments.sql`
+e `supabase/migrations/0008_financeiro_lote.sql`.
 
 ## Modelo de dados (Fase 1A + 1B + 1C + 2 + 3)
 
@@ -352,7 +366,8 @@ Detalhes completos em `supabase/migrations/0007_financeiro_payments.sql`.
 | `person_bank_accounts`       | Conta bancária/PIX atual da pessoa (1:1, mutável)                               |
 | `person_electoral_data`      | Dados do título de eleitor da pessoa (1:1, mutável)                             |
 | `person_documents`           | Metadados de documentos anexados (1:N, soft-delete)                             |
-| `payments`                   | Pagamento avulso a uma pessoa (financeiro → tesouraria)                         |
+| `payments`                   | Pagamento avulso ou de lote a uma pessoa (financeiro → tesouraria)              |
+| `payment_batches`            | Lote de pagamentos (período/valor/descrição uniformes)                          |
 
 Todas as tabelas acima, exceto `campaigns` e `roles`, têm uma coluna
 `campaign_id` (ver [Multi-tenant](#multi-tenant)). Endereço, dados
@@ -365,12 +380,13 @@ não em `valid_from`/`valid_until` próprios.
 Detalhes de colunas, checks e comentários estão em
 `supabase/migrations/0001_initial_schema.sql`,
 `supabase/migrations/0004_person_satellite_tables.sql`,
-`supabase/migrations/0005_multi_tenant_campaign_scoping.sql` e
-`supabase/migrations/0007_financeiro_payments.sql`.
+`supabase/migrations/0005_multi_tenant_campaign_scoping.sql`,
+`supabase/migrations/0007_financeiro_payments.sql` e
+`supabase/migrations/0008_financeiro_lote.sql`.
 
 ## Políticas de RLS criadas
 
-Todas as 15 tabelas têm RLS habilitado. Desde a Fase 1C, **toda** política
+Todas as 16 tabelas têm RLS habilitado. Desde a Fase 1C, **toda** política
 abaixo tem um bypass adicional para `is_platform_admin()` (o super admin
 de plataforma vê/edita tudo, atravessando o filtro de campanha) — omitido
 no resumo por brevidade, ver [Multi-tenant](#multi-tenant). Resumo:
@@ -405,11 +421,14 @@ no resumo por brevidade, ver [Multi-tenant](#multi-tenant). Resumo:
 - **`payments`** (Fase 3): leitura para
   `administrador`/`financeiro`/`tesouraria`/`auditor` da própria
   campanha. **Sem política de `INSERT` nem `UPDATE`** — a única forma de
-  gravar é via `create_payment()`/`decide_payment()` (`SECURITY
-DEFINER`), que também centralizam a checagem de elegibilidade
-  (`people.status = 'ativo'`) e a montagem do `bank_snapshot`. Sem
-  `DELETE`. Também coberta pelo trigger `check_same_campaign()`
-  (`person_id` precisa pertencer à mesma campanha do pagamento).
+  gravar é via `create_payment()`/`create_payment_batch()`/
+  `decide_payment()` (`SECURITY DEFINER`), que também centralizam a
+  checagem de elegibilidade (`people.status = 'ativo'`) e a montagem do
+  `bank_snapshot`. Sem `DELETE`. Também coberta pelo trigger
+  `check_same_campaign()` (`person_id`/`batch_id` precisam pertencer à
+  mesma campanha do pagamento).
+- **`payment_batches`**: mesma leitura de `payments`. Sem política de
+  `INSERT`/`UPDATE`/`DELETE` — só `create_payment_batch()` grava aqui.
 - **`profiles`**: cada usuário vê/edita apenas o próprio registro;
   `administrador` vê/edita os demais perfis **da própria campanha** (antes
   da Fase 1C, via todas as campanhas — corrigido).
@@ -530,13 +549,19 @@ para nenhum papel de cliente.
   esses papéis a um usuário também é só via SQL, sem tela.
 - **Sem movimentação real de dinheiro**: `payments` só registra status
   (pendente/pago/rejeitado/cancelado) — não há integração com banco, PIX
-  ou qualquer gateway. Conciliação bancária, folha recorrente/lote e
-  exportação PDF/Excel de pagamentos seguem fora de escopo.
-- **`create_payment()`/`decide_payment()` chamáveis via RPC por usuários
-  autenticados**: mesma categoria de alerta intencional do Security
-  Advisor — ambas checam o papel do chamador (`financeiro`/`administrador`
-  para criar, `tesouraria`/`administrador` para decidir) antes de
-  qualquer gravação, então não há escalonamento de privilégio.
+  ou qualquer gateway. Conciliação bancária e exportação PDF/Excel de
+  pagamentos seguem fora de escopo.
+- **Lote sem decisão em massa**: `create_payment_batch()` cria N
+  pagamentos de uma vez, mas `decide_payment()` continua decidindo um por
+  um — tesouraria precisa aprovar/rejeitar cada pessoa do lote
+  individualmente em `/financeiro`. Um "decidir o lote inteiro" fica para
+  uma iteração futura, se o volume de pagamentos por lote justificar.
+- **`create_payment()`/`create_payment_batch()`/`decide_payment()`
+  chamáveis via RPC por usuários autenticados**: mesma categoria de
+  alerta intencional do Security Advisor — todas checam o papel do
+  chamador (`financeiro`/`administrador` para criar, `tesouraria`/
+  `administrador` para decidir) antes de qualquer gravação, então não há
+  escalonamento de privilégio.
 - **Sem atomicidade real entre `people` e as tabelas satélite**: cada
   gravação é uma chamada PostgREST separada (sem transação compartilhada).
   Uma falha parcial (ex.: pessoa criada, mas endereço não salvo) é
@@ -549,7 +574,7 @@ para nenhum papel de cliente.
   (Documentos, Contratos, Relatórios) forem implementados.
 - **Tipos do Supabase escritos à mão**: `src/types/database.ts` foi
   escrito manualmente para refletir as migrações `0001`, `0004`, `0005`,
-  `0006` e `0007`. Considere regenerar com
+  `0006`, `0007` e `0008`. Considere regenerar com
   `npx supabase gen types typescript --project-id pjjarkxwwzqiajlvpsdx`
   quando o CLI/config local do Supabase for configurado neste repositório
   (ainda não existe `supabase/config.toml`) — atenção: a geração
@@ -655,28 +680,41 @@ para nenhum papel de cliente.
   além dos já aceitos deliberadamente.
 - **Não verificado**: fluxo financeiro com `financeiro`/`tesouraria`
   reais, não-admin (ver "Riscos e pendências desta fase").
+- Migração `0008` (tabela `payment_batches`, função
+  `create_payment_batch()`, coluna `payments.batch_id`, trigger
+  `check_same_campaign()` estendido de novo) aplicada com sucesso no
+  mesmo projeto, complementando a Fase 3 com folha em lote.
+  `npm run typecheck`/`lint`/`build` sem erros; Security Advisor sem
+  alertas novos. **Não verificado manualmente na UI** (`/financeiro/lote/novo`
+  e a coluna "Lote" em `/financeiro`) — a bateria de testes interativos
+  desta sessão foi interrompida a pedido do usuário antes de chegar a
+  essa parte; a lógica de elegibilidade/atomicidade do lote foi revisada
+  por leitura, não exercitada ponta a ponta.
 
 ## Próxima fase
 
 Módulos **Pessoas** (Fase 1B), **Multi-tenant** (Fase 1C), **Aprovações**
-(Fase 2) e **Financeiro** (Fase 3) estão funcionais. Pendências que
-ficaram deliberadamente fora do escopo mínimo, para retomar quando fizer
-sentido:
+(Fase 2) e **Financeiro** (Fase 3, incluindo lote) estão funcionais.
+Pendências que ficaram deliberadamente fora do escopo mínimo, para
+retomar quando fizer sentido:
 
-1. Teste de isolamento entre campanhas E teste dos fluxos de
+1. Verificação manual/end-to-end do lote de pagamentos
+   (`/financeiro/lote/novo`) — não testado nesta sessão.
+2. Teste de isolamento entre campanhas E teste dos fluxos de
    aprovação/financeiro, com usuários de teste reais (segunda campanha,
    coordenador/financeiro/tesouraria não-admin) — ver "Riscos e
    pendências desta fase".
-2. Visão geral de "minha cidade"/"meu eixo" para um coordenador fora do
+3. Visão geral de "minha cidade"/"meu eixo" para um coordenador fora do
    fluxo de aprovação (hoje só vê a pessoa que está na etapa dele).
-3. Tela de atribuição de papel (coordenador, financeiro, tesouraria —
+4. Tela de atribuição de papel (coordenador, financeiro, tesouraria —
    hoje só via SQL).
-4. Conciliação bancária, folha recorrente/lote e exportação PDF/Excel de
+5. Decisão em massa para um lote inteiro (hoje é por pagamento
+   individual); conciliação bancária e exportação PDF/Excel de
    pagamentos.
-5. Atomicidade real entre `people` e as tabelas satélite (função Postgres
+6. Atomicidade real entre `people` e as tabelas satélite (função Postgres
    consolidada), caso falhas parciais se mostrem um problema recorrente.
-6. Seletor/indicador de campanha na UI para o super admin de plataforma.
-7. OCR de documentos, assinatura eletrônica de contrato e exportação
+7. Seletor/indicador de campanha na UI para o super admin de plataforma.
+8. OCR de documentos, assinatura eletrônica de contrato e exportação
    PDF/Excel — dependem dos módulos que os utilizam.
 
 Para o próximo módulo funcional, a navegação já criada na Fase 1A aponta
