@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
   Users,
+  UserCog,
   CheckSquare,
   Clock,
   MapPinned,
@@ -29,5 +30,6 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Despesas", href: "/despesas", icon: Receipt },
   { label: "Auditoria", href: "/auditoria", icon: ShieldCheck },
   { label: "Relatórios", href: "/relatorios", icon: BarChart3 },
+  { label: "Usuários", href: "/usuarios", icon: UserCog },
   { label: "Configurações", href: "/configuracoes", icon: Settings },
 ];

@@ -2,19 +2,21 @@
 
 Sistema de gestão de pessoas, operações e pagamentos para campanha eleitoral.
 
-> **Fase atual: 8 — Relatórios.** Sobre a base técnica (Fase 1A), **Pessoas**
+> **Fase atual: 9 — Usuários.** Sobre a base técnica (Fase 1A), **Pessoas**
 > (Fase 1B), **multi-tenant** por campanha (Fase 1C —
 > [Multi-tenant](#multi-tenant)), **Aprovações** (Fase 2), **Financeiro**
 > (Fase 3 — pagamentos avulsos e em lote, [Financeiro](#financeiro)),
-> **Despesas** (Fase 6 — reembolso com comprovante, [Despesas](#despesas))
-> e **Auditoria** (Fase 7 — trilha de eventos, [Auditoria](#auditoria)), o
-> sistema agora tem três **relatórios gerenciais** (Financeiro, Pessoas,
-> Aprovações) com filtro amplo (período, status, categoria, eixo/cidade/
-> equipe) e exportação em CSV (ver [Relatórios](#relatórios)). A numeração
-> de fase aqui segue o rótulo original dos placeholders da Fase 1A, não
-> uma sequência 1-2-3-4 — ver a tabela em [Próxima fase](#próxima-fase)
-> para o mapeamento completo. Os módulos restantes (Ponto, Operações)
-> serão implementados em fases seguintes.
+> **Despesas** (Fase 6 — reembolso com comprovante, [Despesas](#despesas)),
+> **Auditoria** (Fase 7 — trilha de eventos, [Auditoria](#auditoria)) e
+> **Relatórios** (Fase 8 — financeiro/pessoas/aprovações com filtro e CSV,
+> [Relatórios](#relatórios)), o sistema agora tem uma tela de
+> **Usuários**: convite por e-mail + atribuição de papéis com escopo
+> territorial (ver [Usuários](#usuários)) — não fazia parte dos 8 módulos
+> originais da Fase 1A, é uma adição pedida nesta sessão. A numeração de
+> fase aqui segue o rótulo original dos placeholders da Fase 1A (mais essa
+> adição), não uma sequência 1-2-3-4 — ver a tabela em
+> [Próxima fase](#próxima-fase) para o mapeamento completo. Os módulos
+> restantes (Ponto, Operações) serão implementados em fases seguintes.
 
 ## Stack
 
@@ -149,6 +151,7 @@ npm run format:check  # verifica formatação sem alterar arquivos
 src/
   app/
     login/              # tela de login (pública)
+    convite/            # aceitar convite: definir senha (pública) (Fase 9)
     (app)/              # rotas autenticadas (layout com sidebar/topbar)
       painel/           # dashboard inicial
       pessoas/          # cadastro, edição, documentos e listagem (Fase 1B)
@@ -159,17 +162,20 @@ src/
       despesas/         # reembolso de despesa com comprovante (Fase 6)
       auditoria/        # trilha de auditoria: lista/busca/paginação (Fase 7)
       relatorios/       # financeiro/pessoas/aprovações, filtros + CSV (Fase 8)
+      usuarios/         # convite + atribuição de papéis com escopo (Fase 9)
       configuracoes/    # gestão territorial: eixos/cidades/equipes (Fase 2)
     proxy.ts            # (fora de app/, ver abaixo) proteção de rotas
   components/
     ui/                 # componentes acessíveis reutilizáveis (botão, input, card...)
     layout/             # shell do painel (sidebar, topbar, navegação)
     relatorios/         # campos de filtro compartilhados entre os 3 relatórios (Fase 8)
+    usuarios/           # formulários de convite/papel/status (Fase 9)
   lib/
-    supabase/           # clientes Supabase (browser, servidor, proxy)
+    supabase/           # clientes Supabase (browser, servidor, proxy, admin — Fase 9)
     validations/        # esquemas Zod
     reports/            # consultas compartilhadas entre tela e exportação CSV (Fase 8)
     csv.ts              # geração de CSV (Fase 8)
+    site-url.ts         # URL pública do site, para o redirectTo do convite (Fase 9)
     nav-items.ts        # itens da navegação principal
   types/
     database.ts         # tipos do schema Supabase (regenerar quando o projeto existir)
@@ -416,8 +422,9 @@ Detalhes de colunas, checks e comentários estão em
 `supabase/migrations/0005_multi_tenant_campaign_scoping.sql`,
 `supabase/migrations/0007_financeiro_payments.sql`,
 `supabase/migrations/0008_financeiro_lote.sql`,
-`supabase/migrations/0009_despesas.sql` e
-`supabase/migrations/0010_auditoria_profiles_visibility.sql`.
+`supabase/migrations/0009_despesas.sql`,
+`supabase/migrations/0010_auditoria_profiles_visibility.sql` e
+`supabase/migrations/0011_usuarios_rh_access.sql`.
 
 ## Políticas de RLS criadas
 
@@ -472,12 +479,16 @@ no resumo por brevidade, ver [Multi-tenant](#multi-tenant). Resumo:
   (path prefixado por campanha, `INSERT` para `administrador`/
   `financeiro`, `SELECT` também para `tesouraria`/`auditor`).
 - **`profiles`**: cada usuário vê/edita apenas o próprio registro;
-  `administrador` vê/edita os demais perfis **da própria campanha** (antes
-  da Fase 1C, via todas as campanhas — corrigido).
+  `administrador`/`rh`/`auditor` veem os demais perfis **da própria
+  campanha** (histórico: só `administrador` até a Fase 1C; `auditor`
+  somado na Fase 7/migração `0010`; `rh` somado na Fase 9/migração `0011`
+  — só `administrador`/`rh` também **editam** outros perfis, ver
+  [Usuários](#usuários)).
 - **`profile_roles`**: cada usuário vê os próprios papéis;
   `administrador`/`rh` administram os de perfis **da própria campanha**
   (verificado via join em `profiles.campaign_id`, já que
-  `profile_roles.campaign_id` não é mais usado para autorização).
+  `profile_roles.campaign_id` não é mais usado para autorização) — regra
+  inalterada desde a 0001, só ganhou uma tela na Fase 9.
 - **`organizational_assignments`**: leitura para
   `administrador`/`rh`/`auditor` da própria campanha, e (Fase 2) para o
   coordenador de cidade/eixo do próprio território; escrita para
@@ -492,12 +503,15 @@ no resumo por brevidade, ver [Multi-tenant](#multi-tenant). Resumo:
   comuns — a única forma de gravar é via a função `SECURITY DEFINER`
   `log_audit_event()` (ver "Auditoria" abaixo), chamada pelas server
   actions do módulo Pessoas a cada criação/edição.
-- **`profiles` (ajuste da Fase 7)**: a política `profiles_select` foi
-  reescrita (migração `0010`) para também liberar leitura de **outros**
-  perfis da mesma campanha para o papel `auditor`, além de
-  `administrador` — sem isso, um `auditor` puro não conseguia resolver o
-  nome/e-mail do autor de uma linha de `audit_logs` que não fosse ele
-  mesmo (só o próprio perfil, via `id = auth.uid()`).
+- **`profiles` (ajustes da Fase 7 e 9)**: a política `profiles_select` foi
+  reescrita duas vezes — migração `0010` (Fase 7) somou leitura de
+  **outros** perfis da campanha para `auditor` (sem isso, um `auditor`
+  puro não resolvia o nome/e-mail do autor de uma linha de `audit_logs`
+  que não fosse ele mesmo); migração `0011` (Fase 9) somou `rh`, e também
+  reescreveu `profiles_update` para incluir `rh` (antes só
+  `administrador` editava outro perfil) — necessário pra tela de
+  Usuários, que o usuário pediu que fosse gerenciada por
+  `administrador` **e** `rh`.
 - **Storage — bucket `pessoas-documentos`** (privado): política de
   `INSERT` para `administrador`/`rh`, `SELECT` para
   `administrador`/`rh`/`auditor`, ambas também checando que o primeiro
@@ -591,6 +605,69 @@ função.
   de autenticação de qualquer outra rota (`src/proxy.ts`) — sem sessão,
   redireciona para `/login` como as demais.
 
+## Usuários
+
+Tela de gestão de usuários (`/usuarios`, restrita a `administrador`/`rh`
+— quem acessa sem esse papel vê uma mensagem de acesso negado, mesma
+lógica que já protege as escritas por RLS). Duas responsabilidades:
+convidar gente nova para o sistema, e atribuir/remover papéis de acesso
+de quem já está.
+
+- **Catálogo de papéis**: os 11 papéis já existiam desde a Fase 1A
+  (tabela `roles`), mas só 7 têm efeito real hoje em alguma política de
+  RLS ou função — `administrador`, `rh`, `auditor`, `financeiro`,
+  `tesouraria`, `coordenador_cidade`, `coordenador_eixo`. Os outros 4
+  (`juridico`, `auxiliar_delegado_eixo`, `coordenador_equipe`,
+  `colaborador`) existem no catálogo mas nenhuma política os checa ainda
+  — atribuí-los não dá nenhum acesso além do próprio perfil. O formulário
+  de atribuição (`AssignRoleForm`) marca esses 4 como "sem efeito de
+  permissão ainda" na própria lista, pra não criar falsa expectativa.
+- **Por que "convidar" e não só "criar"**: uma linha em `profiles` só
+  passa a existir via o trigger `handle_new_user()`, disparado por um
+  `insert` em `auth.users` — não há como inserir um perfil "por fora" de
+  uma conta real do Supabase Auth. Criar essa conta exige a **service
+  role key** (`SUPABASE_SERVICE_ROLE_KEY`), usada pela primeira vez nesta
+  fase, estritamente dentro de `src/lib/supabase/admin.ts` (nunca
+  importado por código de cliente — reforçado por `import "server-only"`,
+  que quebra o build se isso acontecer). A Server Action `inviteUser()`
+  primeiro verifica com o cliente normal (respeitando RLS) que quem está
+  chamando tem `has_role(['administrador', 'rh'])` — só depois usa o
+  cliente admin, que ignora RLS por completo e não sabe quem é o
+  chamador, então essa ordem importa.
+- **Fluxo de convite**: `inviteUser()` chama
+  `auth.admin.inviteUserByEmail()` (dispara um e-mail do próprio
+  Supabase Auth com um link de confirmação), e na sequência atualiza o
+  `profiles` recém-criado pelo trigger com o `campaign_id` de quem
+  convidou (usando o cliente admin, porque a política normal de
+  `profiles_update` não aceita editar uma linha com `campaign_id` nulo —
+  e é nulo até esse passo, já que `handle_new_user()` não sabe a
+  campanha no momento do cadastro). Depois disso, atribuir papéis segue o
+  caminho normal (RLS de `profile_roles`, sem precisar do cliente admin).
+- **`/convite`** (`src/app/convite/`, fora do grupo `(app)`, rota pública
+  em `src/proxy.ts`): página que a pessoa convidada abre a partir do link
+  do e-mail. O cliente Supabase do navegador detecta a sessão codificada
+  na própria URL sozinho (`detectSessionInUrl`, ligado por padrão) — a
+  página só espera esse processamento (`onAuthStateChange`/`getUser()`,
+  com um timeout de 5s pra acusar link inválido/expirado) e mostra um
+  formulário de "definir senha" (`auth.updateUser({ password })`).
+- **Escopo territorial na atribuição**: `coordenador_cidade` exige
+  `cityId` e `coordenador_eixo` exige `axisId` no formulário (validado no
+  Zod, `src/lib/validations/user.ts`) — são os únicos papéis cujo escopo
+  em `profile_roles` é lido por uma função de RLS
+  (`is_city_coordinator_for()`/`is_axis_coordinator_for()`, ver
+  [Aprovações](#aprovações)). Para os demais papéis, cidade/eixo/equipe
+  no formulário são só informativos.
+- **Suspender/reativar** (`ToggleStatusButton`): alterna
+  `profiles.status` entre `ativo`/`suspenso`. Como nenhuma política de
+  RLS checa `profiles.status` hoje, suspender um usuário **não** revoga
+  automaticamente o acesso dele enquanto a sessão atual continuar válida
+  — é uma pendência registrada abaixo, não uma proteção real ainda.
+- **Toda ação grava auditoria** (`usuario.convidar`,
+  `usuario.papel.atribuir`, `usuario.papel.remover`,
+  `usuario.suspender`/`usuario.reativar`) via `log_audit_event()`, já que
+  quem chama estas Server Actions é sempre `administrador`/`rh` (os
+  únicos papéis autorizados a chamar essa função diretamente).
+
 ## Segurança
 
 - Nenhuma credencial ou chave secreta está versionada. `.env.example`
@@ -598,14 +675,56 @@ função.
 - `.gitignore` exclui `.env*` (com exceção de `.env.example`), planilhas
   (`.xlsx`, `.xls`, `.csv`), extratos (`.ofx`) e pastas reservadas a dados
   reais (`/planilhas`, `/documentos`, `/extratos`, `/dados-reais`).
-- A chave `SUPABASE_SERVICE_ROLE_KEY` (quando necessária, em fases
-  futuras) deve ser usada **somente** em código de servidor, nunca em
-  componentes de cliente nem exposta ao navegador.
+- A chave `SUPABASE_SERVICE_ROLE_KEY` — usada pela primeira vez na Fase 9,
+  só para convidar usuários (ver [Usuários](#usuários)) — é usada
+  **somente** em `src/lib/supabase/admin.ts`, nunca em componentes de
+  cliente. Esse arquivo importa `"server-only"` (pacote da Vercel): se
+  algum dia for importado por engano em código que roda no navegador, o
+  `next build` falha em vez de vazar a chave no bundle. **Não está
+  configurada em nenhum ambiente ainda** — precisa ser adicionada
+  manualmente (painel do Supabase > Settings > API > `service_role`
+  secret) em `.env.local` e nas variáveis de ambiente do Vercel; até lá,
+  a tela de convite mostra um erro claro em vez de quebrar.
 - Todos os dados de exemplo em `supabase/seed.sql` e no painel são
   fictícios — nenhum CPF, nome ou dado real de pessoa foi usado.
 
 ## Riscos e pendências desta fase
 
+- **`SUPABASE_SERVICE_ROLE_KEY` não configurada em nenhum ambiente
+  (Fase 9)**: o convite de usuário depende dela e não vai funcionar até
+  ser adicionada manualmente em `.env.local` e no Vercel — ver
+  [Segurança](#segurança). Não incluí o valor real em nenhum lugar deste
+  repositório nem pedi para o usuário colar no chat, por ser uma
+  credencial que ignora RLS por completo.
+- **Suspender usuário não revoga sessão ativa (Fase 9)**: `ToggleStatusButton`
+  muda `profiles.status` para `suspenso`, mas nenhuma política de RLS
+  checa esse campo hoje — `has_role()`/`is_admin()` só olham
+  `profile_roles`. Um usuário já autenticado continua com acesso normal
+  até a sessão expirar por conta própria. Endurecer isso exigiria alterar
+  `has_role()`/`is_admin()` (chamadas por praticamente toda política de
+  RLS do sistema) para também checar `status = 'ativo'` — decidi não
+  fazer essa mudança sem testar, dado o alcance; documentado aqui como a
+  pendência de segurança mais importante desta fase.
+- **Papel `rh` ganhou acesso amplo a `profiles` (Fase 9, migração
+  `0011`)**: `rh` agora lê/edita o perfil de qualquer usuário da
+  campanha, inclusive de um `administrador` — mesmo alcance que
+  `profile_roles` já dava a `rh` desde a 0001 (podia atribuir/remover
+  papel de qualquer um, inclusive `administrador`), só que agora também
+  pelo perfil em si. Foi a decisão explícita do usuário
+  ("administrador e rh" gerenciam usuários); registrado aqui porque é uma
+  ampliação de privilégio real.
+- **Convite não testado ponta a ponta**: nunca foi enviado um convite de
+  verdade nesta sessão (a `SUPABASE_SERVICE_ROLE_KEY` não está
+  configurada — ver acima —, e a bateria de testes interativos desta
+  sessão segue interrompida a pedido do usuário). Em particular, não
+  verifiquei na prática: se o e-mail chega (depende do emailer padrão do
+  Supabase, com limite de envio baixo — configurar SMTP próprio é
+  recomendado para uso real), se o link de convite estabelece sessão em
+  `/convite` como esperado (a implementação assume `detectSessionInUrl`
+  do `@supabase/ssr`, confirmada por leitura do código-fonte da
+  biblioteca, não por teste ao vivo), e se `redirectTo` precisa estar
+  cadastrado nas "Redirect URLs" do Supabase Auth (painel > Authentication
+  > URL Configuration) — **provavelmente precisa**, e isso não foi feito.
 - **Relatório de Aprovações inacessível a coordenadores (Fase 8)**: por
   usar `audit_logs` como fonte, herda a política `audit_logs_select`
   (`administrador`/`auditor` da campanha, mais o super admin). Um
@@ -873,14 +992,35 @@ função.
   `auditor`/coordenador não-admin não foi testado (ver "Riscos e
   pendências desta fase").
 
+**Fase 9:**
+
+- Migração `0011` (`profiles_select`/`profiles_update` passam a incluir
+  `rh`, além de `administrador`/`auditor` já existentes) aplicada com
+  sucesso no projeto `pjjarkxwwzqiajlvpsdx`.
+- Telas `/usuarios`, `/usuarios/[id]` e `/convite`, cliente admin
+  (`src/lib/supabase/admin.ts`), Server Actions `inviteUser()`/
+  `assignRole()`/`removeRole()`/`toggleUserStatus()` criados — `npm run
+  typecheck`/`lint`/`build` sem erros.
+- Supabase Security Advisor checado após a migração: nenhum alerta novo
+  além dos já aceitos deliberadamente.
+- **Não verificado de forma nenhuma**: mais que as fases anteriores — não
+  só a UI não foi exercitada interativamente (mesma limitação de
+  sempre), como o fluxo **não pode** ter sido testado ainda, porque
+  `SUPABASE_SERVICE_ROLE_KEY` não está configurada em nenhum ambiente.
+  Ver "Riscos e pendências desta fase" para a lista completa do que
+  falta confirmar assim que a chave for adicionada (entrega do e-mail,
+  estabelecimento de sessão em `/convite`, Redirect URLs no Supabase
+  Auth).
+
 ## Próxima fase
 
 A numeração de fase usada neste README mistura dois esquemas: a
 numeração **original dos placeholders** criados na Fase 1A (Pessoas=2,
 Aprovações=3, Ponto/Operações=4, Financeiro=5, Despesas=6, Auditoria=7,
-**Relatórios=8**) e a numeração **real de entrega** desta sessão
-(1A → 1B → 1C → 2 → 3 → 6 → 7 → 8, pulando os números cujos módulos
-ainda não foram construídos). Mapeamento completo:
+Relatórios=8) e a numeração **real de entrega** desta sessão
+(1A → 1B → 1C → 2 → 3 → 6 → 7 → 8 → 9). **Usuários (Fase 9)** não tem
+correspondente na numeração original dos placeholders — é um módulo
+pedido fora dos 8 originais. Mapeamento completo:
 
 | Nº do placeholder original | Módulo            | Nº real de entrega | Status       |
 | -------------------------- | ----------------- | ------------------ | ------------ |
@@ -890,38 +1030,48 @@ ainda não foram construídos). Mapeamento completo:
 | Fase 5                     | Financeiro        | Fase 3             | ✅ concluído |
 | Fase 6                     | Despesas          | Fase 6             | ✅ concluído |
 | Fase 7                     | Auditoria         | Fase 7             | ✅ concluído |
-| **Fase 8**                 | **Relatórios**    | **esta entrega**   | ✅ concluído |
+| Fase 8                     | Relatórios        | Fase 8             | ✅ concluído |
+| **— (fora do original)**   | **Usuários**      | **Fase 9**         | ✅ concluído |
 
 Módulos **Pessoas** (Fase 1B), **Multi-tenant** (Fase 1C), **Aprovações**
 (Fase 2), **Financeiro** (Fase 3, incluindo lote), **Despesas** (Fase 6),
-**Auditoria** (Fase 7) e **Relatórios** (Fase 8) estão funcionais. Só
-resta **Ponto** e **Operações** (Fase 4) como módulos ainda placeholder.
+**Auditoria** (Fase 7), **Relatórios** (Fase 8) e **Usuários** (Fase 9)
+estão funcionais — **Usuários só depois que `SUPABASE_SERVICE_ROLE_KEY`
+for configurada** (ver "Riscos e pendências desta fase"). Só resta
+**Ponto** e **Operações** (Fase 4) como módulos ainda placeholder.
 Pendências que ficaram deliberadamente fora do escopo mínimo, para
 retomar quando fizer sentido:
 
-1. Verificação manual/end-to-end do lote de pagamentos
+1. **Configurar `SUPABASE_SERVICE_ROLE_KEY`** (painel do Supabase >
+   Settings > API > `service_role` secret) em `.env.local` e no Vercel,
+   e cadastrar `https://rh-eleitoral.vercel.app/convite` nas Redirect
+   URLs do Supabase Auth — sem isso, convidar um usuário falha. Depois
+   disso, testar o fluxo de convite ponta a ponta pelo menos uma vez.
+2. Verificação manual/end-to-end do lote de pagamentos
    (`/financeiro/lote/novo`), de Despesas (`/despesas/novo`), da tela de
    Auditoria (`/auditoria`) e dos três relatórios (`/relatorios/*`,
    inclusive os CSVs exportados) — não testados nesta sessão.
-2. Teste de isolamento entre campanhas E teste dos fluxos de
+3. Teste de isolamento entre campanhas E teste dos fluxos de
    aprovação/financeiro/despesas, com usuários de teste reais (segunda
-   campanha, coordenador/financeiro/tesouraria/auditor não-admin) — ver
-   "Riscos e pendências desta fase".
-3. Visão geral de "minha cidade"/"meu eixo" para um coordenador fora do
+   campanha, coordenador/financeiro/tesouraria/auditor não-admin) — mais
+   fácil agora que existe `/usuarios` para criar esses usuários de teste
+   sem SQL manual — ver "Riscos e pendências desta fase".
+4. Visão geral de "minha cidade"/"meu eixo" para um coordenador fora do
    fluxo de aprovação (hoje só vê a pessoa que está na etapa dele) — o
    relatório de Aprovações não cobre isso, porque um coordenador não
    consegue lê-lo (ver "Riscos e pendências desta fase").
-4. Tela de atribuição de papel (coordenador, financeiro, tesouraria —
-   hoje só via SQL).
-5. Decisão em massa para um lote inteiro (hoje é por pagamento
+5. Suspender usuário revogar a sessão de fato (hoje só marca
+   `profiles.status`, não é checado por nenhuma política de RLS — ver
+   "Riscos e pendências desta fase").
+6. Decisão em massa para um lote inteiro (hoje é por pagamento
    individual); conciliação bancária; reembolso parcial/parcelado.
-6. Exportação em PDF/Excel dos relatórios (hoje só CSV) e gráficos (hoje
+7. Exportação em PDF/Excel dos relatórios (hoje só CSV) e gráficos (hoje
    só barras de funil simples em HTML/CSS).
-7. Atomicidade real entre `people` e as tabelas satélite (função Postgres
+8. Atomicidade real entre `people` e as tabelas satélite (função Postgres
    consolidada), caso falhas parciais se mostrem um problema recorrente.
-8. Seletor/indicador de campanha na UI para o super admin de plataforma.
-9. OCR de documentos e assinatura eletrônica de contrato — dependem dos
-   módulos que os utilizam.
+9. Seletor/indicador de campanha na UI para o super admin de plataforma.
+10. OCR de documentos e assinatura eletrônica de contrato — dependem dos
+    módulos que os utilizam.
 
 Para o próximo módulo funcional, a navegação já criada na Fase 1A aponta
 para **Ponto** e **Operações** — os dois únicos placeholders restantes.

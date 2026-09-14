@@ -3,8 +3,14 @@ import { createServerClient } from "@supabase/ssr";
 
 import { getSupabaseEnv } from "./env";
 
-/** Rotas acessíveis sem sessão autenticada. */
-const PUBLIC_ROUTES = ["/login"];
+/**
+ * Rotas acessíveis sem sessão autenticada. `/convite` (Fase 9) recebe o
+ * link de convite por e-mail com a sessão codificada na própria URL — o
+ * cliente Supabase do navegador (não o proxy) é quem estabelece a sessão
+ * a partir dela, então a rota precisa estar acessível antes de existir
+ * cookie de sessão nenhum.
+ */
+const PUBLIC_ROUTES = ["/login", "/convite"];
 
 function isPublicRoute(pathname: string) {
   return PUBLIC_ROUTES.some(
