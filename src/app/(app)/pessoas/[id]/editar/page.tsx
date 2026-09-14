@@ -10,6 +10,7 @@ import {
   type PersonFormValues,
 } from "@/components/pessoas/person-form";
 import { PersonDocumentUpload } from "@/components/pessoas/person-document-upload";
+import { SendForApprovalCard } from "@/components/pessoas/send-for-approval-card";
 import { documentTypeLabels } from "@/lib/validations/person";
 
 export const metadata: Metadata = { title: "Editar pessoa" };
@@ -28,6 +29,7 @@ export default async function EditarPessoaPage({
     { data: bank },
     { data: electoral },
     { data: documents },
+    { data: cities },
   ] = await Promise.all([
     supabase.from("people").select("*").eq("id", id).maybeSingle(),
     supabase
@@ -51,6 +53,7 @@ export default async function EditarPessoaPage({
       .eq("person_id", id)
       .eq("status", "ativo")
       .order("created_at", { ascending: false }),
+    supabase.from("cities").select("id, name").order("name"),
   ]);
 
   if (!person) {
@@ -103,6 +106,10 @@ export default async function EditarPessoaPage({
       />
       <div className="flex flex-col gap-6">
         <PersonForm mode="edit" personId={id} defaultValues={defaultValues} />
+
+        {person.status === "rascunho" && (
+          <SendForApprovalCard personId={id} cities={cities ?? []} />
+        )}
 
         <Card>
           <CardHeader>

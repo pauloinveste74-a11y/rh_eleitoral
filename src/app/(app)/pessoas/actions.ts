@@ -13,6 +13,7 @@ import {
   documentTypes,
   isSectionEmpty,
 } from "@/lib/validations/person";
+import { sendForApprovalSchema } from "@/lib/validations/territory";
 import type { Json } from "@/types/database";
 import type { PersonActionState } from "./action-state";
 
@@ -450,6 +451,96 @@ export async function uploadPersonDocument(
   });
 
   revalidatePath(`/pessoas/${personId}/editar`);
+  return { status: "success" };
+}
+
+export async function sendForApproval(
+  personId: string,
+  _prevState: PersonActionState,
+  formData: FormData,
+): Promise<PersonActionState> {
+  const parsed = sendForApprovalSchema.safeParse({
+    cityId: String(formData.get("cityId") ?? ""),
+  });
+  if (!parsed.success) {
+    return { status: "error", errors: parsed.error.flatten().fieldErrors };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return {
+      status: "error",
+      message: "Sessão expirada. Faça login novamente.",
+    };
+  }
+
+  const { data: person, error: personError } = await supabase
+    .from("people")
+    .select("id, status, campaign_id")
+    .eq("id", personId)
+    .maybeSingle();
+  if (personError || !person) {
+    return { status: "error", message: "Pessoa não encontrada." };
+  }
+  if (person.status !== "rascunho") {
+    return {
+      status: "error",
+      message: "Esta pessoa já foi enviada para aprovação.",
+    };
+  }
+
+  const { data: city, error: cityError } = await supabase
+    .from("cities")
+    .select("id, axis_id")
+    .eq("id", parsed.data.cityId)
+    .maybeSingle();
+  if (cityError || !city) {
+    return { status: "error", errors: { cityId: ["Cidade inválida."] } };
+  }
+
+  const { error: assignmentError } = await supabase
+    .from("organizational_assignments")
+    .insert({
+      person_id: personId,
+      campaign_id: person.campaign_id,
+      city_id: city.id,
+      axis_id: city.axis_id,
+      status: "vigente",
+      created_by: user.id,
+    });
+  if (assignmentError) {
+    return {
+      status: "error",
+      message: "Não foi possível vincular a pessoa à cidade.",
+    };
+  }
+
+  const { error: statusError } = await supabase
+    .from("people")
+    .update({ status: "pendente_validacao_cidade", updated_by: user.id })
+    .eq("id", personId);
+  if (statusError) {
+    return {
+      status: "error",
+      message: "Vínculo criado, mas não foi possível atualizar o status.",
+    };
+  }
+
+  await supabase.rpc("log_audit_event", {
+    p_action: "pessoa.enviar_aprovacao",
+    p_entity_table: "people",
+    p_entity_id: personId,
+    p_after_data: toJson({
+      status: "pendente_validacao_cidade",
+      city_id: city.id,
+    }),
+  });
+
+  revalidatePath(`/pessoas/${personId}/editar`);
+  revalidatePath("/aprovacoes");
   return { status: "success" };
 }
 

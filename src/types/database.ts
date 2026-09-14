@@ -445,6 +445,22 @@ export interface Database {
         Args: Record<string, never>;
         Returns: boolean;
       };
+      is_city_coordinator_for: {
+        Args: { p_city_id: string };
+        Returns: boolean;
+      };
+      is_axis_coordinator_for: {
+        Args: { p_axis_id: string };
+        Returns: boolean;
+      };
+      decide_approval: {
+        Args: {
+          p_person_id: string;
+          p_decision: string;
+          p_reason?: string | null;
+        };
+        Returns: undefined;
+      };
       log_audit_event: {
         Args: {
           p_action: string;

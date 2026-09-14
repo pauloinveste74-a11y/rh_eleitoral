@@ -2,15 +2,16 @@
 
 Sistema de gestão de pessoas, operações e pagamentos para campanha eleitoral.
 
-> **Fase atual: 1C — Multi-tenant.** Além da base técnica (Fase 1A) e do
-> módulo **Pessoas** (Fase 1B: cadastro com validação de CPF, endereço,
-> dados bancários e eleitorais, upload de documentos, listagem com busca e
-> paginação), o sistema agora isola dados **por campanha** (`campaign_id` +
-> RLS em toda tabela de domínio) — cada campanha eleitoral é um tenant
-> isolado, com um super administrador de plataforma que atravessa esse
-> isolamento (ver [Multi-tenant](#multi-tenant)). Os demais módulos
-> (Aprovações, Ponto, Financeiro, etc.) serão implementados em fases
-> seguintes — ver [Próxima fase](#próxima-fase).
+> **Fase atual: 2 — Aprovações.** Sobre a base técnica (Fase 1A), o módulo
+> **Pessoas** (Fase 1B) e o isolamento **multi-tenant** por campanha (Fase
+> 1C — ver [Multi-tenant](#multi-tenant)), o sistema agora cobre o núcleo
+> do fluxo de **validação territorial**: uma pessoa cadastrada é enviada
+> para aprovação, validada por um coordenador de cidade e depois por um
+> coordenador de eixo, terminando aprovada ou rejeitada (ver
+> [Aprovações](#aprovações)). Uma tela simples de gestão territorial
+> (Eixos/Cidades/Equipes) também foi criada, pré-requisito para rotear
+> pessoas. Os demais módulos (Ponto, Financeiro, etc.) serão implementados
+> em fases seguintes — ver [Próxima fase](#próxima-fase).
 
 ## Stack
 
@@ -39,8 +40,9 @@ npm install
 
 > **Já existe um projeto Supabase em uso para esta campanha**
 > (`rh_eleitoral`, projeto `pjjarkxwwzqiajlvpsdx`, região `ca-central-1`),
-> com as migrações `0001`–`0005` aplicadas (schema base + tabelas satélite
-> de pessoa + isolamento multi-tenant por campanha). **O seed fictício não
+> com as migrações `0001`–`0006` aplicadas (schema base + tabelas satélite
+> de pessoa + isolamento multi-tenant por campanha + fluxo de aprovação).
+> **O seed fictício não
 > foi aplicado neste projeto** — o banco recebe dados reais desde o início
 > da Fase 1B. Um `.env.local` já criado localmente aponta para ele (arquivo
 > ignorado pelo Git — não é versionado). O deploy de produção está em
@@ -60,10 +62,10 @@ npm install
    cp .env.example .env.local
    ```
 
-4. Aplique as migrações do banco, em ordem (`0001` a `0005`). Duas opções:
+4. Aplique as migrações do banco, em ordem (`0001` a `0006`). Duas opções:
 
    **Opção A — SQL Editor do Supabase Studio (mais simples):**
-   Abra cada arquivo em `supabase/migrations/` (0001 a 0005), copie o
+   Abra cada arquivo em `supabase/migrations/` (0001 a 0006), copie o
    conteúdo e execute no SQL Editor do painel do Supabase, um de cada vez,
    na ordem numérica.
 
@@ -147,14 +149,14 @@ src/
     (app)/              # rotas autenticadas (layout com sidebar/topbar)
       painel/           # dashboard inicial
       pessoas/          # cadastro, edição, documentos e listagem (Fase 1B)
-      aprovacoes/       # placeholder — Fase 3
+      aprovacoes/       # filas de validação cidade/eixo (Fase 2)
       ponto/            # placeholder — Fase 4
       operacoes/        # placeholder — Fase 4
       financeiro/       # placeholder — Fase 5
       despesas/         # placeholder — Fase 6
       auditoria/        # placeholder — Fase 7
       relatorios/       # placeholder — Fase 8
-      configuracoes/    # placeholder
+      configuracoes/    # gestão territorial: eixos/cidades/equipes (Fase 2)
     proxy.ts            # (fora de app/, ver abaixo) proteção de rotas
   components/
     ui/                 # componentes acessíveis reutilizáveis (botão, input, card...)
@@ -254,6 +256,46 @@ multi-campanha por login.
 
 Detalhes completos em `supabase/migrations/0005_multi_tenant_campaign_scoping.sql`.
 
+## Aprovações
+
+Núcleo do fluxo de validação territorial de uma pessoa, cobrindo só os
+estados centrais de `people.status` (os demais — documentos/OCR/contrato —
+seguem fora de escopo):
+
+```
+rascunho → (RH envia, escolhendo uma cidade) → pendente_validacao_cidade
+  → (coordenador de cidade decide) → pendente_validacao_eixo ou rejeitado
+  → (coordenador de eixo decide) → aprovado ou rejeitado
+```
+
+- **Enviar para aprovação** (`/pessoas/{id}/editar`, só quando `status =
+'rascunho'`): RH/administrador escolhe uma cidade; isso cria a linha de
+  `organizational_assignments` (com `axis_id` derivado da cidade) e muda
+  `people.status` para `pendente_validacao_cidade`. Equipe não participa
+  dessa decisão (campo opcional, não coberto pela tela de envio).
+- **Decidir** (`/aprovacoes`, duas filas — cidade e eixo): usa a função
+  `public.decide_approval(p_person_id, p_decision, p_reason)`
+  (`SECURITY DEFINER`), que valida se quem está decidindo é o coordenador
+  certo para aquele território (`is_city_coordinator_for()`/
+  `is_axis_coordinator_for()`, novas funções que checam `profile_roles`
+  com o `city_id`/`axis_id` do coordenador) ou um administrador/super
+  admin, faz a transição de status, **encerra o vínculo territorial em
+  caso de rejeição** (`organizational_assignments.status = 'encerrado'`),
+  e grava a auditoria diretamente (não via `log_audit_event()`, porque
+  coordenadores não têm papel `administrador`/`rh` exigido por aquela
+  função).
+- **Quem vê o quê**: `people_select`/`organizational_assignments_select`
+  ganharam ramos novos para coordenador de cidade/eixo, escopados ao
+  próprio território — um coordenador só vê pessoas na etapa que é dele.
+  Não há visibilidade de endereço/dados bancários/eleitorais/documentos
+  para coordenadores (a aprovação territorial não depende desses dados).
+- **Atribuir o papel de coordenador** (`coordenador_cidade`/
+  `coordenador_eixo`, com `city_id`/`axis_id`) continua manual via SQL,
+  mesmo processo do bootstrap de administrador — não há tela para isso
+  ainda.
+
+Detalhes completos em `supabase/migrations/0006_approvals_workflow.sql`.
+
 ## Modelo de dados (Fase 1A + 1B + 1C)
 
 | Tabela                       | Descrição                                                                       |
@@ -303,8 +345,11 @@ no resumo por brevidade, ver [Multi-tenant](#multi-tenant). Resumo:
   Fase 1C); escrita restrita a `administrador` **dentro** da própria
   campanha.
 - **`people`**: leitura e escrita restritas a `administrador`/`rh` **da
-  própria campanha** (leitura também para `auditor`). Sem política de
-  `DELETE` — exclusão é sempre lógica via `status`.
+  própria campanha** (leitura também para `auditor`). Desde a Fase 2, um
+  coordenador de cidade/eixo também lê (só leitura) as pessoas na etapa
+  que é dele (`status = 'pendente_validacao_cidade'`/`'pendente_validacao_eixo'`
+  cujo território bate com o dele — ver [Aprovações](#aprovações)). Sem
+  política de `DELETE` — exclusão é sempre lógica via `status`.
 - **`person_addresses`, `person_bank_accounts`, `person_electoral_data`,
   `person_documents`**: mesmo padrão de `people` — leitura para
   `administrador`/`rh`/`auditor` da própria campanha, escrita para
@@ -319,8 +364,14 @@ no resumo por brevidade, ver [Multi-tenant](#multi-tenant). Resumo:
   (verificado via join em `profiles.campaign_id`, já que
   `profile_roles.campaign_id` não é mais usado para autorização).
 - **`organizational_assignments`**: leitura para
-  `administrador`/`rh`/`auditor` da própria campanha; escrita para
-  `administrador`/`rh` da própria campanha. Sem `DELETE`.
+  `administrador`/`rh`/`auditor` da própria campanha, e (Fase 2) para o
+  coordenador de cidade/eixo do próprio território; escrita para
+  `administrador`/`rh` da própria campanha (a transição para `encerrado`
+  ao rejeitar uma pessoa é feita por `decide_approval()`, que roda como
+  `SECURITY DEFINER`). Sem `DELETE`. Desde a Fase 2, um trigger
+  (`check_same_campaign()`) impede que `axis_id`/`city_id`/`team_id`
+  referenciem uma linha de outra campanha — mesma checagem aplicada em
+  `cities`/`teams`.
 - **`audit_logs`**: leitura restrita a `administrador`/`auditor` da
   própria campanha; sem `INSERT`/`UPDATE`/`DELETE` direto para usuários
   comuns — a única forma de gravar é via a função `SECURITY DEFINER`
@@ -390,13 +441,29 @@ acima) respeita esse isolamento — exceto para o super admin de plataforma.
   Service Worker/cache offline ainda — depende de definir os ícones e a
   estratégia de cache junto com os módulos de campo (Ponto/Operações), que
   são os que realmente precisam funcionar offline.
-- **Escopo de visibilidade por hierarquia dentro de uma campanha**: as
-  políticas de RLS de `people`/tabelas satélite/`organizational_assignments`
-  liberam leitura para `administrador`/`rh`/`auditor` de forma ampla
-  **dentro da própria campanha** (o isolamento _entre_ campanhas já existe
-  desde a Fase 1C). A visibilidade restrita por eixo/cidade/equipe de um
-  coordenador (seção 5) segue pendente para uma fase futura, quando as
-  telas de gestão territorial existirem para validar as regras.
+- **Escopo de visibilidade por hierarquia dentro de uma campanha —
+  parcialmente resolvido na Fase 2**: as políticas de `people`/tabelas
+  satélite continuam liberando leitura ampla para
+  `administrador`/`rh`/`auditor` **dentro da própria campanha**; o que a
+  Fase 2 endereçou foi só a visibilidade de um coordenador de
+  cidade/eixo **durante a aprovação** (só a pessoa na etapa dele). Um
+  coordenador não tem hoje uma visão geral de "minha cidade"/"meu eixo"
+  fora do fluxo de aprovação (ex.: listar todas as pessoas já aprovadas
+  do seu território) — isso segue pendente para uma fase futura.
+- **Papel de coordenador ainda só via SQL**: atribuir
+  `coordenador_cidade`/`coordenador_eixo` (com `city_id`/`axis_id`) a um
+  usuário não tem tela — mesmo processo manual do bootstrap de admin (ver
+  seção "Aprovações"/"Como executar localmente").
+- **Equipe não participa da lógica de aprovação**: o formulário "Enviar
+  para aprovação" só pede Cidade; o campo Equipe de
+  `organizational_assignments` fica `null` — pode ser preenchido depois,
+  manualmente, se um módulo de gestão de equipe precisar dele.
+- **Fluxo de aprovação não testado com um coordenador real**: mesma
+  limitação já registrada para o isolamento multi-tenant — sem um segundo
+  usuário de teste com papel `coordenador_cidade`/`coordenador_eixo`
+  (não-admin), não foi possível confirmar na prática que a visibilidade
+  fica restrita ao território dele (só testado logado como o super admin,
+  que sempre vê tudo via `is_platform_admin()`).
 - **Sem atomicidade real entre `people` e as tabelas satélite**: cada
   gravação é uma chamada PostgREST separada (sem transação compartilhada).
   Uma falha parcial (ex.: pessoa criada, mas endereço não salvo) é
@@ -408,13 +475,14 @@ acima) respeita esse isolamento — exceto para o super admin de plataforma.
   desacopladas ainda não criadas — entram quando os módulos que os usam
   (Documentos, Contratos, Relatórios) forem implementados.
 - **Tipos do Supabase escritos à mão**: `src/types/database.ts` foi
-  escrito manualmente para refletir as migrações `0001`, `0004` e `0005`.
-  Considere regenerar com `npx supabase gen types typescript --project-id
-pjjarkxwwzqiajlvpsdx` quando o CLI/config local do Supabase for
-  configurado neste repositório (ainda não existe `supabase/config.toml`)
-  — atenção: a geração automática não preserva union types como
-  `PersonStatus`, então uma migração completa para o arquivo gerado exige
-  reintroduzir esses tipos literais manualmente.
+  escrito manualmente para refletir as migrações `0001`, `0004`, `0005` e
+  `0006`. Considere regenerar com
+  `npx supabase gen types typescript --project-id pjjarkxwwzqiajlvpsdx`
+  quando o CLI/config local do Supabase for configurado neste repositório
+  (ainda não existe `supabase/config.toml`) — atenção: a geração
+  automática não preserva union types como `PersonStatus`, então uma
+  migração completa para o arquivo gerado exige reintroduzir esses tipos
+  literais manualmente.
 - **Ícones do manifesto PWA**: `manifest.webmanifest` está sem ícones
   (nenhuma arte foi fornecida). Adicionar quando houver identidade visual
   definida para a campanha.
@@ -477,23 +545,41 @@ pjjarkxwwzqiajlvpsdx` quando o CLI/config local do Supabase for
 - **Não verificado**: teste de isolamento com um segundo usuário/segunda
   campanha reais (ver "Riscos e pendências desta fase").
 
+**Fase 2:**
+
+- Migração `0006` (funções `is_city_coordinator_for()`/
+  `is_axis_coordinator_for()`/`decide_approval()`, trigger
+  `check_same_campaign()`, reescrita de `people_select`/
+  `organizational_assignments_select`) aplicada com sucesso no projeto
+  `pjjarkxwwzqiajlvpsdx`.
+- `npm run typecheck`, `npm run lint`, `npm run build` — sem erros.
+- Supabase Security Advisor checado após a migração: encontrado e
+  corrigido no ato um gap real — `check_same_campaign()` (função de
+  trigger de uso interno) tinha ficado chamável via RPC por `anon`, sem o
+  `revoke` que as demais funções `SECURITY DEFINER` já recebem por
+  padrão desde a 0002; corrigido antes de seguir. Depois da correção,
+  nenhum alerta novo além dos já aceitos deliberadamente.
+- **Não verificado**: fluxo de aprovação com um coordenador de
+  cidade/eixo real, não-admin (ver "Riscos e pendências desta fase").
+
 ## Próxima fase
 
-Módulos **Pessoas** (Fase 1B) e **Multi-tenant** (Fase 1C) estão
-funcionais. Pendências que ficaram deliberadamente fora do escopo mínimo,
-para retomar quando fizer sentido:
+Módulos **Pessoas** (Fase 1B), **Multi-tenant** (Fase 1C) e **Aprovações**
+(Fase 2) estão funcionais. Pendências que ficaram deliberadamente fora do
+escopo mínimo, para retomar quando fizer sentido:
 
-1. Teste de isolamento entre campanhas com um segundo usuário/segunda
-   campanha reais (ver "Riscos e pendências desta fase").
-2. Escopo de visibilidade por hierarquia (coordenador vê só sua
-   cidade/eixo/equipe) **dentro de uma campanha**, nas políticas de RLS de
-   `people` e satélites.
-3. Atomicidade real entre `people` e as tabelas satélite (função Postgres
+1. Teste de isolamento entre campanhas E teste do fluxo de aprovação, com
+   usuários de teste reais (segunda campanha, coordenador não-admin) —
+   ver "Riscos e pendências desta fase".
+2. Visão geral de "minha cidade"/"meu eixo" para um coordenador fora do
+   fluxo de aprovação (hoje só vê a pessoa que está na etapa dele).
+3. Tela de atribuição de papel de coordenador (hoje só via SQL).
+4. Atomicidade real entre `people` e as tabelas satélite (função Postgres
    consolidada), caso falhas parciais se mostrem um problema recorrente.
-4. Seletor/indicador de campanha na UI para o super admin de plataforma.
-5. OCR de documentos, assinatura eletrônica de contrato e exportação
+5. Seletor/indicador de campanha na UI para o super admin de plataforma.
+6. OCR de documentos, assinatura eletrônica de contrato e exportação
    PDF/Excel — dependem dos módulos que os utilizam.
 
 Para o próximo módulo funcional, a navegação já criada na Fase 1A aponta
-para **Aprovações** como sequência natural (fluxo de validação do cadastro
-de pessoa por cidade/eixo, mencionado na seção 5 do briefing do projeto).
+para **Ponto** ou **Financeiro** como sequência natural, a depender da
+prioridade da campanha.
