@@ -384,6 +384,38 @@ export interface Database {
         >;
         Relationships: [];
       };
+      payments: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          person_id: string;
+          amount_cents: number;
+          description: string;
+          status: "pendente" | "pago" | "rejeitado" | "cancelado";
+          bank_snapshot: Json;
+          payment_date: string | null;
+          requested_by: string | null;
+          decided_by: string | null;
+          decided_at: string | null;
+          decision_reason: string | null;
+        } & Timestamps;
+        Insert: Partial<Timestamps> & {
+          id?: string;
+          campaign_id?: string;
+          person_id: string;
+          amount_cents: number;
+          description: string;
+          status?: "pendente" | "pago" | "rejeitado" | "cancelado";
+          bank_snapshot: Json;
+          payment_date?: string | null;
+          requested_by?: string | null;
+          decided_by?: string | null;
+          decided_at?: string | null;
+          decision_reason?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["payments"]["Insert"]>;
+        Relationships: [];
+      };
       person_documents: {
         Row: {
           id: string;
@@ -456,6 +488,22 @@ export interface Database {
       decide_approval: {
         Args: {
           p_person_id: string;
+          p_decision: string;
+          p_reason?: string | null;
+        };
+        Returns: undefined;
+      };
+      create_payment: {
+        Args: {
+          p_person_id: string;
+          p_amount_cents: number;
+          p_description: string;
+        };
+        Returns: string;
+      };
+      decide_payment: {
+        Args: {
+          p_payment_id: string;
           p_decision: string;
           p_reason?: string | null;
         };
