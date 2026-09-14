@@ -2,17 +2,18 @@
 
 Sistema de gestão de pessoas, operações e pagamentos para campanha eleitoral.
 
-> **Fase atual: 6 — Despesas.** Sobre a base técnica (Fase 1A), **Pessoas**
+> **Fase atual: 7 — Auditoria.** Sobre a base técnica (Fase 1A), **Pessoas**
 > (Fase 1B), **multi-tenant** por campanha (Fase 1C —
-> [Multi-tenant](#multi-tenant)), **Aprovações** (Fase 2) e **Financeiro**
-> (Fase 3 — pagamentos avulsos e em lote, [Financeiro](#financeiro)), o
-> sistema agora cobre **reembolso de despesas**: `financeiro` registra o
-> gasto de uma pessoa `ativo` com comprovante anexado, `tesouraria` paga
-> ou rejeita (ver [Despesas](#despesas)). A numeração de fase aqui segue o
+> [Multi-tenant](#multi-tenant)), **Aprovações** (Fase 2), **Financeiro**
+> (Fase 3 — pagamentos avulsos e em lote, [Financeiro](#financeiro)) e
+> **Despesas** (Fase 6 — reembolso com comprovante, [Despesas](#despesas)),
+> o sistema agora tem uma tela de **auditoria**: lista/busca/pagina os
+> eventos gravados em `audit_logs`, resolvendo o nome do autor de cada
+> evento (ver [Auditoria](#auditoria)). A numeração de fase aqui segue o
 > rótulo original dos placeholders da Fase 1A, não uma sequência 1-2-3-4 —
 > ver a tabela em [Próxima fase](#próxima-fase) para o mapeamento
-> completo. Os módulos restantes (Ponto, Operações, Auditoria,
-> Relatórios) serão implementados em fases seguintes.
+> completo. Os módulos restantes (Ponto, Operações, Relatórios) serão
+> implementados em fases seguintes.
 
 ## Stack
 
@@ -155,7 +156,7 @@ src/
       operacoes/        # placeholder — Fase 4
       financeiro/       # pagamentos avulsos/lote financeiro → tesouraria (Fase 3)
       despesas/         # reembolso de despesa com comprovante (Fase 6)
-      auditoria/        # placeholder — Fase 7
+      auditoria/        # trilha de auditoria: lista/busca/paginação (Fase 7)
       relatorios/       # placeholder — Fase 8
       configuracoes/    # gestão territorial: eixos/cidades/equipes (Fase 2)
     proxy.ts            # (fora de app/, ver abaixo) proteção de rotas
@@ -410,8 +411,9 @@ Detalhes de colunas, checks e comentários estão em
 `supabase/migrations/0004_person_satellite_tables.sql`,
 `supabase/migrations/0005_multi_tenant_campaign_scoping.sql`,
 `supabase/migrations/0007_financeiro_payments.sql`,
-`supabase/migrations/0008_financeiro_lote.sql` e
-`supabase/migrations/0009_despesas.sql`.
+`supabase/migrations/0008_financeiro_lote.sql`,
+`supabase/migrations/0009_despesas.sql` e
+`supabase/migrations/0010_auditoria_profiles_visibility.sql`.
 
 ## Políticas de RLS criadas
 
@@ -486,6 +488,12 @@ no resumo por brevidade, ver [Multi-tenant](#multi-tenant). Resumo:
   comuns — a única forma de gravar é via a função `SECURITY DEFINER`
   `log_audit_event()` (ver "Auditoria" abaixo), chamada pelas server
   actions do módulo Pessoas a cada criação/edição.
+- **`profiles` (ajuste da Fase 7)**: a política `profiles_select` foi
+  reescrita (migração `0010`) para também liberar leitura de **outros**
+  perfis da mesma campanha para o papel `auditor`, além de
+  `administrador` — sem isso, um `auditor` puro não conseguia resolver o
+  nome/e-mail do autor de uma linha de `audit_logs` que não fosse ele
+  mesmo (só o próprio perfil, via `id = auth.uid()`).
 - **Storage — bucket `pessoas-documentos`** (privado): política de
   `INSERT` para `administrador`/`rh`, `SELECT` para
   `administrador`/`rh`/`auditor`, ambas também checando que o primeiro
@@ -507,6 +515,19 @@ uma pessoa com a gravação simultânea de seu endereço e dados bancários.
 Desde a Fase 1C, cada linha também grava `campaign_id` automaticamente
 (a campanha de quem disparou o evento), e a leitura de `audit_logs` (ver
 acima) respeita esse isolamento — exceto para o super admin de plataforma.
+
+**Tela de auditoria (Fase 7)**: `/auditoria` (`src/app/(app)/auditoria/page.tsx`)
+lista as linhas de `audit_logs` já escopadas pela RLS existente
+(`administrador`/`auditor` da própria campanha, bypass para o super
+admin), mais recente primeiro, com busca simples por texto (`action`/
+`entity_table`, via `ilike`) e paginação de 20 em 20. Cada linha resolve
+o nome do autor buscando os `profiles` correspondentes aos
+`actor_user_id` da página atual (uma segunda query em lote, não N+1), o
+que só funciona para um `auditor` puro graças ao ajuste de
+`profiles_select` da migração `0010` (ver acima). Um `<details>` por
+linha expõe `reason`/`before_data`/`after_data` quando presentes, sem
+poluir a tabela por padrão. É uma tela somente leitura — não há
+edição/exclusão de auditoria em lugar nenhum do sistema, por design.
 Desde a Fase 2, papéis que não são `administrador`/`rh` (coordenador de
 cidade/eixo na Fase 2, `financeiro`/`tesouraria` na Fase 3) não conseguem
 chamar `log_audit_event()` — as funções que eles usam
@@ -748,14 +769,30 @@ para nenhum papel de cliente.
   (mesma limitação já registrada para o lote de pagamentos — sessão de
   testes interrompida antes desta parte).
 
+**Fase 7:**
+
+- Migração `0010` (reescrita de `profiles_select` para liberar leitura de
+  outros perfis da campanha para `auditor`, além de `administrador`)
+  aplicada com sucesso no projeto `pjjarkxwwzqiajlvpsdx`.
+- Tela `/auditoria` criada (lista/busca/paginação de `audit_logs`,
+  resolução de autor via `profiles`) — `npm run typecheck`/`lint`/`build`
+  sem erros.
+- Supabase Security Advisor checado após a migração: nenhum alerta novo
+  além dos já aceitos deliberadamente.
+- **Não verificado manualmente na UI**: mesma limitação já registrada nas
+  fases anteriores — a bateria de testes interativos desta sessão segue
+  interrompida a pedido do usuário; em particular, o acesso com um
+  usuário `auditor` puro (não-admin) não foi exercitado ponta a ponta,
+  só verificado por leitura da política.
+
 ## Próxima fase
 
 A numeração de fase usada neste README mistura dois esquemas: a
 numeração **original dos placeholders** criados na Fase 1A (Pessoas=2,
-Aprovações=3, Ponto/Operações=4, Financeiro=5, **Despesas=6**,
-Auditoria=7, Relatórios=8) e a numeração **real de entrega** desta sessão
-(1A → 1B → 1C → 2 → 3 → 6, pulando os números cujos módulos ainda não
-foram construídos). Mapeamento completo:
+Aprovações=3, Ponto/Operações=4, Financeiro=5, Despesas=6,
+**Auditoria=7**, Relatórios=8) e a numeração **real de entrega** desta
+sessão (1A → 1B → 1C → 2 → 3 → 6 → 7, pulando os números cujos módulos
+ainda não foram construídos). Mapeamento completo:
 
 | Nº do placeholder original | Módulo            | Nº real de entrega | Status       |
 | -------------------------- | ----------------- | ------------------ | ------------ |
@@ -763,18 +800,19 @@ foram construídos). Mapeamento completo:
 | Fase 3                     | Aprovações        | Fase 2             | ✅ concluído |
 | Fase 4                     | Ponto / Operações | —                  | ⏳ pendente  |
 | Fase 5                     | Financeiro        | Fase 3             | ✅ concluído |
-| **Fase 6**                 | **Despesas**      | **esta entrega**   | ✅ concluído |
-| Fase 7                     | Auditoria         | —                  | ⏳ pendente  |
+| Fase 6                     | Despesas          | Fase 6             | ✅ concluído |
+| **Fase 7**                 | **Auditoria**     | **esta entrega**   | ✅ concluído |
 | Fase 8                     | Relatórios        | —                  | ⏳ pendente  |
 
 Módulos **Pessoas** (Fase 1B), **Multi-tenant** (Fase 1C), **Aprovações**
-(Fase 2), **Financeiro** (Fase 3, incluindo lote) e **Despesas** (Fase 6)
-estão funcionais. Pendências que ficaram deliberadamente fora do escopo
-mínimo, para retomar quando fizer sentido:
+(Fase 2), **Financeiro** (Fase 3, incluindo lote), **Despesas** (Fase 6)
+e **Auditoria** (Fase 7) estão funcionais. Pendências que ficaram
+deliberadamente fora do escopo mínimo, para retomar quando fizer
+sentido:
 
 1. Verificação manual/end-to-end do lote de pagamentos
-   (`/financeiro/lote/novo`) e de Despesas (`/despesas/novo`) — não
-   testados nesta sessão.
+   (`/financeiro/lote/novo`), de Despesas (`/despesas/novo`) e da tela de
+   Auditoria (`/auditoria`) — não testados nesta sessão.
 2. Teste de isolamento entre campanhas E teste dos fluxos de
    aprovação/financeiro/despesas, com usuários de teste reais (segunda
    campanha, coordenador/financeiro/tesouraria não-admin) — ver "Riscos e
@@ -793,5 +831,5 @@ mínimo, para retomar quando fizer sentido:
    PDF/Excel — dependem dos módulos que os utilizam.
 
 Para o próximo módulo funcional, a navegação já criada na Fase 1A aponta
-para **Ponto**, **Operações**, **Auditoria** ou **Relatórios** como
-sequência natural, a depender da prioridade da campanha.
+para **Ponto**, **Operações** ou **Relatórios** como sequência natural, a
+depender da prioridade da campanha.
