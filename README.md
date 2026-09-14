@@ -32,6 +32,13 @@ npm install
 
 ### 2. Configurar o Supabase
 
+> **Já existe um projeto de desenvolvimento configurado nesta máquina**
+> (`rh_eleitoral`, projeto `qtzatmhioqtkxhuhiqkd`, região `us-west-2`), com
+> as migrações `0001`–`0003` e o seed fictício já aplicados, e um
+> `.env.local` já criado localmente (arquivo ignorado pelo Git — não é
+> versionado). Se você está clonando este repositório em outra máquina ou
+> quer um projeto próprio, siga os passos abaixo normalmente.
+
 1. Crie um projeto gratuito em [supabase.com](https://supabase.com) (ou peça
    para quem administra a campanha criar e compartilhar o acesso).
 2. No painel do projeto, vá em **Settings → API** e copie:
@@ -230,6 +237,20 @@ Todas as 10 tabelas têm RLS habilitado. Resumo:
 
 ## Riscos e pendências desta fase
 
+- **Projeto Supabase compartilhado**: o projeto `rh_eleitoral` usado nesta
+  fase já continha uma tabela `instagram_leads` de outra finalidade,
+  criada anteriormente na mesma organização/conta. Nenhuma tabela desse
+  projeto foi alterada além das criadas por este repositório, mas
+  recomenda-se migrar para um projeto Supabase dedicado exclusivamente à
+  campanha assim que possível (a organização atingiu o limite de 2
+  projetos gratuitos simultâneos ao tentar criar um projeto novo e
+  dedicado).
+- **`has_role()`/`is_admin()` chamáveis via RPC por usuários autenticados**:
+  o Security Advisor aponta isso como alerta; é intencional — essas
+  funções só revelam o papel do próprio usuário (`profile_id = auth.uid()`),
+  então não há exposição de dado de terceiros nem escalonamento de
+  privilégio. Mantido assim para permitir checagens otimistas de UI no
+  cliente.
 - **PWA/offline**: apenas o `manifest.webmanifest` foi criado; não há
   Service Worker/cache offline ainda — depende de definir os ícones e a
   estratégia de cache junto com os módulos de campo (Ponto/Operações), que
@@ -256,11 +277,23 @@ Todas as 10 tabelas têm RLS habilitado. Resumo:
 - `npm run lint` — sem erros.
 - `npm run build` — build de produção concluído com sucesso (rotas do
   painel corretamente marcadas como dinâmicas `ƒ`, `/login` estática `○`).
-- Teste manual do proxy de autenticação com servidor de desenvolvimento
-  local: `/`, `/painel` e as demais rotas protegidas redirecionam para
-  `/login?redirectTo=...` quando não há sessão; `/login` responde `200` e
-  renderiza o formulário. (Realizado com variáveis de ambiente de teste,
-  sem projeto Supabase real — ver "Próxima fase".)
+- `npm run format:check` — sem pendências após `npm run format`.
+- Migrações `0001`–`0003` aplicadas com sucesso em um projeto Supabase real
+  (`list_tables` confirmou as 10 tabelas com `rls_enabled: true`).
+- Supabase Security Advisor: todos os alertas de nível `WARN` corrigidos
+  (search_path mutável, EXECUTE de função `SECURITY DEFINER` liberado por
+  padrão para `anon`), exceto dois aceitos deliberadamente — ver
+  "Riscos e pendências".
+- Supabase Performance Advisor: alertas de `multiple_permissive_policies` e
+  `auth_rls_initplan` corrigidos; índices de chave estrangeira ausentes
+  adicionados.
+- Teste end-to-end do proxy de autenticação contra o projeto Supabase real:
+  `/` responde `307` redirecionando para `/login?redirectTo=%2F` (sem
+  sessão) e `/login` responde `200` com o formulário renderizado.
+- Teste do proxy com variáveis de ambiente inválidas (fase anterior à
+  criação do projeto): mesmo comportamento de redirecionamento, confirmando
+  que falhas de configuração/rede degradam para "não autenticado" em vez de
+  erro 500 (ver `src/lib/supabase/proxy.ts`).
 
 ## Próxima fase
 
