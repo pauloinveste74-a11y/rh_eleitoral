@@ -10,8 +10,9 @@ Sistema de gestão de pessoas, operações e pagamentos para campanha eleitoral.
 > **Auditoria** (Fase 7 — trilha de eventos, [Auditoria](#auditoria)) e
 > **Relatórios** (Fase 8 — financeiro/pessoas/aprovações com filtro e CSV,
 > [Relatórios](#relatórios)), o sistema agora tem uma tela de
-> **Usuários**: convite por e-mail + atribuição de papéis com escopo
-> territorial (ver [Usuários](#usuários)) — não fazia parte dos 8 módulos
+> **Usuários**: login sempre por e-mail + senha (últimos dígitos do
+> telefone, trocável depois em "Minha conta") e atribuição de papéis com
+> escopo territorial (ver [Usuários](#usuários)) — não fazia parte dos 8 módulos
 > originais da Fase 1A, é uma adição pedida nesta sessão. A numeração de
 > fase aqui segue o rótulo original dos placeholders da Fase 1A (mais essa
 > adição), não uma sequência 1-2-3-4 — ver a tabela em
@@ -151,7 +152,6 @@ npm run format:check  # verifica formatação sem alterar arquivos
 src/
   app/
     login/              # tela de login (pública)
-    convite/            # aceitar convite: definir senha (pública) (Fase 9)
     (app)/              # rotas autenticadas (layout com sidebar/topbar)
       painel/           # dashboard inicial
       pessoas/          # cadastro, edição, documentos e listagem (Fase 1B)
@@ -162,20 +162,22 @@ src/
       despesas/         # reembolso de despesa com comprovante (Fase 6)
       auditoria/        # trilha de auditoria: lista/busca/paginação (Fase 7)
       relatorios/       # financeiro/pessoas/aprovações, filtros + CSV (Fase 8)
-      usuarios/         # convite + atribuição de papéis com escopo (Fase 9)
+      usuarios/         # criar acesso + atribuição de papéis com escopo (Fase 9)
+      conta/            # trocar a própria senha (Fase 9)
       configuracoes/    # gestão territorial: eixos/cidades/equipes (Fase 2)
     proxy.ts            # (fora de app/, ver abaixo) proteção de rotas
   components/
     ui/                 # componentes acessíveis reutilizáveis (botão, input, card...)
     layout/             # shell do painel (sidebar, topbar, navegação)
     relatorios/         # campos de filtro compartilhados entre os 3 relatórios (Fase 8)
-    usuarios/           # formulários de convite/papel/status (Fase 9)
+    usuarios/           # formulários de criação/papel/status/senha (Fase 9)
+    conta/              # formulário de troca de senha (Fase 9)
   lib/
     supabase/           # clientes Supabase (browser, servidor, proxy, admin — Fase 9)
     validations/        # esquemas Zod
     reports/            # consultas compartilhadas entre tela e exportação CSV (Fase 8)
     csv.ts              # geração de CSV (Fase 8)
-    site-url.ts         # URL pública do site, para o redirectTo do convite (Fase 9)
+    temp-password.ts    # senha inicial a partir do telefone (Fase 9)
     whatsapp.ts         # link wa.me a partir de um telefone (Fase 9)
     nav-items.ts        # itens da navegação principal
   types/
@@ -611,9 +613,18 @@ função.
 
 Tela de gestão de usuários (`/usuarios`, restrita a `administrador`/`rh`
 — quem acessa sem esse papel vê uma mensagem de acesso negado, mesma
-lógica que já protege as escritas por RLS). Duas responsabilidades:
-convidar gente nova para o sistema, e atribuir/remover papéis de acesso
-de quem já está.
+lógica que já protege as escritas por RLS). Três responsabilidades:
+criar acesso para gente nova, atribuir/remover papéis de quem já está, e
+cada usuário trocar a própria senha.
+
+**Login sempre é e-mail + senha — sem link de convite por e-mail.**
+A ideia original desta fase (Fase 9) era convidar por e-mail com um link
+de confirmação (`/convite`, usando `auth.admin.inviteUserByEmail()`/
+`generateLink()`); o usuário pediu explicitamente para simplificar: a
+senha inicial já vem pronta (últimos dígitos do telefone), e a pessoa
+entra direto em `/login` com e-mail + essa senha, sem clicar em nenhum
+link. `/convite` foi removida do código (nunca chegou a ser usada de
+verdade — a `SUPABASE_SERVICE_ROLE_KEY` nunca esteve configurada).
 
 - **Catálogo de papéis**: os 11 papéis já existiam desde a Fase 1A
   (tabela `roles`), mas só 7 têm efeito real hoje em alguma política de
@@ -624,41 +635,57 @@ de quem já está.
   — atribuí-los não dá nenhum acesso além do próprio perfil. O formulário
   de atribuição (`AssignRoleForm`) marca esses 4 como "sem efeito de
   permissão ainda" na própria lista, pra não criar falsa expectativa.
-- **Por que "convidar" e não só "criar"**: uma linha em `profiles` só
-  passa a existir via o trigger `handle_new_user()`, disparado por um
+- **Por que ainda precisa da service role key**: uma linha em `profiles`
+  só passa a existir via o trigger `handle_new_user()`, disparado por um
   `insert` em `auth.users` — não há como inserir um perfil "por fora" de
-  uma conta real do Supabase Auth. Criar essa conta exige a **service
-  role key** (`SUPABASE_SERVICE_ROLE_KEY`), usada pela primeira vez nesta
-  fase, estritamente dentro de `src/lib/supabase/admin.ts` (nunca
-  importado por código de cliente — reforçado por `import "server-only"`,
-  que quebra o build se isso acontecer). A Server Action `inviteUser()`
-  primeiro verifica com o cliente normal (respeitando RLS) que quem está
-  chamando tem `has_role(['administrador', 'rh'])` — só depois usa o
-  cliente admin, que ignora RLS por completo e não sabe quem é o
-  chamador, então essa ordem importa.
-- **Fluxo de convite (revisado — ver "Telefone e WhatsApp" abaixo)**:
-  `inviteUser()` chama `auth.admin.generateLink({ type: "invite" })`, que
-  cria o usuário e devolve o link de acesso (`action_link`) **sem enviar
-  nenhum e-mail sozinho** — diferente do `inviteUserByEmail()` usado na
-  primeira versão desta fase, que mandava e-mail mas nunca expunha o
-  link, inviabilizando compartilhar por outro canal. Na sequência,
-  atualiza o `profiles` recém-criado pelo trigger com `campaign_id` e
-  `phone` (usando o cliente admin, porque a política normal de
-  `profiles_update` não aceita editar uma linha com `campaign_id` nulo —
-  e é nulo até esse passo, já que `handle_new_user()` não sabe a
-  campanha no momento do cadastro). Depois disso, atribuir papéis segue o
-  caminho normal (RLS de `profile_roles`, sem precisar do cliente admin).
-- **`/convite`** (`src/app/convite/`, fora do grupo `(app)`, rota pública
-  em `src/proxy.ts`): página que a pessoa convidada abre a partir do link
-  do e-mail. O cliente Supabase do navegador detecta a sessão codificada
-  na própria URL sozinho (`detectSessionInUrl`, ligado por padrão) — a
-  página só espera esse processamento (`onAuthStateChange`/`getUser()`,
-  com um timeout de 5s pra acusar link inválido/expirado) e mostra um
-  formulário de "definir senha" (`auth.updateUser({ password })`).
-- **Escopo territorial na atribuição**: `coordenador_cidade` exige
-  `cityId` e `coordenador_eixo` exige `axisId` no formulário (validado no
-  Zod, `src/lib/validations/user.ts`) — são os únicos papéis cujo escopo
-  em `profile_roles` é lido por uma função de RLS
+  uma conta real do Supabase Auth, e só a **service role key**
+  (`SUPABASE_SERVICE_ROLE_KEY`) pode criar essa conta com uma senha
+  definida na hora (`auth.admin.createUser()`). Usada estritamente dentro
+  de `src/lib/supabase/admin.ts` (nunca importado por código de cliente —
+  reforçado por `import "server-only"`, que quebra o build se isso
+  acontecer). A Server Action `inviteUser()` primeiro verifica com o
+  cliente normal (respeitando RLS) que quem está chamando tem
+  `has_role(['administrador', 'rh'])` — só depois usa o cliente admin,
+  que ignora RLS por completo e não sabe quem é o chamador, então essa
+  ordem importa.
+- **Senha inicial = últimos 6 dígitos do telefone**
+  (`src/lib/temp-password.ts`): o pedido original foi "os 4 últimos
+  números", mas o Supabase Auth recusa senha com menos de 6 caracteres
+  por padrão — usei 6 dígitos em vez de 4 pra continuar funcionando sem
+  precisar mexer na política de senha do projeto (que afetaria o sistema
+  inteiro, não só este fluxo). Por isso o telefone passou de opcional
+  para **obrigatório** no convite (mínimo de 6 dígitos, validado no Zod).
+  `inviteUser()` chama `auth.admin.createUser({ email, password,
+  email_confirm: true, user_metadata })` — cria a conta já com e-mail
+  confirmado, pronta pra logar em `/login` sem nenhum passo a mais — e
+  na sequência atualiza o `profiles` recém-criado pelo trigger com
+  `campaign_id`/`full_name`/`phone` (cliente admin de novo, porque a
+  política normal de `profiles_update` não aceita editar uma linha com
+  `campaign_id` nulo, e é nulo até esse passo).
+- **Compartilhar a senha** (`ShareCredentials`, em
+  `src/components/usuarios/`): aparece depois de criar o usuário (ou
+  resetar a senha), com e-mail + senha visíveis e três botões — "Copiar
+  senha", "Enviar por WhatsApp" (`wa.me/<telefone>?text=...` numa nova
+  aba, só aparece com telefone cadastrado; `src/lib/whatsapp.ts` assume
+  Brasil, prefixando `55` quando o número tem 10-11 dígitos) e "Enviar
+  por e-mail" (`mailto:`, abre o cliente de e-mail do próprio admin —
+  não depende do mailer do Supabase).
+- **Resetar senha** (`/usuarios/[id]`, `ResetPasswordButton` →
+  `resetUserPassword()`): reseta a senha de um usuário existente para os
+  últimos dígitos do telefone **atualmente** cadastrado (mesma fórmula),
+  via `auth.admin.updateUserById()`. Útil se a pessoa esqueceu a senha
+  ou nunca chegou a trocar. Exige telefone com pelo menos 6 dígitos —
+  editável antes, no mesmo card (`PhoneForm`).
+- **Trocar a própria senha** (`/conta`, acessível a **qualquer** usuário
+  autenticado, link "Minha conta" no topbar): `ChangePasswordForm`
+  chama `auth.updateUser({ password })` do lado do cliente, com a
+  sessão já existente — não pede a senha atual (o Supabase Auth não
+  exige isso pra essa chamada). É o "depois a pessoa pode trocar" que o
+  usuário pediu; nada força a troca — fica só disponível.
+- **Escopo territorial na atribuição de papel**: `coordenador_cidade`
+  exige `cityId` e `coordenador_eixo` exige `axisId` no formulário
+  (validado no Zod, `src/lib/validations/user.ts`) — são os únicos
+  papéis cujo escopo em `profile_roles` é lido por uma função de RLS
   (`is_city_coordinator_for()`/`is_axis_coordinator_for()`, ver
   [Aprovações](#aprovações)). Para os demais papéis, cidade/eixo/equipe
   no formulário são só informativos.
@@ -669,27 +696,12 @@ de quem já está.
   — é uma pendência registrada abaixo, não uma proteção real ainda.
 - **Toda ação grava auditoria** (`usuario.convidar`,
   `usuario.papel.atribuir`, `usuario.papel.remover`,
-  `usuario.suspender`/`usuario.reativar`,
-  `usuario.link_acesso.gerar`) via `log_audit_event()`, já que quem chama
-  estas Server Actions é sempre `administrador`/`rh` (os únicos papéis
-  autorizados a chamar essa função diretamente).
-- **Telefone e WhatsApp** (complemento pedido logo após a entrega
-  inicial): `profiles.phone` (migração `0012`, campo livre, mesmo padrão
-  de `people.phone` — sem checagem de formato) é capturado no convite e
-  editável a qualquer momento em `/usuarios/[id]`
-  (`src/components/usuarios/phone-form.tsx`). O convite passou a usar
-  `generateLink()` em vez de `inviteUserByEmail()` justamente para expor
-  o link (`ShareAccessLink`, em `src/components/usuarios/`): um campo
-  somente-leitura com o link, um botão "Copiar link", um botão "Enviar
-  por WhatsApp" (abre `wa.me/<telefone>?text=...` numa nova aba — só
-  aparece quando há telefone cadastrado; `src/lib/whatsapp.ts` assume
-  Brasil, prefixando `55` quando o número tem 10-11 dígitos) e um botão
-  "Enviar por e-mail" (`mailto:`, abre o cliente de e-mail do próprio
-  admin — não depende mais do mailer do Supabase, que tem limite de
-  envio baixo por padrão). Em `/usuarios/[id]` existe também "Gerar novo
-  link de acesso" (`resendAccessLink()`, usa `type: "magiclink"` em vez
-  de `type: "invite"` porque funciona mesmo se o e-mail já foi
-  confirmado) — útil quando o convite original se perde ou expira.
+  `usuario.suspender`/`usuario.reativar`, `usuario.senha.resetar`) via
+  `log_audit_event()`, já que quem chama estas Server Actions é sempre
+  `administrador`/`rh` (os únicos papéis autorizados a chamar essa
+  função diretamente). A troca de senha pelo próprio usuário
+  (`/conta`) **não** grava auditoria — é uma chamada direta do cliente
+  ao Supabase Auth, fora do alcance de `log_audit_event()`.
 
 ## Segurança
 
@@ -699,26 +711,42 @@ de quem já está.
   (`.xlsx`, `.xls`, `.csv`), extratos (`.ofx`) e pastas reservadas a dados
   reais (`/planilhas`, `/documentos`, `/extratos`, `/dados-reais`).
 - A chave `SUPABASE_SERVICE_ROLE_KEY` — usada pela primeira vez na Fase 9,
-  só para convidar usuários (ver [Usuários](#usuários)) — é usada
-  **somente** em `src/lib/supabase/admin.ts`, nunca em componentes de
-  cliente. Esse arquivo importa `"server-only"` (pacote da Vercel): se
-  algum dia for importado por engano em código que roda no navegador, o
-  `next build` falha em vez de vazar a chave no bundle. **Não está
-  configurada em nenhum ambiente ainda** — precisa ser adicionada
-  manualmente (painel do Supabase > Settings > API > `service_role`
-  secret) em `.env.local` e nas variáveis de ambiente do Vercel; até lá,
-  a tela de convite mostra um erro claro em vez de quebrar.
+  só para criar/resetar senha de usuários (ver [Usuários](#usuários)) —
+  é usada **somente** em `src/lib/supabase/admin.ts`, nunca em
+  componentes de cliente. Esse arquivo importa `"server-only"` (pacote da
+  Vercel): se algum dia for importado por engano em código que roda no
+  navegador, o `next build` falha em vez de vazar a chave no bundle.
+  **Não está configurada em nenhum ambiente ainda** — precisa ser
+  adicionada manualmente (painel do Supabase > Settings > API >
+  `service_role` secret) em `.env.local` e nas variáveis de ambiente do
+  Vercel; até lá, criar usuário/resetar senha mostra um erro claro em
+  vez de quebrar.
 - Todos os dados de exemplo em `supabase/seed.sql` e no painel são
   fictícios — nenhum CPF, nome ou dado real de pessoa foi usado.
 
 ## Riscos e pendências desta fase
 
 - **`SUPABASE_SERVICE_ROLE_KEY` não configurada em nenhum ambiente
-  (Fase 9)**: o convite de usuário depende dela e não vai funcionar até
-  ser adicionada manualmente em `.env.local` e no Vercel — ver
-  [Segurança](#segurança). Não incluí o valor real em nenhum lugar deste
-  repositório nem pedi para o usuário colar no chat, por ser uma
+  (Fase 9)**: criar usuário e resetar senha dependem dela e não vão
+  funcionar até ser adicionada manualmente em `.env.local` e no Vercel —
+  ver [Segurança](#segurança). Não incluí o valor real em nenhum lugar
+  deste repositório nem pedi para o usuário colar no chat, por ser uma
   credencial que ignora RLS por completo.
+- **Senha inicial fraca por design — dígitos do telefone que a própria
+  campanha divulga (Fase 9)**: a senha (6 dígitos do telefone) é curta e,
+  mais importante, deriva de um dado que não é secreto — qualquer pessoa
+  que tenha o WhatsApp de alguém (colega de equipe, material de
+  campanha, grupo) tem tudo que precisa pra logar como ela, sem nem
+  precisar receber a mensagem de compartilhamento. Isso foi um pedido
+  explícito do usuário pela simplicidade operacional (entregar acesso
+  por telefone sem depender de um link/e-mail), com a mitigação de dar à
+  pessoa uma forma fácil de trocar a senha depois (`/conta` — ver
+  [Usuários](#usuários)). **Não há nada hoje que force essa troca**: se
+  a pessoa nunca abrir `/conta`, a senha original continua valendo
+  indefinidamente. Se isso for um problema na prática, dá pra somar um
+  campo tipo `profiles.must_change_password` e um redirecionamento
+  obrigatório no primeiro login — não implementado, por não ter sido
+  pedido.
 - **Suspender usuário não revoga sessão ativa (Fase 9)**: `ToggleStatusButton`
   muda `profiles.status` para `suspenso`, mas nenhuma política de RLS
   checa esse campo hoje — `has_role()`/`is_admin()` só olham
@@ -736,22 +764,16 @@ de quem já está.
   pelo perfil em si. Foi a decisão explícita do usuário
   ("administrador e rh" gerenciam usuários); registrado aqui porque é uma
   ampliação de privilégio real.
-- **Convite não testado ponta a ponta**: nunca foi gerado um convite de
-  verdade nesta sessão (a `SUPABASE_SERVICE_ROLE_KEY` não está
-  configurada — ver acima —, e a bateria de testes interativos desta
-  sessão segue interrompida a pedido do usuário). Em particular, não
-  verifiquei na prática: se `action_link` retornado por `generateLink()`
-  tem exatamente o formato que a implementação de `/convite` espera
-  (`auth/v1/verify?type=...&token=...&redirect_to=...`, confirmado só
-  por leitura do código-fonte de `@supabase/auth-js`, não por teste ao
-  vivo), se o link estabelece sessão em `/convite` como esperado (mesma
-  ressalva sobre `detectSessionInUrl`), e se `redirectTo` precisa estar
-  cadastrado nas "Redirect URLs" do Supabase Auth (painel > Authentication
-  > URL Configuration) — **provavelmente precisa**, e isso não foi feito.
-  O link "Enviar por e-mail" (`mailto:`) e o botão "Copiar link" não
-  dependem do mailer do Supabase (só o link em si, que sempre é gerado
-  independente de e-mail funcionar) — reduz o risco desse ponto
-  específico, mas não substitui o teste real.
+- **Criação/reset de usuário não testado ponta a ponta**: nunca foi
+  criado um usuário de verdade nesta sessão (a
+  `SUPABASE_SERVICE_ROLE_KEY` não está configurada — ver acima —, e a
+  bateria de testes interativos desta sessão segue interrompida a pedido
+  do usuário). Em particular, não verifiquei na prática: se
+  `createUser()` com `email_confirm: true` realmente deixa a pessoa
+  logar de primeira em `/login` sem passo extra (esperado pela
+  documentação do Supabase, não confirmado ao vivo), e se
+  `auth.updateUser({password})` em `/conta` funciona sem pedir a senha
+  atual como o código assume.
 - **Heurística de telefone do `wa.me` não testada**: `buildWhatsAppLink()`
   (`src/lib/whatsapp.ts`) assume Brasil e prefixa `55` quando o número
   tem 10-11 dígitos — não testei com um número real se o WhatsApp Web
@@ -1029,35 +1051,45 @@ de quem já está.
 - Migração `0011` (`profiles_select`/`profiles_update` passam a incluir
   `rh`, além de `administrador`/`auditor` já existentes) aplicada com
   sucesso no projeto `pjjarkxwwzqiajlvpsdx`.
-- Telas `/usuarios`, `/usuarios/[id]` e `/convite`, cliente admin
+- Telas `/usuarios` e `/usuarios/[id]`, cliente admin
   (`src/lib/supabase/admin.ts`), Server Actions `inviteUser()`/
   `assignRole()`/`removeRole()`/`toggleUserStatus()` criados — `npm run
-  typecheck`/`lint`/`build` sem erros.
+  typecheck`/`lint`/`build` sem erros. (Versão original desta entrega
+  usava convite por e-mail com link; substituído logo em seguida — ver
+  abaixo.)
 - Supabase Security Advisor checado após a migração: nenhum alerta novo
   além dos já aceitos deliberadamente.
-- **Não verificado de forma nenhuma**: mais que as fases anteriores — não
-  só a UI não foi exercitada interativamente (mesma limitação de
-  sempre), como o fluxo **não pode** ter sido testado ainda, porque
-  `SUPABASE_SERVICE_ROLE_KEY` não está configurada em nenhum ambiente.
-  Ver "Riscos e pendências desta fase" para a lista completa do que
-  falta confirmar assim que a chave for adicionada (link de convite,
-  estabelecimento de sessão em `/convite`, Redirect URLs no Supabase
-  Auth).
 
-**Fase 9 (complemento — telefone/WhatsApp):**
+**Fase 9 (complemento 1 — telefone/WhatsApp):**
 
 - Migração `0012` (`profiles.phone`, campo livre) aplicada com sucesso no
   mesmo projeto — Security Advisor sem alertas novos.
 - Convite trocado de `inviteUserByEmail()` para `generateLink({ type:
-  "invite" })`, pra expor o link em vez de só mandar e-mail — ver
-  "Telefone e WhatsApp" em [Usuários](#usuários) pra o motivo. Componente
-  `ShareAccessLink` (copiar/WhatsApp/e-mail), Server Action
-  `resendAccessLink()` (`type: "magiclink"`) e `updatePhone()`
-  criados — `npm run typecheck`/`lint`/`build` sem erros.
-- **Não verificado**: mesma limitação da entrega original desta fase —
-  `SUPABASE_SERVICE_ROLE_KEY` ainda não configurada, então nada deste
-  fluxo (incluindo o link `wa.me` com um número de telefone real) foi
-  exercitado de verdade.
+  "invite" })`, pra expor o link em vez de só mandar e-mail. Componente
+  de compartilhamento, reenvio de link e `updatePhone()` criados — `npm
+  run typecheck`/`lint`/`build` sem erros. (Essa versão baseada em link
+  também foi substituída no complemento seguinte, a pedido do usuário —
+  ver abaixo.)
+
+**Fase 9 (complemento 2 — login por senha, sem link):**
+
+- Sem migração nova. Convite trocado de novo — desta vez de
+  `generateLink()` para `auth.admin.createUser({ password, email_confirm:
+  true })`: cria a conta já com senha (últimos 6 dígitos do telefone) e
+  e-mail confirmado, login direto em `/login`. `/convite` (rota de
+  aceitar link) e `src/lib/site-url.ts` removidos do código — não tinham
+  mais uso. `resetUserPassword()` substitui o antigo reenvio de link.
+  Nova página `/conta` (qualquer usuário autenticado) para trocar a
+  própria senha — `auth.updateUser({password})` do lado do cliente.
+  `npm run typecheck`/`lint`/`build` sem erros.
+- Supabase Security Advisor não re-checado nesta rodada (nenhuma
+  migração nova para revisar).
+- **Não verificado de forma nenhuma, nas três rodadas desta fase**: além
+  da UI não ter sido exercitada interativamente (mesma limitação de
+  sempre), o fluxo **não pode** ter sido testado ainda, porque
+  `SUPABASE_SERVICE_ROLE_KEY` não está configurada em nenhum ambiente.
+  Ver "Riscos e pendências desta fase" para o que falta confirmar assim
+  que a chave for adicionada.
 
 ## Próxima fase
 
@@ -1090,10 +1122,11 @@ Pendências que ficaram deliberadamente fora do escopo mínimo, para
 retomar quando fizer sentido:
 
 1. **Configurar `SUPABASE_SERVICE_ROLE_KEY`** (painel do Supabase >
-   Settings > API > `service_role` secret) em `.env.local` e no Vercel,
-   e cadastrar `https://rh-eleitoral.vercel.app/convite` nas Redirect
-   URLs do Supabase Auth — sem isso, convidar um usuário falha. Depois
-   disso, testar o fluxo de convite ponta a ponta pelo menos uma vez.
+   Settings > API > `service_role` secret) em `.env.local` e no Vercel —
+   sem isso, criar usuário e resetar senha falham. Depois disso, criar um
+   usuário de teste e confirmar que o login em `/login` funciona de
+   primeira com e-mail + últimos 6 dígitos do telefone, e que `/conta`
+   troca a senha corretamente.
 2. Verificação manual/end-to-end do lote de pagamentos
    (`/financeiro/lote/novo`), de Despesas (`/despesas/novo`), da tela de
    Auditoria (`/auditoria`) e dos três relatórios (`/relatorios/*`,

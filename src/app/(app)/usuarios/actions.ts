@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getSiteUrl } from "@/lib/site-url";
+import { derivePasswordFromPhone } from "@/lib/temp-password";
 import {
   inviteUserSchema,
   assignRoleSchema,
@@ -68,26 +68,25 @@ export async function inviteUser(
     };
   }
 
-  // generateLink() cria o usuário (mesma função do antigo
-  // inviteUserByEmail()) e devolve o link de acesso em vez de só enviar
-  // por e-mail — assim o admin pode compartilhar também por WhatsApp.
-  // Nenhum e-mail é enviado automaticamente por este passo.
-  const { data: generated, error: inviteError } = await admin.auth.admin.generateLink({
-    type: "invite",
+  const password = derivePasswordFromPhone(parsed.data.phone);
+
+  // createUser() cria o usuário já com senha e e-mail confirmado — a
+  // pessoa entra direto em /login com email + senha, sem link nenhum
+  // (troca-se por um fluxo mais simples que o de convite por e-mail).
+  const { data: created, error: createError } = await admin.auth.admin.createUser({
     email: parsed.data.email,
-    options: {
-      data: { full_name: parsed.data.fullName },
-      redirectTo: `${getSiteUrl()}/convite`,
-    },
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: parsed.data.fullName },
   });
 
-  if (inviteError || !generated?.user) {
-    const alreadyExists = inviteError?.message?.toLowerCase().includes("already");
+  if (createError || !created?.user) {
+    const alreadyExists = createError?.message?.toLowerCase().includes("already");
     return {
       status: "error",
       message: alreadyExists
         ? "Já existe um usuário com esse e-mail."
-        : inviteError?.message || "Não foi possível gerar o convite.",
+        : createError?.message || "Não foi possível criar o usuário.",
     };
   }
 
@@ -100,43 +99,51 @@ export async function inviteUser(
     .update({
       campaign_id: campaignId,
       full_name: parsed.data.fullName,
-      phone: parsed.data.phone || null,
+      phone: parsed.data.phone,
     })
-    .eq("id", generated.user.id);
+    .eq("id", created.user.id);
 
   if (updateError) {
     return {
       status: "error",
-      message: "Convite gerado, mas houve um erro ao associar a campanha. Avise o suporte.",
+      message: "Usuário criado, mas houve um erro ao associar a campanha. Avise o suporte.",
     };
   }
 
   await supabase.rpc("log_audit_event", {
     p_action: "usuario.convidar",
     p_entity_table: "profiles",
-    p_entity_id: generated.user.id,
+    p_entity_id: created.user.id,
     p_after_data: toJson({ email: parsed.data.email, full_name: parsed.data.fullName }),
   });
 
   revalidatePath("/usuarios");
   return {
     status: "success",
-    accessLink: generated.properties.action_link,
+    tempPassword: password,
     recipientEmail: parsed.data.email,
-    recipientPhone: parsed.data.phone || null,
+    recipientPhone: parsed.data.phone,
   };
 }
 
 /**
- * Gera um novo link de acesso para um usuário que já existe (convidado
- * antes, ou que perdeu o link original) — usa `type: "magiclink"`, que
- * funciona independente de o e-mail já ter sido confirmado, ao contrário
- * de `type: "invite"` (só para usuário novo).
+ * Reseta a senha de um usuário existente para os últimos dígitos do
+ * telefone atualmente cadastrado (mesma fórmula do convite) — útil
+ * quando a pessoa esqueceu a senha ou o acesso original se perdeu.
+ * Atualiza a senha de fato (`updateUserById`), não gera link nenhum.
  */
-export async function resendAccessLink(
+export async function resetUserPassword(
   profileId: string,
   email: string,
+  phone: string | null,
 ): Promise<UserActionState> {
+  if (!phone || phone.replace(/\D/g, "").length < 6) {
+    return {
+      status: "error",
+      message: "Cadastre um telefone com pelo menos 6 dígitos antes de resetar a senha.",
+    };
+  }
+
   const supabase = await createClient();
   const guard = await requireManager(supabase);
   if (!guard.ok) return { status: "error", message: guard.message };
@@ -147,30 +154,27 @@ export async function resendAccessLink(
   } catch (err) {
     return {
       status: "error",
-      message: err instanceof Error ? err.message : "Reenvio indisponível no momento.",
+      message: err instanceof Error ? err.message : "Reset indisponível no momento.",
     };
   }
 
-  const { data: generated, error } = await admin.auth.admin.generateLink({
-    type: "magiclink",
-    email,
-    options: { redirectTo: `${getSiteUrl()}/convite` },
-  });
-
-  if (error || !generated) {
-    return { status: "error", message: error?.message || "Não foi possível gerar o link." };
+  const password = derivePasswordFromPhone(phone);
+  const { error } = await admin.auth.admin.updateUserById(profileId, { password });
+  if (error) {
+    return { status: "error", message: error.message || "Não foi possível resetar a senha." };
   }
 
   await supabase.rpc("log_audit_event", {
-    p_action: "usuario.link_acesso.gerar",
+    p_action: "usuario.senha.resetar",
     p_entity_table: "profiles",
     p_entity_id: profileId,
   });
 
   return {
     status: "success",
-    accessLink: generated.properties.action_link,
+    tempPassword: password,
     recipientEmail: email,
+    recipientPhone: phone,
   };
 }
 

@@ -5,45 +5,48 @@ import { useState } from "react";
 import { buildWhatsAppLink } from "@/lib/whatsapp";
 import { Button } from "@/components/ui/button";
 
-export function ShareAccessLink({
-  link,
+export function ShareCredentials({
   email,
+  password,
   phone,
 }: {
-  link: string;
   email: string;
+  password: string;
   phone?: string | null;
 }) {
   const [copied, setCopied] = useState(false);
 
-  const message = `Você foi convidado(a) para o RH Eleitoral. Acesse o link para definir sua senha: ${link}`;
+  const message =
+    `Seu acesso ao RH Eleitoral:\n` +
+    `Site: https://rh-eleitoral.vercel.app/login\n` +
+    `E-mail: ${email}\n` +
+    `Senha: ${password}\n\n` +
+    `Assim que entrar, recomendamos trocar a senha em "Minha conta".`;
 
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(link);
+      await navigator.clipboard.writeText(password);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Clipboard API pode falhar (permissão, contexto não seguro) —
-      // o link continua selecionável manualmente no campo abaixo.
+      // Clipboard API pode falhar (permissão, contexto não seguro) — a
+      // senha continua visível e selecionável no campo abaixo.
     }
   }
 
   return (
     <div className="flex flex-col gap-2 rounded-md border border-slate-200 p-3 dark:border-slate-800">
       <p className="text-sm text-slate-600 dark:text-slate-300">
-        Link de acesso gerado para <strong>{email}</strong>. Nenhum e-mail é
-        enviado automaticamente — compartilhe por um dos canais abaixo.
+        Acesso criado para <strong>{email}</strong>. Senha inicial:{" "}
+        <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-sm dark:bg-slate-900">
+          {password}
+        </code>{" "}
+        — os últimos dígitos do telefone cadastrado. Compartilhe por um dos
+        canais abaixo; a pessoa pode trocar a senha depois de entrar.
       </p>
-      <input
-        readOnly
-        value={link}
-        onFocus={(e) => e.currentTarget.select()}
-        className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
-      />
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="outline" size="sm" onClick={handleCopy}>
-          {copied ? "Copiado!" : "Copiar link"}
+          {copied ? "Copiado!" : "Copiar senha"}
         </Button>
         {phone && (
           <Button type="button" variant="outline" size="sm" asChild>

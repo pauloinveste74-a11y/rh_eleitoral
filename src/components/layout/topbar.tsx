@@ -1,4 +1,5 @@
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { LogOut, UserCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { logout } from "@/app/(app)/actions";
@@ -26,6 +27,12 @@ export function Topbar({
         <span className="hidden text-sm text-slate-600 sm:inline dark:text-slate-300">
           {userLabel}
         </span>
+        <Button type="button" variant="outline" size="sm" asChild>
+          <Link href="/conta">
+            <UserCircle className="h-4 w-4" aria-hidden="true" />
+            <span className="hidden sm:inline">Minha conta</span>
+          </Link>
+        </Button>
         <form action={logout}>
           <Button type="submit" variant="outline" size="sm">
             <LogOut className="h-4 w-4" aria-hidden="true" />

@@ -17,7 +17,7 @@ import { AssignRoleForm } from "@/components/usuarios/assign-role-form";
 import { RemoveRoleButton } from "@/components/usuarios/remove-role-button";
 import { ToggleStatusButton } from "@/components/usuarios/toggle-status-button";
 import { PhoneForm } from "@/components/usuarios/phone-form";
-import { ResendAccessLinkButton } from "@/components/usuarios/resend-access-link-button";
+import { ResetPasswordButton } from "@/components/usuarios/reset-password-button";
 
 export const metadata: Metadata = { title: "Usuário" };
 
@@ -99,16 +99,16 @@ export default async function UsuarioDetailPage({
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Contato e link de acesso</CardTitle>
+          <CardTitle>Contato e senha</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <PhoneForm profileId={profile.id} phone={profile.phone} />
           <div>
             <p className="mb-2 text-sm text-slate-500 dark:text-slate-400">
-              Gere um novo link para compartilhar manualmente por e-mail ou
-              WhatsApp — útil se o convite original se perdeu ou expirou.
+              Reseta a senha para os últimos dígitos do telefone cadastrado —
+              útil se a pessoa esqueceu a senha atual.
             </p>
-            <ResendAccessLinkButton
+            <ResetPasswordButton
               profileId={profile.id}
               email={profile.email}
               phone={profile.phone}

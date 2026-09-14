@@ -7,9 +7,10 @@ import type { Database } from "@/types/database";
 /**
  * Cliente Supabase com a service role key — ignora RLS por completo.
  *
- * Uso estritamente restrito: convite de novo usuário via
- * `auth.admin.inviteUserByEmail()` (Fase 9 — Usuários), sempre a partir de
- * uma Server Action que já verificou o papel do usuário chamador
+ * Uso estritamente restrito: criar/resetar senha de usuário via
+ * `auth.admin.createUser()`/`updateUserById()` (Fase 9 — Usuários),
+ * sempre a partir de uma Server Action que já verificou o papel do
+ * usuário chamador
  * (`has_role(['administrador', 'rh'])`) com o cliente normal ANTES de
  * chegar aqui — este cliente não sabe quem está chamando, então a
  * autorização não pode depender dele.

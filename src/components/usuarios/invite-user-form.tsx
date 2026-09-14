@@ -7,7 +7,7 @@ import { initialUserActionState } from "@/app/(app)/usuarios/action-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ShareAccessLink } from "./share-access-link";
+import { ShareCredentials } from "./share-credentials";
 
 export function InviteUserForm() {
   const [state, dispatch, isPending] = useActionState(inviteUser, initialUserActionState);
@@ -44,16 +44,20 @@ export function InviteUserForm() {
           )}
         </div>
         <div className="flex flex-col gap-2">
-          <Label htmlFor="phone">Telefone/WhatsApp (opcional)</Label>
+          <Label htmlFor="phone">Telefone/WhatsApp</Label>
           <Input id="phone" name="phone" type="tel" placeholder="(61) 91234-5678" />
-          {state.errors?.phone && (
+          {state.errors?.phone ? (
             <p className="text-sm text-red-600" role="alert">
               {state.errors.phone[0]}
+            </p>
+          ) : (
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Vira a senha inicial (últimos 6 dígitos).
             </p>
           )}
         </div>
         <Button type="submit" disabled={isPending}>
-          {isPending ? "Gerando..." : "Convidar usuário"}
+          {isPending ? "Criando..." : "Convidar usuário"}
         </Button>
       </form>
       {state.status === "error" && state.message && !state.errors && (
@@ -61,10 +65,10 @@ export function InviteUserForm() {
           {state.message}
         </p>
       )}
-      {state.status === "success" && state.accessLink && state.recipientEmail && (
-        <ShareAccessLink
-          link={state.accessLink}
+      {state.status === "success" && state.tempPassword && state.recipientEmail && (
+        <ShareCredentials
           email={state.recipientEmail}
+          password={state.tempPassword}
           phone={state.recipientPhone}
         />
       )}

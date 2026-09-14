@@ -2,12 +2,12 @@
 
 import { useState, useTransition } from "react";
 
-import { resendAccessLink } from "@/app/(app)/usuarios/actions";
+import { resetUserPassword } from "@/app/(app)/usuarios/actions";
 import type { UserActionState } from "@/app/(app)/usuarios/action-state";
 import { Button } from "@/components/ui/button";
-import { ShareAccessLink } from "./share-access-link";
+import { ShareCredentials } from "./share-credentials";
 
-export function ResendAccessLinkButton({
+export function ResetPasswordButton({
   profileId,
   email,
   phone,
@@ -20,9 +20,12 @@ export function ResendAccessLinkButton({
   const [result, setResult] = useState<UserActionState | null>(null);
 
   function handleClick() {
+    if (!confirm("Resetar a senha deste usuário para os últimos dígitos do telefone cadastrado?")) {
+      return;
+    }
     setResult(null);
     startTransition(async () => {
-      const outcome = await resendAccessLink(profileId, email);
+      const outcome = await resetUserPassword(profileId, email, phone);
       setResult(outcome);
     });
   }
@@ -30,15 +33,15 @@ export function ResendAccessLinkButton({
   return (
     <div className="flex flex-col gap-3">
       <Button type="button" variant="outline" size="sm" disabled={isPending} onClick={handleClick}>
-        {isPending ? "Gerando..." : "Gerar novo link de acesso"}
+        {isPending ? "Resetando..." : "Resetar senha"}
       </Button>
       {result?.status === "error" && (
         <p className="text-sm text-red-600" role="alert">
           {result.message}
         </p>
       )}
-      {result?.status === "success" && result.accessLink && (
-        <ShareAccessLink link={result.accessLink} email={email} phone={phone} />
+      {result?.status === "success" && result.tempPassword && (
+        <ShareCredentials email={email} password={result.tempPassword} phone={phone} />
       )}
     </div>
   );

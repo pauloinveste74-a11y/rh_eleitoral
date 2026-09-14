@@ -3,12 +3,12 @@ export interface UserActionState {
   message?: string;
   errors?: Record<string, string[] | undefined>;
   /**
-   * Link de acesso gerado pelo convite/reenvio (`generateLink()`), para o
-   * admin compartilhar manualmente por e-mail/WhatsApp — ver
-   * `src/components/usuarios/share-access-link.tsx`. Só preenchido em
-   * `inviteUser`/`resendAccessLink`.
+   * Senha inicial/resetada (últimos dígitos do telefone — ver
+   * `src/lib/temp-password.ts`), para o admin compartilhar manualmente
+   * por WhatsApp/e-mail — ver `src/components/usuarios/share-credentials.tsx`.
+   * Só preenchida em `inviteUser`/`resetUserPassword`.
    */
-  accessLink?: string;
+  tempPassword?: string;
   recipientEmail?: string;
   recipientPhone?: string | null;
 }
