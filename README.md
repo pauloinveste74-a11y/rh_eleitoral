@@ -1400,6 +1400,37 @@ senha nativo do navegador.
   rodando depois, no submit.
 - **Verificado**: `npm run typecheck`/`lint`/`build` sem erros.
 
+### Bug de produção encontrado e corrigido: upload de arquivo acima de ~1 MB falhava com erro genérico
+
+Reportado testando a importação por planilha: selecionar o arquivo e
+enviar abria uma página de erro genérica ("A server error occurred").
+**Causa raiz, afeta o app inteiro, não só importação**: toda tela de
+upload (importação Excel/PDF, documento de pessoa, comprovante de
+despesa, contrato assinado, autocadastro público) usa Server Action
+com o arquivo dentro do `FormData` — e o Next.js limita o corpo de uma
+Server Action a **1 MB por padrão**, bem abaixo dos 10-15 MB que os
+próprios formulários anunciam (`node_modules/next/dist/docs/.../
+serverActions.md`, seção `bodySizeLimit`). Qualquer arquivo maior era
+rejeitado pelo Next.js antes mesmo de chegar no código da Server
+Action — por isso a validação de "arquivo maior que 15 MB" escrita no
+código nunca rodava pra esse caso, e o usuário via um erro sem
+explicação nenhuma.
+
+**Correção**: `next.config.ts` ganhou
+`experimental.serverActions.bodySizeLimit: "20mb"` — cobre com folga o
+maior limite já anunciado no app (15 MB). Corrige de uma vez todas as
+telas de upload citadas acima, não só importação.
+
+**Risco remanescente, não totalmente verificado**: a própria Vercel
+também impõe um limite de tamanho de corpo de requisição nas suas
+funções serverless, historicamente por volta de 4,5 MB, independente
+da configuração do Next.js — não encontrei uma forma de confirmar ou
+ajustar esse limite pelas ferramentas disponíveis aqui. Um arquivo
+entre ~1 MB e ~4,5 MB deve funcionar normalmente agora; um arquivo bem
+maior que isso (perto dos 15 MB anunciados) pode esbarrar nesse
+segundo limite, da plataforma, não do código — vale testar com um
+arquivo grande de verdade depois do deploy pra confirmar.
+
 ## Aprovações
 
 Núcleo do fluxo de validação territorial de uma pessoa, cobrindo só os
