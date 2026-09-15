@@ -53,7 +53,7 @@ partir da raiz do projeto — isso já está reforçado em `AGENTS.md`.
 | Divergências — nome×CPF na importação + verificação de documento por IA (docs/IA_DIVERGENCIAS.md, Etapa A) | `/divergencias` | — |
 | Envio de contrato (link + login/senha, manual, pronto pra automatizar) (docs/CENTRAL_INTELIGENCIA_RH_MATRIZ.md) | `/contratos`, `/contratos/[id]` | — |
 | Cabeçalho/rodapé do contrato impresso + variáveis `{{organizacao_*}}` no corpo (docs/CENTRAL_INTELIGENCIA_RH_MATRIZ.md) | `/contratos/[id]`, `/master/organizacoes/[id]` | — |
-| Análise conjunta: biblioteca jurídica de contratos + OCR/validação documental/base mestra (docs/VALIDACAO_DOCUMENTAL_MATRIZ.md) — só análise, Etapa 1 desenhada mas não implementada ainda | — | — |
+| Validação documental Etapa 1 — severidade, dupla aprovação (CPF/nome), duplicidade de documento entre pessoas diferentes (docs/VALIDACAO_DOCUMENTAL_MATRIZ.md) | `/divergencias` | — |
 
 **Ainda placeholder** (nunca implementados): **Ponto** (`/ponto`) e
 **Operações** (`/operacoes`) — são os dois únicos itens do menu sem

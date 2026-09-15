@@ -1036,6 +1036,9 @@ export interface Database {
             | "pagamento_divergente_contrato";
           details: Json;
           status: "pendente" | "em_analise" | "resolvido" | "descartado";
+          severity: "critico" | "alto" | "medio" | "baixo";
+          requires_dual_approval: boolean;
+          first_approved_by: string | null;
           due_at: string | null;
           resolved_by: string | null;
           resolved_at: string | null;
@@ -1059,6 +1062,9 @@ export interface Database {
             | "pagamento_divergente_contrato";
           details: Json;
           status?: "pendente" | "em_analise" | "resolvido" | "descartado";
+          severity?: "critico" | "alto" | "medio" | "baixo";
+          requires_dual_approval?: boolean;
+          first_approved_by?: string | null;
           due_at?: string | null;
           resolved_by?: string | null;
           resolved_at?: string | null;
@@ -1066,6 +1072,28 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["data_conflicts"]["Insert"]>;
+        Relationships: [];
+      };
+      duplicate_document_matches: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          file_hash: string;
+          person_document_id: string;
+          matched_person_document_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id?: string;
+          file_hash: string;
+          person_document_id: string;
+          matched_person_document_id: string;
+          created_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["duplicate_document_matches"]["Insert"]
+        >;
         Relationships: [];
       };
       job_functions: {

@@ -18,6 +18,13 @@ const CONFLICT_TYPE_LABEL: Record<string, string> = {
   pagamento_divergente_contrato: "Pagamento divergente do contrato",
 };
 
+const SEVERITY_RANK: Record<string, number> = {
+  critico: 0,
+  alto: 1,
+  medio: 2,
+  baixo: 3,
+};
+
 export default async function DivergenciasPage() {
   const supabase = await createClient();
 
@@ -44,13 +51,23 @@ export default async function DivergenciasPage() {
     );
   }
 
-  const { data: conflicts } = await supabase
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: conflictsRaw } = await supabase
     .from("data_conflicts")
-    .select("id, person_id, conflict_type, details, status, due_at, created_at")
+    .select(
+      "id, person_id, conflict_type, details, status, severity, requires_dual_approval, first_approved_by, due_at, created_at",
+    )
     .in("status", ["pendente", "em_analise"])
     .order("created_at", { ascending: false });
 
-  const personIds = [...new Set((conflicts ?? []).map((c) => c.person_id).filter((id): id is string => !!id))];
+  const conflicts = [...(conflictsRaw ?? [])].sort(
+    (a, b) => (SEVERITY_RANK[a.severity] ?? 9) - (SEVERITY_RANK[b.severity] ?? 9),
+  );
+
+  const personIds = [...new Set(conflicts.map((c) => c.person_id).filter((id): id is string => !!id))];
   const { data: people } =
     personIds.length > 0
       ? await supabase.from("people").select("id, full_name, cpf").in("id", personIds)
@@ -75,7 +92,7 @@ export default async function DivergenciasPage() {
         description="Dados que precisam de conferência antes de virar cadastro definitivo — nome × CPF divergente na importação, e (em breve) pagamento fora do previsto no contrato."
       />
 
-      {(conflicts ?? []).length === 0 ? (
+      {conflicts.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-sm text-brand-graphite dark:text-slate-400">
             Nenhuma divergência pendente.
@@ -83,13 +100,14 @@ export default async function DivergenciasPage() {
         </Card>
       ) : (
         <div className="flex flex-col gap-4">
-          {(conflicts ?? []).map((conflict) => (
+          {conflicts.map((conflict) => (
             <ConflictCard
               key={conflict.id}
               conflict={conflict}
               typeLabel={CONFLICT_TYPE_LABEL[conflict.conflict_type] ?? conflict.conflict_type}
               person={conflict.person_id ? peopleById.get(conflict.person_id) : undefined}
               hasIdentityDocument={!!conflict.person_id && personIdsWithDocument.has(conflict.person_id)}
+              currentUserId={user?.id ?? null}
             />
           ))}
         </div>

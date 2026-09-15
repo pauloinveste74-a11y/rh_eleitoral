@@ -26,16 +26,41 @@ const AI_VERDICT_VARIANT: Record<string, "success" | "warning" | "secondary"> = 
   inconclusivo: "secondary",
 };
 
+const SEVERITY_LABEL: Record<string, string> = {
+  critico: "Crítico",
+  alto: "Alto",
+  medio: "Médio",
+  baixo: "Baixo",
+};
+
+const SEVERITY_VARIANT: Record<string, "destructive" | "warning" | "info" | "secondary"> = {
+  critico: "destructive",
+  alto: "warning",
+  medio: "info",
+  baixo: "secondary",
+};
+
 export function ConflictCard({
   conflict,
   typeLabel,
   person,
   hasIdentityDocument,
+  currentUserId,
 }: {
-  conflict: { id: string; conflict_type: string; details: unknown; due_at: string | null; created_at: string };
+  conflict: {
+    id: string;
+    conflict_type: string;
+    details: unknown;
+    due_at: string | null;
+    created_at: string;
+    severity: string;
+    requires_dual_approval: boolean;
+    first_approved_by: string | null;
+  };
   typeLabel: string;
   person?: { full_name: string; cpf: string };
   hasIdentityDocument: boolean;
+  currentUserId: string | null;
 }) {
   const details = (conflict.details ?? {}) as ConflictDetails;
   const [isPending, startTransition] = useTransition();
@@ -76,11 +101,23 @@ export function ConflictCard({
     });
   }
 
+  const alreadyApprovedByMe =
+    conflict.requires_dual_approval &&
+    !!conflict.first_approved_by &&
+    !!currentUserId &&
+    conflict.first_approved_by === currentUserId;
+  const pendingSecondApproval = conflict.requires_dual_approval && !!conflict.first_approved_by;
+
   return (
     <Card>
       <CardContent className="flex flex-col gap-3 p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <Badge variant="warning">{typeLabel}</Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={SEVERITY_VARIANT[conflict.severity] ?? "secondary"} showIcon={false}>
+              {SEVERITY_LABEL[conflict.severity] ?? conflict.severity}
+            </Badge>
+            <Badge variant="warning">{typeLabel}</Badge>
+          </div>
           {conflict.due_at && (
             <span className="text-xs text-brand-graphite dark:text-slate-400">
               Prazo: {new Date(conflict.due_at).toLocaleDateString("pt-BR")}
@@ -133,6 +170,14 @@ export function ConflictCard({
           </div>
         )}
 
+        {pendingSecondApproval && (
+          <p className="rounded-md border border-border-default bg-state-info-soft p-3 text-sm text-state-info dark:border-slate-800 dark:bg-sky-950 dark:text-sky-200">
+            {alreadyApprovedByMe
+              ? "Você já deu a 1ª aprovação — precisa de outra pessoa pra confirmar e aplicar."
+              : "1ª aprovação já registrada por outra pessoa — sua confirmação aplica e fecha a divergência."}
+          </p>
+        )}
+
         {error && (
           <p className="text-sm text-red-600" role="alert">
             {error}
@@ -145,7 +190,7 @@ export function ConflictCard({
               {isPending ? "Verificando..." : "Verificar com IA"}
             </Button>
           )}
-          {conflict.conflict_type === "dado_divergente" && (
+          {conflict.conflict_type === "dado_divergente" && !alreadyApprovedByMe && (
             <>
               <Button
                 type="button"

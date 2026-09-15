@@ -127,3 +127,49 @@ caro dos dois cadernos — recomendo tratá-lo por último, só depois que
 as frentes acima já estiverem rodando e mostrarem, na prática, se essa
 granularidade toda é realmente necessária ou se as ferramentas mais
 simples (divergência + IA sob demanda) já resolvem o suficiente.
+
+## Etapa 1 — concluída
+
+A pedido do usuário ("vamos para etapa 1, nao faremos nenhum
+mascaramento" — item 2 da recomendação acima fica de fora por
+enquanto), a Etapa 1 desenhada foi implementada e verificada:
+
+- Migração `0042_validacao_documental_risco.sql`: `data_conflicts`
+  ganhou `severity` (`critico/alto/medio/baixo`, default `medio`) e
+  `requires_dual_approval`/`first_approved_by`; nova tabela
+  `duplicate_document_matches` pra duplicidade de documento **entre
+  pessoas diferentes** (a duplicidade dentro da mesma pessoa já era
+  bloqueada desde a `0030`).
+- `record_person_document()` passou a checar hash duplicado entre
+  pessoas diferentes da mesma campanha depois de gravar o documento —
+  não bloqueia o upload (Caderno B, seção 30: nunca classificar
+  automaticamente como fraude), só abre um `data_conflicts` crítico e
+  grava o par em `duplicate_document_matches`.
+- `resolve_data_conflict()` passou a exigir dupla aprovação (duas
+  pessoas diferentes) pra conflitos de `cpf_duplicado`/`dado_divergente`
+  quando a resolução muda dado (`aceitar_novo`/`ajustar_contrato`/
+  `estornar_pagamento`): primeira chamada só registra
+  `first_approved_by` e deixa `em_analise`, sem aplicar nada; segunda
+  chamada por pessoa diferente aplica a correção e fecha. Verificado
+  por transação de teste (`rollback`/sem `commit`): duplicidade entre
+  pessoas, rejeição da segunda aprovação pela mesma pessoa, e o
+  caminho feliz completo (1ª aprovação não muda nada → 2ª aprovação
+  por outra pessoa aplica e fecha).
+- A detecção determinística de nome divergente na importação
+  (`uploadImportBatch`/`uploadPdfImportBatch`, Etapa A) passou a
+  gravar `severity: 'alto'` (era `medio` por padrão).
+- `/divergencias` agora ordena por severidade (crítico primeiro) e o
+  `ConflictCard` mostra um badge de severidade e o estado de dupla
+  aprovação pendente — esconde os botões de resolução de quem já deu
+  a primeira aprovação (o `resolve_data_conflict()` já rejeitava isso
+  no servidor; a UI só evita a tentativa inútil).
+
+**Fora desta etapa, sem mudança**: mascaramento de CPF (item 2 da
+recomendação, explicitamente adiado pelo usuário); tudo listado em
+"Fora de escopo" no plano original (registro mestre por campo,
+reconferência antes do pagamento, confirmação pelo titular, contato
+humano registrado, relatório de resolução, índice de identidade,
+adaptador formal de OCR).
+
+**Próximo passo confirmado pelo usuário**: biblioteca jurídica de
+contratos do Caderno A (seções 11-29, item 3 da recomendação).

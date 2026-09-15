@@ -208,6 +208,7 @@ export async function uploadImportBatch(
         person_id: existing.id,
         staging_record_id: stagingIdByRow.get(row.rowNumber) ?? null,
         conflict_type: "dado_divergente" as const,
+        severity: "alto" as const,
         details: toJson({
           cpf: row.cpf,
           nome_importado: row.fullName,
@@ -405,6 +406,7 @@ export async function uploadPdfImportBatch(
         person_id: existing.id,
         staging_record_id: stagingIdByRow.get(row.rowNumber) ?? null,
         conflict_type: "dado_divergente" as const,
+        severity: "alto" as const,
         details: toJson({
           cpf: row.cpf,
           nome_importado: row.fullName,
