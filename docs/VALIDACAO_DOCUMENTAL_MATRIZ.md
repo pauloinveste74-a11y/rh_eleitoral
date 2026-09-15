@@ -1,0 +1,129 @@
+# Validação documental, OCR e base mestra + biblioteca jurídica de contratos — matriz requisito × estado real
+
+> Análise conjunta de dois cadernos, a pedido do usuário ("faça a
+> análise dos dois cadernos para implantarmos no nosso sistema"),
+> antes de qualquer código — mesma disciplina de
+> `docs/NOVA_VERSAO_MATRIZ.md`, `docs/MULTI_TENANT.md`,
+> `docs/IA_DIVERGENCIAS.md` e `docs/CENTRAL_INTELIGENCIA_RH_MATRIZ.md`.
+>
+> - **Caderno A** — `docs/CADERNO_DOCUMENTAL_JURIDICO_CONTRATOS_RH_ELEITORAL.md`
+>   (45 seções). Uma fatia dele (cabeçalho/rodapé + variáveis
+>   `{{organizacao_*}}`) já foi implementada — ver
+>   `docs/CENTRAL_INTELIGENCIA_RH_MATRIZ.md`. Esta matriz cobre o
+>   **resto**, nunca analisado seção a seção até agora.
+> - **Caderno B** — `docs/CADERNO_VALIDACAO_DOCUMENTAL_OCR_BASE_MESTRA_RH_ELEITORAL.md`
+>   (46 seções), novo, ainda sem nenhum código.
+
+## Achado central dos dois juntos
+
+Os dois cadernos **descrevem o mesmo problema por ângulos diferentes**
+e se sobrepõem em vários pontos com o que **já existe** no projeto:
+
+- Ambos quantos partem do princípio "nunca decidir automaticamente
+  sobre dado sensível" — já é exatamente a filosofia de
+  `resolve_data_conflict()` (IA para checagem de dados, Etapa A):
+  `data_conflicts` guarda a sugestão, um humano decide.
+- Caderno B pede uma interface de OCR desacoplada de fornecedor
+  (seção 41) — a checagem de documento por IA (Etapa A, usando a
+  Responses API da OpenAI) **já cumpre essa função na prática**: lê o
+  documento, devolve dado estruturado, nunca aplica nada sozinha. Não
+  é literalmente um "adaptador OCR" com fila assíncrona, mas resolve o
+  mesmo problema sem precisar contratar mais um provedor.
+- Caderno A pede estados de aprovação de modelo
+  (`draft/legal_review/accounting_review/approved/inactive/archived`,
+  seção 40) — hoje `contract_templates.status` só tem
+  `rascunho/ativo/inativo` (mais simples) e já existe aprovação
+  jurídica separada (`legal_approval_status`, `set_template_legal_approval()`,
+  Nova Versão Etapa 5) — falta só a etapa de aprovação **contábil**
+  como uma segunda trilha, e um estado de arquivamento.
+- Os dois cadernos sugerem juntos **~30 tabelas novas** no total —
+  nenhuma dessas listas foi construída como está sugerida; onde já
+  existe uma tabela cumprindo o mesmo papel (`data_conflicts`,
+  `person_documents`, `contracts`), a recomendação nas duas matrizes
+  anteriores e nesta é sempre **estender o que existe**, não duplicar.
+
+## Caderno A — biblioteca jurídica de contratos (resto, além do cabeçalho/rodapé já feito)
+
+🟢 existente · 🟡 parcial · 🔴 ausente
+
+| # | Requisito | Estado |
+|---|---|---|
+| 8/9/15 | Cabeçalho/rodapé + variáveis `{{organizacao_*}}` na qualificação | 🟢 **Feito** — ver `docs/CENTRAL_INTELIGENCIA_RH_MATRIZ.md`, migrações `0040`/`0041` |
+| 11/12 | Biblioteca de 14 tipos de contrato PF + 17 tipos PJ (cabo eleitoral, coordenador, advogado, agência de publicidade, etc.) | 🔴 Hoje `contract_templates.contract_type` só distingue `pf`/`pj` genericamente — não existe um catálogo dos 31 tipos nomeados, nem texto de cláusula pronto pra nenhum deles. Cada organização cria seu próprio modelo do zero em `/contratos/modelos` |
+| 13 | Documentos auxiliares (confidencialidade, LGPD, uso de imagem, termo de uniforme, rescisão, aditivos, recibo...) | 🔴 Nenhum desses 22 documentos auxiliares existe como modelo — só o contrato principal |
+| 14 | Estrutura obrigatória de 29 itens por contrato (objeto, jornada, justificativa de preço, integridade eleitoral, LGPD, foro...) | 🔴 O texto do modelo é livre (`template_versions.body`) — nada impede ou garante que os 29 itens estejam presentes; é responsabilidade de quem escreve o modelo hoje |
+| 15/16 | Corpo base PF e PJ com cláusulas prontas (texto sugerido no caderno) | 🔴 Nenhum modelo pré-carregado — sistema não vem com texto nenhum, cada organização escreve o próprio |
+| 17/18 | Requisitos do art. 100-A (limite de contratação de militância, exclusões, saldo consolidado) | 🔴 Não existe nenhum cálculo ou registro de limite/enquadramento no art. 100-A |
+| 19 | PJ fornecedora de equipe — anexo nominal dos alocados | 🔴 Não existe; hoje um contrato PJ não lista pessoas físicas alocadas |
+| 20 | Justificativa do preço (critério, fonte, aprovador) | 🔴 `generate_contract()` grava `value_cents`, não a justificativa — campo novo, pequeno |
+| 21/22 | Comprovação da execução + documento fiscal/recibo | 🔴 Não existe módulo de evidência de execução nem de nota fiscal/recibo — despesas (`expenses`) é o mais próximo, mas não é isso |
+| 23 | Forma de pagamento (preferência por PIX = CPF/CNPJ do contratado) | 🟡 `payments`/`legal_entities.pix_key` existem, mas nenhuma regra de preferência/validação está codificada |
+| 24 | Datas documentais separadas (assinatura, contratação, início, execução, fiscal, pagamento, prestação de contas) | 🟡 `contracts` tem `generated_at`/`start_date`/`end_date`/`signed_submitted_at` — faltam as outras (execução, emissão fiscal, registro na prestação de contas) |
+| 25/26 | Contratos especializados de advocacia/contabilidade (OAB, CRC, escopo, honorários) | 🔴 Nenhum campo específico pra esses dois tipos |
+| 27/28 | Serviços gráficos, marketing digital (campos técnicos próprios) | 🔴 Nenhum campo específico |
+| 29 | Termo de militância não remunerada (nunca contrato com valor zero) | 🔴 Hoje `generate_contract()` aceita `value_cents = null`/0 livremente — não existe um tipo de documento separado pra isso, nem validação impedindo |
+| 30-36 | Cláusula de aplicativos/geolocalização/ponto, limites de monitoramento, aparelho pessoal, equipamento da campanha | 🔴 Nada disso existe — `/ponto` e `/operacoes` são só placeholders no app (confirmado desde o início da sessão) |
+| 38 | Anexos numerados (I a XV) | 🔴 `contracts` não tem conceito de anexo separado do corpo principal |
+| 39 | Dossiê documental (12 itens por contratação) | 🟡 As peças existem espalhadas (`person_documents`, `contracts`, `contract_documents`, `payments`) mas não há uma tela/consulta que as reúna num dossiê único — mesma lacuna já apontada em `docs/CENTRAL_INTELIGENCIA_RH_MATRIZ.md`, item 21 |
+| 40 | Estados do modelo `draft→legal_review→accounting_review→approved→inactive→archived` | 🟡 Existe rascunho/ativo/inativo + aprovação jurídica separada (`legal_approval_status`) desde a Etapa 5 — falta a trilha contábil e o estado `archived` |
+| 41 | Estados documentais (`draft`...`expired`, 16 estados) | 🟡 `contracts.status` já tem um ciclo rico e equivalente (ver achado central) — vocabulário em português, não 1:1, mas cobre a mesma ideia |
+| 42 | Snapshot documental imutável | 🟢 Já existe (`generate_contract()`, spec 12 da Nova Versão) |
+| 43/44 | Checklists jurídico e contábil | 🔴 Não existem como funcionalidade — são checklists de revisão humana, não algo pra automatizar necessariamente |
+
+## Caderno B — validação documental, OCR e base mestra
+
+🟢 existente · 🟡 parcial · 🔴 ausente
+
+| # | Requisito | Estado |
+|---|---|---|
+| 8 | Validações determinísticas antes do OCR (CPF/CNPJ/data/e-mail/telefone/CEP/hash) | 🟢 Já existe em toda importação (`classifyRow()`) e upload de documento (`record_person_document()`) |
+| 9/10 | Classificação documental automática + controle de qualidade de imagem (nitidez, corte, reflexo) | 🔴 `person_documents.document_type` é escolhido manualmente no upload — nenhuma sugestão automática nem checagem de qualidade de imagem |
+| 11 | Extração por tipo de documento (RG/CNH, título eleitoral, comprovante) | 🟡 A checagem de documento por IA (Etapa A) já lê RG/CNH e devolve nome/CPF — não extrai os outros campos da seção 11.1 (filiação, naturalidade, órgão emissor) nem os outros tipos de documento (11.2/11.3/11.4) ainda |
+| 12/13 | Preservar original vs. normalizado vs. valor de impressão, por campo | 🔴 `data_conflicts.details` guarda valores ad hoc (`nome_importado`/`nome_existente`) — não é um mecanismo sistemático de 3 valores por campo |
+| 14 | Registro mestre por campo (valor+situação+fonte+validador+histórico) | 🔴 **Maior lacuna dos dois cadernos** — `people` continua com colunas simples; nenhum histórico por campo existe |
+| 15/16/17 | Comparação campo a campo + classificação + correspondência de identidade sem CPF | 🟡 Comparação de nome pro mesmo CPF já existe (Etapa A); comparação multi-campo (nascimento, filiação, telefone) e correspondência sem CPF válido não existem |
+| 18 | Histórico de nomes (nome social, grafias, motivo) | 🔴 `people.full_name` é um campo único, sem histórico |
+| 19 | Validação cruzada entre documentos da mesma pessoa | 🔴 Não existe — a checagem de IA hoje compara documento × cadastro, não documento × documento |
+| 20 | Validade temporal (comprovante recente prevalece) | 🔴 Não existe nenhuma regra de "mais recente vence" |
+| 21/22/33 | Confiança separada por tipo + conceitos distintos (extraído/validado/confirmado/autêntico) + índice de identidade | 🟡 A IA já devolve um veredito (`confere`/`diverge`/`inconclusivo`) e uma explicação — não é a granularidade completa dos 5 conceitos do caderno, nem um índice de identidade por pessoa |
+| 23 | Tela de resolução (valor mestre/importado/extraído lado a lado, com trecho da imagem) | 🟡 `/divergencias` já mostra nome atual × importado + veredito da IA — não mostra recorte da imagem nem histórico |
+| 24 | Fila baseada em risco (crítico/alto/médio/baixo) | 🔴 **Proposto na Etapa 1 deste plano** — `data_conflicts` não tem severidade hoje |
+| 25 | Dupla aprovação pra CPF/banco/PIX/mesclagem | 🔴 **Proposto na Etapa 1 deste plano** — `resolve_data_conflict()` hoje só exige uma decisão |
+| 26/27 | Confirmação pelo titular + link de correção sem conta | 🟡 `/meu-cadastro` (conta) e `/cadastro/[token]` (token, sem conta) já existem pra fluxo parecido — não são especificamente "confirme este dado extraído", precisariam adaptação |
+| 28 | Registro de contato humano complementar | 🔴 Não existe |
+| 29 | Detecção de duplicidade — mesmo arquivo em pessoas diferentes | 🟡 Hash já detecta duplicata **na mesma pessoa** (`record_person_document()`); duplicidade **entre pessoas** é **proposta na Etapa 1 deste plano** |
+| 30 | Sinais de possível alteração de documento (fonte incompatível, metadados) | 🔴 Não existe — exigiria análise forense de imagem, fora do escopo da checagem por IA atual |
+| 31/32 | Bloqueio de pagamento por identidade/banco divergente + reconferência antes de pagar | 🔴 = "Etapa B" já planejada em `docs/IA_DIVERGENCIAS.md` (conciliação contrato × pagamento), não iniciada |
+| 34 | Relatório de resolução | 🔴 Não existe |
+| 35/36 | Fluxo extrair→comparar→sugerir→revisar→aprovar→atualizar→auditar | 🟢 É exatamente o fluxo já implementado: `checkWithAi()` sugere, `resolve_data_conflict()` decide e audita via `log_audit_event()` |
+| 37/38 | Segurança (bucket privado, URL assinada, mascaramento) e privacidade | 🟡 Bucket privado/URL assinada já existem; **mascaramento de CPF é um gap real já documentado** em `docs/IDENTIDADE_VISUAL.md` desde a Fase de identidade visual |
+| 41 | Adaptador de provedor de OCR desacoplado | 🟡 Ver achado central — coberto na prática pela checagem por IA; não é um adaptador formal com fila |
+
+## Recomendação
+
+Os dois cadernos juntos somam quase 100 seções — não é uma etapa, nem
+duas. Como nas matrizes anteriores, a recomendação é seguir por
+fatias pequenas e verificáveis. Três frentes independentes, prontas
+pra decidir a ordem:
+
+1. **Etapa 1 já desenhada** (ver plano desta conversa): severidade em
+   `data_conflicts`, dupla aprovação pra CPF/banco/PIX, duplicidade de
+   documento entre pessoas diferentes — fecha os três pontos que o
+   próprio Caderno B chama de mais críticos, construindo em cima do
+   que já existe.
+2. **Mascaramento de CPF** — gap de segurança real, achado há duas
+   fases, citado nos dois cadernos novos também (seção 37 do Caderno
+   B). Pequeno, isolado, já bem entendido.
+3. **Biblioteca de contratos PF/PJ do Caderno A** (seções 11-29) — a
+   maior peça isolada: 31 tipos de contrato com cláusulas prontas.
+   Precisa de revisão jurídica antes de qualquer aprovação definitiva
+   (o próprio caderno diz isso na seção 45) — dá pra carregar os
+   modelos como `rascunho` sem risco, mas o texto de cláusula em si
+   merece confirmação de que é pra usar exatamente como veio no
+   caderno ou adaptar.
+
+O "registro mestre por campo" (Caderno B, seção 14) é o pedaço mais
+caro dos dois cadernos — recomendo tratá-lo por último, só depois que
+as frentes acima já estiverem rodando e mostrarem, na prática, se essa
+granularidade toda é realmente necessária ou se as ferramentas mais
+simples (divergência + IA sob demanda) já resolvem o suficiente.
