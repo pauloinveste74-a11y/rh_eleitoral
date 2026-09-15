@@ -31,6 +31,12 @@ Sistema de gestão de pessoas, operações e pagamentos para campanha eleitoral.
 > `/despesas` com autorizador de registro e `/despesas/alcadas` com
 > escopo de eixo/cidade) passando em `typecheck`/`lint`/`build`. Todos
 > os pontos da spec original têm implementação funcional agora.
+>
+> **Referência rápida**: `docs/FUNCOES_E_ROTAS.md` lista todas as
+> funções `SECURITY DEFINER` do banco (quem chama, o que verifica, o que
+> faz) e todas as rotas do app, levantado direto do banco em produção —
+> use esse arquivo pra consulta pontual de "o que existe", em vez de
+> procurar espalhado pelas seções de cada fase abaixo.
 
 ## MVP — Cadastro, Convite, Coordenação, Importação e Despesas
 

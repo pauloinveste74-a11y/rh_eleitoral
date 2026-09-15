@@ -160,6 +160,14 @@ mexer:
   reintroduziria as duas vulnerabilidades — não "corrigir" essa entrada
   do `package.json` achando que é um erro de digitação.
 
+## Referência completa de funções e rotas
+
+`docs/FUNCOES_E_ROTAS.md` — lista **todas** as funções `SECURITY
+DEFINER` do banco (assinatura, quem pode chamar, o que verifica, o que
+faz) e **todas** as rotas do app, levantado direto do banco em produção.
+Use esse arquivo pra consulta rápida de "o que existe"; este `CONTEXT.md`
+e o `README.md` continuam sendo a referência de arquitetura/histórico.
+
 ## O que falta para o sistema funcionar de ponta a ponta
 
 **Bloqueio ativo, único item realmente impeditivo:**
