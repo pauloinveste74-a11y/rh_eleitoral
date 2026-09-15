@@ -18,7 +18,7 @@ sessão longa de trabalho com o usuário.
 | O quê | Onde |
 | --- | --- |
 | Repositório | `github.com/pauloinveste74-a11y/rh_eleitoral`, branch `main` |
-| Produção | `https://rh-eleitoral.vercel.app` (deploy automático a cada push em `main`) |
+| Produção | `https://rh-eleitoral.vercel.app` — **deploy NÃO é automático**: `git push` sozinho não dispara build na Vercel (confirmado repetidas vezes nesta sessão); depois de todo push, rodar `npx vercel deploy --prod --yes` na raiz do projeto e conferir `readyState: "READY"` na resposta |
 | Vercel | Projeto `rh-eleitoral`, conta `pauloinveste74-a11y` |
 | Supabase | Projeto `pjjarkxwwzqiajlvpsdx` (Postgres 17 + Auth + Storage) |
 | Campanha ativa | "Bia Kicis - Senadora" |
@@ -205,6 +205,56 @@ README, seção "Modelo de dados"):
   build da Vercel, só localmente. `/importacoes` ganhou um segundo
   cartão de upload (PDF) lado a lado com o de Excel.
 
+## Migrações 0035–0044 — multi-tenant, IA, contratos, validação documental
+
+Sequência mais recente (a partir daqui a numeração de "fase" some — são
+iniciativas próprias, cada uma com sua própria matriz em `docs/`):
+
+- **Multi-tenant** (pedido explícito do usuário: master cadastra CNPJ +
+  campanha + admin, cada organização loga com CNPJ+e-mail+senha):
+  `0035` (identidade de organização por CNPJ em `campaigns` + painel do
+  master `/master/organizacoes`), `0036` ("modo de suporte" —
+  `current_campaign_id()` vira `plpgsql`, lê o header
+  `x-active-campaign-id` só quando quem chama é `is_platform_admin()`,
+  sem mudar nenhuma policy existente), `0037` (contato da organização —
+  telefone/e-mail editáveis pelo master). "Lembrar login" (Etapa 4, sem
+  migração) guarda CNPJ+e-mail em `localStorage`, nunca senha.
+- **IA para checagem de dados** (`docs/IA_DIVERGENCIAS.md`, Etapa A):
+  `0038` ativa `data_conflicts` (schema ocioso desde a Etapa 1) +
+  detecção determinística de nome divergente no import +
+  `resolve_data_conflict()` + `/divergencias`. Checagem de documento por
+  IA (`src/lib/ai/document-cross-check.ts`) começou com Anthropic,
+  **trocada para OpenAI a pedido do usuário** antes de qualquer uso real
+  — `openai-client.ts` (`getOpenAiClient()`), Responses API,
+  `gpt-5.4-mini`. Conta ficou sem crédito depois de configurada (ver
+  seção "O que falta" abaixo).
+- **Central de Inteligência de RH** (`docs/CENTRAL_INTELIGENCIA_RH_MATRIZ.md`):
+  `0039` (`contract_deliveries` — botão "Enviar" em `/contratos` que
+  cria login de verdade pro contratado, copia/cola pra WhatsApp/e-mail,
+  ainda sem envio automático), `0040`/`0041` (endereço completo +
+  representante legal em `campaigns`, cabeçalho/rodapé do contrato
+  impresso buscado ao vivo — não faz parte do snapshot imutável — e
+  variáveis `{{organizacao_*}}` interpoladas em `generate_contract()`).
+- **Validação documental / biblioteca de contratos / registro mestre**
+  (dois cadernos do usuário analisados juntos em
+  `docs/VALIDACAO_DOCUMENTAL_MATRIZ.md` antes de qualquer código — leia
+  esse arquivo primeiro se for continuar por aqui, tem o "fora de
+  escopo" completo de cada etapa): `0042` (severidade em
+  `data_conflicts`, dupla aprovação — duas pessoas diferentes — pra
+  CPF/nome, duplicidade de documento **entre pessoas diferentes** via
+  `duplicate_document_matches`), `0043` (`contract_type_catalog` — 31
+  tipos de contrato PF/PJ nomeados; `CatalogLibrary` em
+  `/contratos/modelos` cria modelo em `rascunho` com texto sugerido pra
+  revisão humana antes de publicar), `0044` (`master_field_values`/
+  `master_field_history` — registro por campo com situação/fonte/
+  validador/histórico pra nome/cpf/nascimento/telefone/email/endereço;
+  só `resolve_data_conflict()` alimenta isso por enquanto — `savePerson()`
+  e a importação continuam gravando só `people`/satélites direto, ver
+  "fora de escopo" no arquivo acima antes de estender isso).
+  Mascaramento de CPF (achado desde a Fase de identidade visual) segue
+  **explicitamente adiado** a pedido do usuário — não implementar sem
+  perguntar de novo.
+
 ## Etapas 3 a 11 — páginas de aplicação (autocadastro, validações, importação, despesas, correção)
 
 `/meu-cadastro`, `/minha-equipe`, `/cadastro/[token]` (Etapa 3, com
@@ -360,16 +410,35 @@ pro ar — se for mexer em `src/lib/ai/`, é `openai-client.ts`
 
 ## Convenções de trabalho desta sessão (uteis para continuar no mesmo estilo)
 
+- **`execute_sql` do MCP do Supabase NÃO faz rollback sozinho** sem
+  `commit` — descoberto ao vivo em 15/09/2026 quando duas "verificações"
+  de teste (sem `begin`/`rollback` explícitos) deixaram pessoas de
+  teste persistidas em produção (uma delas só foi percebida porque uma
+  segunda pessoa de teste colidiu com o CPF; a primeira tinha mudado de
+  nome no meio do próprio teste, então checar pelo nome original dava
+  falso negativo). Limpeza completa feita, nenhum dado real afetado
+  (a tabela `people` só tinha esses dois registros de teste). **Sempre**
+  envolver qualquer teste descartável em `begin; ... rollback;`
+  explícitos, e depois conferir com um `select` incluindo qualquer
+  valor que o próprio teste possa ter mutado, não só o valor original.
+- Migração aplicada via MCP nesta sessão (`apply_migration`) **não deve
+  ser reaplicada** via `supabase db push`/CLI do usuário depois — o
+  Postgres rejeita com "already exists" (inofensivo, é reaplicação
+  duplicada, não um problema real; só confirmar que o objeto já está
+  correto via `execute_sql` se o usuário perguntar).
+- Depois de todo `git push`, rodar `npx vercel deploy --prod --yes` (não
+  é automático, ver tabela do topo) e só então fazer o smoke-test.
 - Cada fase nova: aplicar migração via MCP do Supabase
   (`project_id: pjjarkxwwzqiajlvpsdx`) → `get_advisors` (security) →
   escrever o `.sql` em `supabase/migrations/` → código → `npm run
   typecheck && npm run lint && npm run build` → commit (mensagem em
   português, trailer `Co-Authored-By: Claude Sonnet 5
-  <noreply@anthropic.com>`) → `git push origin main` → aguardar o
-  deploy do Vercel ficar `Ready` (`vercel ls rh-eleitoral --prod`) →
-  smoke-test das rotas novas via `curl` (espera-se `307` para
-  `/login?redirectTo=...` sem sessão) → atualizar `README.md` (banner,
-  seção do módulo, RLS, riscos, testes realizados, próxima fase).
+  <noreply@anthropic.com>`) → `git push origin main` → `npx vercel
+  deploy --prod --yes` (não é automático) → conferir `readyState:
+  "READY"` na resposta → smoke-test das rotas novas via `curl`
+  (espera-se `200` redirecionando pra `/login?redirectTo=...` sem
+  sessão) → atualizar `README.md`/`CONTEXT.md` (banner, seção do
+  módulo, RLS, riscos, testes realizados, próxima fase).
 - Toda decisão de escopo ambígua foi perguntada ao usuário antes de
   implementar (via pergunta de múltipla escolha) — não assumir
   silenciosamente um comportamento quando há mais de uma interpretação
