@@ -31,6 +31,15 @@ const STATUS_CONFIG: Record<
   desligado: { label: "Desligado", variant: "outline" },
   rejeitado: { label: "Rejeitado", variant: "destructive" },
   arquivado: { label: "Arquivado", variant: "outline" },
+  // Etapa 2 (migração 0013) — fluxo de autocadastro/validação do gestor.
+  aguardando_gestor: { label: "Aguardando gestor", variant: "warning" },
+  em_conferencia: { label: "Em conferência", variant: "warning" },
+  correcao_solicitada: { label: "Correção solicitada", variant: "destructive" },
+  reenviado: { label: "Reenviado", variant: "warning" },
+  divergente: { label: "Divergente", variant: "destructive" },
+  aprovado_gestor: { label: "Aprovado pelo gestor", variant: "success" },
+  aguardando_rh: { label: "Aguardando RH", variant: "warning" },
+  validado: { label: "Validado", variant: "success" },
 };
 
 export function PersonStatusBadge({ status }: { status: PersonStatus }) {

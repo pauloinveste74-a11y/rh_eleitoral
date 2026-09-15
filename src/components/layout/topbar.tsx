@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LogOut, UserCircle } from "lucide-react";
+import { LogOut, UserCircle, IdCard } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { logout } from "@/app/(app)/actions";
@@ -27,6 +27,12 @@ export function Topbar({
         <span className="hidden text-sm text-slate-600 sm:inline dark:text-slate-300">
           {userLabel}
         </span>
+        <Button type="button" variant="outline" size="sm" asChild>
+          <Link href="/meu-cadastro">
+            <IdCard className="h-4 w-4" aria-hidden="true" />
+            <span className="hidden sm:inline">Meu cadastro</span>
+          </Link>
+        </Button>
         <Button type="button" variant="outline" size="sm" asChild>
           <Link href="/conta">
             <UserCircle className="h-4 w-4" aria-hidden="true" />

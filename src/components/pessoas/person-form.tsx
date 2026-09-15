@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useActionState } from "react";
+import { startTransition, useActionState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 
 import { createPerson, updatePerson } from "@/app/(app)/pessoas/actions";
@@ -89,19 +89,52 @@ export function PersonForm({
   mode,
   personId,
   defaultValues,
+  action: actionOverride,
+  submitLabel,
+  showSocialName = true,
+  onSuccess,
 }: {
   mode: "create" | "edit";
   personId?: string;
   defaultValues?: Partial<PersonFormValues>;
+  /**
+   * Sobrescreve a Server Action padrão (createPerson/updatePerson) — usado
+   * por /meu-cadastro (Etapa 2), que reaproveita esta mesma estrutura de
+   * formulário para chamar complete_own_registration() em vez de gravar
+   * direto na tabela people.
+   */
+  action?: (
+    prevState: PersonActionState,
+    formData: FormData,
+  ) => Promise<PersonActionState>;
+  /** Rótulo do botão de envio quando o padrão ("Cadastrar pessoa"/"Salvar alterações") não se aplica. */
+  submitLabel?: string;
+  /** complete_own_registration() não tem parâmetro de nome social — oculta o campo nesse caso. */
+  showSocialName?: boolean;
+  /**
+   * Chamado uma vez quando o estado transiciona para "success" — usado pelo
+   * autocadastro público (/cadastro/[token]), que avança para a etapa de
+   * upload de documento sem recarregar a página.
+   */
+  onSuccess?: () => void;
 }) {
   const action =
-    mode === "edit" && personId
+    actionOverride ??
+    (mode === "edit" && personId
       ? updatePerson.bind(null, personId)
-      : createPerson;
+      : createPerson);
   const [state, dispatch, isPending] = useActionState<
     PersonActionState,
     FormData
   >(action, initialPersonActionState);
+
+  const notifiedRef = useRef(false);
+  useEffect(() => {
+    if (state.status === "success" && !notifiedRef.current) {
+      notifiedRef.current = true;
+      onSuccess?.();
+    }
+  }, [state.status, onSuccess]);
 
   const { register, handleSubmit } = useForm<PersonFormValues>({
     defaultValues: { ...emptyPersonFormValues, ...defaultValues },
@@ -137,10 +170,12 @@ export function PersonForm({
             <Input id="fullName" {...register("fullName")} />
             <FieldError message={errorFor("fullName")} />
           </div>
-          <div className="flex flex-col gap-2 sm:col-span-2">
-            <Label htmlFor="socialName">Nome social (opcional)</Label>
-            <Input id="socialName" {...register("socialName")} />
-          </div>
+          {showSocialName && (
+            <div className="flex flex-col gap-2 sm:col-span-2">
+              <Label htmlFor="socialName">Nome social (opcional)</Label>
+              <Input id="socialName" {...register("socialName")} />
+            </div>
+          )}
           <div className="flex flex-col gap-2">
             <Label htmlFor="cpf">CPF</Label>
             <Input id="cpf" placeholder="000.000.000-00" {...register("cpf")} />
@@ -309,9 +344,8 @@ export function PersonForm({
         <Button type="submit" disabled={isPending}>
           {isPending
             ? "Salvando..."
-            : mode === "create"
-              ? "Cadastrar pessoa"
-              : "Salvar alterações"}
+            : (submitLabel ??
+              (mode === "create" ? "Cadastrar pessoa" : "Salvar alterações"))}
         </Button>
       </div>
     </form>

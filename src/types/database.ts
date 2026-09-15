@@ -534,6 +534,148 @@ export interface Database {
         >;
         Relationships: [];
       };
+      registration_invites: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          token: string;
+          contact_name: string | null;
+          contact_phone: string | null;
+          contact_email: string | null;
+          expires_at: string;
+          status: RegistrationInviteStatus;
+          max_uses: number;
+          uses_count: number;
+          suggested_axis_id: string | null;
+          suggested_city_id: string | null;
+          suggested_team_id: string | null;
+          suggested_coordinator_person_id: string | null;
+          created_by: string | null;
+          created_at: string;
+          opened_at: string | null;
+          submitted_at: string | null;
+          cancelled_at: string | null;
+          person_id: string | null;
+        };
+        Insert: {
+          id?: string;
+          campaign_id?: string;
+          token?: string;
+          contact_name?: string | null;
+          contact_phone?: string | null;
+          contact_email?: string | null;
+          expires_at: string;
+          status?: RegistrationInviteStatus;
+          max_uses?: number;
+          uses_count?: number;
+          suggested_axis_id?: string | null;
+          suggested_city_id?: string | null;
+          suggested_team_id?: string | null;
+          suggested_coordinator_person_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          opened_at?: string | null;
+          submitted_at?: string | null;
+          cancelled_at?: string | null;
+          person_id?: string | null;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["registration_invites"]["Insert"]
+        >;
+        Relationships: [];
+      };
+      coordination_relationships: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          subordinate_person_id: string;
+          coordinator_person_id: string | null;
+          relationship_type:
+            | "eixo_para_rh"
+            | "cidade_para_eixo"
+            | "equipe_para_cidade"
+            | "contratado_para_coordenador";
+          axis_id: string | null;
+          city_id: string | null;
+          team_id: string | null;
+          valid_from: string;
+          valid_until: string | null;
+          status: "vigente" | "encerrado";
+          source: "autocadastro" | "administrativo" | "importacao_excel" | null;
+          created_by: string | null;
+          validated_by: string | null;
+          created_at: string;
+          updated_at: string;
+          archived_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          campaign_id?: string;
+          subordinate_person_id: string;
+          coordinator_person_id?: string | null;
+          relationship_type:
+            | "eixo_para_rh"
+            | "cidade_para_eixo"
+            | "equipe_para_cidade"
+            | "contratado_para_coordenador";
+          axis_id?: string | null;
+          city_id?: string | null;
+          team_id?: string | null;
+          valid_from?: string;
+          valid_until?: string | null;
+          status?: "vigente" | "encerrado";
+          source?: "autocadastro" | "administrativo" | "importacao_excel" | null;
+          created_by?: string | null;
+          validated_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          archived_at?: string | null;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["coordination_relationships"]["Insert"]
+        >;
+        Relationships: [];
+      };
+      registration_submissions: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          person_id: string;
+          invite_id: string | null;
+          import_batch_id: string | null;
+          origin: "autocadastro" | "administrativo" | "importacao_excel";
+          status: RegistrationSubmissionStatus;
+          submitted_at: string | null;
+          manager_person_id: string | null;
+          validated_at: string | null;
+          validated_by: string | null;
+          rejection_reason: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id?: string;
+          person_id: string;
+          invite_id?: string | null;
+          import_batch_id?: string | null;
+          origin: "autocadastro" | "administrativo" | "importacao_excel";
+          status?: RegistrationSubmissionStatus;
+          submitted_at?: string | null;
+          manager_person_id?: string | null;
+          validated_at?: string | null;
+          validated_by?: string | null;
+          rejection_reason?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["registration_submissions"]["Insert"]
+        >;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -626,6 +768,56 @@ export interface Database {
         };
         Returns: string;
       };
+      redeem_registration_invite: {
+        Args: { p_token: string };
+        Returns: Database["public"]["Tables"]["registration_invites"]["Row"];
+      };
+      complete_own_registration: {
+        Args: {
+          p_full_name: string;
+          p_cpf: string;
+          p_birth_date: string | null;
+          p_phone: string | null;
+          p_whatsapp: string | null;
+          p_email: string | null;
+          p_address?: Json | null;
+          p_bank?: Json | null;
+          p_electoral?: Json | null;
+        };
+        Returns: string;
+      };
+      create_team_invite: {
+        Args: {
+          p_contact_name?: string | null;
+          p_contact_phone?: string | null;
+          p_contact_email?: string | null;
+          p_expires_in_days?: number;
+        };
+        Returns: Database["public"]["Tables"]["registration_invites"]["Row"];
+      };
+      submit_public_registration: {
+        Args: {
+          p_token: string;
+          p_full_name: string;
+          p_cpf: string;
+          p_birth_date: string | null;
+          p_phone: string | null;
+          p_whatsapp: string | null;
+          p_email: string | null;
+          p_address?: Json | null;
+          p_bank?: Json | null;
+          p_electoral?: Json | null;
+        };
+        Returns: string;
+      };
+      submit_registration_for_review: {
+        Args: { p_person_id: string };
+        Returns: string;
+      };
+      submit_public_registration_for_review: {
+        Args: { p_token: string };
+        Returns: string;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
@@ -649,4 +841,41 @@ export type PersonStatus =
   | "suspenso"
   | "desligado"
   | "rejeitado"
+  | "arquivado"
+  // Etapa 2 (migração 0013) — fluxo de autocadastro/validação do gestor.
+  | "aguardando_gestor"
+  | "em_conferencia"
+  | "correcao_solicitada"
+  | "reenviado"
+  | "divergente"
+  | "aprovado_gestor"
+  | "aguardando_rh"
+  | "validado";
+
+/** Status de `registration_invites` (migração 0014). */
+export type RegistrationInviteStatus =
+  | "criado"
+  | "enviado"
+  | "acessado"
+  | "em_preenchimento"
+  | "concluido"
+  | "expirado"
+  | "cancelado";
+
+/** Status de `registration_submissions` (migração 0016). */
+export type RegistrationSubmissionStatus =
+  | "rascunho"
+  | "em_preenchimento"
+  | "documentos_pendentes"
+  | "enviado"
+  | "aguardando_validacao_gestor"
+  | "em_conferencia"
+  | "correcao_solicitada"
+  | "reenviado"
+  | "divergente"
+  | "aprovado_gestor"
+  | "aguardando_rh"
+  | "validado"
+  | "rejeitado"
+  | "suspenso"
   | "arquivado";

@@ -25,9 +25,10 @@ Sistema de gestão de pessoas, operações e pagamentos para campanha eleitoral.
 > reformulação de Despesas com autorizador/alçada — ver
 > [MVP — Cadastro, Convite, Coordenação, Importação e Despesas](#mvp--cadastro-convite-coordenação-importação-e-despesas)
 > logo abaixo. As **Etapas 1 e 2** (camada de banco, migrações `0013`–`0022`)
-> estão aplicadas e verificadas em produção — Etapa 2 já resolve o
-> mecanismo de sessão do coordenador (login normal) e do cabo eleitoral
-> (só link/token); a UI (Etapa 3 em diante) ainda não existe.
+> estão aplicadas e verificadas em produção, e a **Etapa 3** (as páginas
+> `/meu-cadastro`, `/minha-equipe` e `/cadastro/[token]`) já está
+> implementada e passando em `typecheck`/`lint`/`build` — falta só
+> autorização para publicar (`git push`).
 
 ## MVP — Cadastro, Convite, Coordenação, Importação e Despesas
 
@@ -149,16 +150,65 @@ existe):**
   contornado com novas tentativas e o usuário aplicando a migração
   manualmente via CLI quando necessário.
 
-**Próxima etapa (3 — não iniciada)**: páginas de aplicação para o que a
-Etapa 2 já habilitou no banco — `/meu-cadastro` (coordenador completa o
-próprio cadastro, reaproveitando os componentes de
-`src/components/pessoas/`), `/minha-equipe` (coordenador convida e
-acompanha o cabo eleitoral, com link compartilhável por WhatsApp/e-mail)
-e `/cadastro/[token]` (página pública fora do grupo `(app)`, autocadastro
-do cabo eleitoral incluindo upload de documento sem sessão via cliente
-admin, mesmo padrão já usado em `/usuarios`). Depois, a fila de validação
-do gestor sobre `registration_submissions` (aprovar/rejeitar/pedir
-correção) fica para a etapa seguinte.
+**Etapa 3 — páginas de aplicação para o que a Etapa 2 habilitou no banco
+(concluída):**
+
+- `/meu-cadastro`: o coordenador completa os próprios dados. Reaproveita
+  `PersonForm` (o mesmo componente de `/pessoas/novo` e
+  `/pessoas/[id]/editar`) — a Server Action que ele chama passou a ser
+  configurável (`action`/`submitLabel`/`showSocialName`/`onSuccess`, todos
+  opcionais, sem mudar nenhum dos usos existentes em `/pessoas`) para
+  apontar para `complete_own_registration()` em vez de gravar direto em
+  `people`. `profiles.person_id` decide se a página mostra "criar" ou
+  "editar" — sem rota própria por ID, é sempre a pessoa do usuário logado.
+  Reaproveita também `uploadPersonDocument()` de `/pessoas` sem alterações
+  (a extensão de RLS da Etapa 2 já cobre "upload sobre o próprio
+  `person_id`"). Botão "Enviar para validação" some quando o status não é
+  mais editável — mesmo padrão de `SendForApprovalCard` (componente fica
+  sempre montado, decide sozinho o que mostrar).
+- `/minha-equipe`: lista os convites que o próprio usuário criou
+  (`registration_invites.created_by`) e cria novos via
+  `create_team_invite()`. Depois de criado, mostra o link
+  `/cadastro/{token}` num componente `ShareInviteLink` (mesmo padrão de
+  `ShareCredentials` do `/usuarios` — copiar / WhatsApp). Bloqueada com um
+  aviso até o usuário completar o próprio cadastro (a função exige
+  `profiles.person_id` preenchido).
+- `/cadastro/[token]`: página pública (fora do grupo `(app)`, sem
+  sidebar/topbar), adicionada a `PUBLIC_ROUTES` no proxy. Fluxo em 3
+  passos na mesma página, sem reload (`PublicRegistrationFlow`, estado
+  local): formulário (`submit_public_registration`) → upload de
+  documento(s) → "enviar para validação"
+  (`submit_public_registration_for_review`). Reabrir o mesmo link depois
+  de já ter enviado os dados pula direto para a etapa certa (o servidor
+  decide a partir de `invite.person_id`/`invite.status`, nunca o client).
+  Upload de documento sem sessão nenhuma: a Server Action revalida o
+  token chamando `redeem_registration_invite()` de novo (idempotente) e
+  só então usa o cliente com a service role key
+  (`src/lib/supabase/admin.ts`) pra subir o arquivo e gravar
+  `person_documents` — mesma ordem "autoriza com o cliente normal, só
+  depois usa o admin" de `/usuarios`; **segunda vez que o projeto usa o
+  cliente admin fora de `/usuarios`**.
+- `src/types/database.ts` (mantido à mão desde a Fase 1A) ganhou os tipos
+  de `registration_invites`, `coordination_relationships`,
+  `registration_submissions` e das 6 funções da Etapa 2 (mais
+  `redeem_registration_invite`, que já existia sem tipo) — sem isso,
+  TypeScript estrito não deixaria compilar nenhuma chamada a essas
+  tabelas/funções. `PersonStatus` ganhou os 8 valores novos da migração
+  `0013` (só agora usados por código de aplicação pela primeira vez).
+- `npm run typecheck`/`lint`/`build` — sem erros nem avisos; as 3 rotas
+  novas aparecem no build (`/meu-cadastro`, `/minha-equipe`,
+  `/cadastro/[token]`).
+- **Riscos/pendências**: nenhum teste interativo via Playwright (segue a
+  instrução já dada nesta sessão — "não vamos testar mais nada"); só
+  `typecheck`/`lint`/`build`. A fila de validação do gestor sobre
+  `registration_submissions` (aprovar/rejeitar/pedir correção) ainda não
+  tem tela — hoje só dá pra decidir via SQL direto. Importação em lote por
+  Excel e a reformulação de Despesas com autorizador/alçada (banco já
+  pronto desde a Etapa 1) também não têm UI ainda.
+
+**Próxima etapa (4 — não iniciada)**: tela do gestor/coordenador revisando
+`registration_submissions` pendentes — aprovar, rejeitar, pedir correção
+de campos específicos (`correction_requests`).
 
 ## Stack
 

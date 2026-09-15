@@ -3,8 +3,12 @@ import { createServerClient } from "@supabase/ssr";
 
 import { getSupabaseEnv } from "./env";
 
-/** Rotas acessíveis sem sessão autenticada. */
-const PUBLIC_ROUTES = ["/login"];
+/**
+ * Rotas acessíveis sem sessão autenticada. `/cadastro` é o autocadastro
+ * público do cabo eleitoral (Etapa 2) — protegido pelo token na própria URL
+ * (`/cadastro/[token]`), não por sessão; nunca terá login tradicional.
+ */
+const PUBLIC_ROUTES = ["/login", "/cadastro"];
 
 function isPublicRoute(pathname: string) {
   return PUBLIC_ROUTES.some(

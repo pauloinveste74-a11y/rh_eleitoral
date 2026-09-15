@@ -87,9 +87,29 @@ README, seção "Modelo de dados"):
   `0022` (Etapa 2) resolve o mecanismo de sessão: coordenador com login
   normal (reaproveita `/usuarios`), cabo eleitoral só com link/token,
   nunca loga — preenche o elo `profiles.person_id` que existe desde a
-  `0001` e nunca tinha sido usado. **Só banco — nenhuma UI existe ainda
-  para essas tabelas/funções** (isso é a Etapa 3 em diante, não
-  iniciada: `/meu-cadastro`, `/minha-equipe`, `/cadastro/[token]`).
+  `0001` e nunca tinha sido usado. A Etapa 3 (app, ver abaixo) já
+  consome tudo isso; falta só a fila de validação do gestor (Etapa 4).
+
+## Etapa 3 — páginas de aplicação do autocadastro (implementada, não publicada)
+
+`/meu-cadastro`, `/minha-equipe` e `/cadastro/[token]` (autocadastro
+público do cabo eleitoral, sem sessão) já estão implementadas e passam em
+`typecheck`/`lint`/`build` — commit local feito, **`git push` ainda não
+autorizado**. Detalhe completo na seção "MVP — Cadastro, Convite,
+Coordenação, Importação e Despesas" do `README.md`. Dois pontos que valem
+saber antes de mexer:
+
+- `PersonForm` (usado por `/pessoas`) ganhou props opcionais
+  (`action`/`submitLabel`/`showSocialName`/`onSuccess`) pra ser
+  reaproveitado em `/meu-cadastro` e `/cadastro/[token]` sem duplicar a
+  estrutura do formulário — nenhum uso existente em `/pessoas` mudou de
+  comportamento.
+- `src/types/database.ts` é mantido à mão (não é gerado automaticamente
+  desde o MCP do Supabase) — cresce a cada fase que usa uma tabela/função
+  nova. Ficou defasado desde a Etapa 1 (registration_invites,
+  coordination_relationships, registration_submissions e os 8 valores
+  novos de `PersonStatus` não estavam tipados); a Etapa 3 atualizou tudo
+  que ela mesma passou a usar.
 
 ## O que falta para o sistema funcionar de ponta a ponta
 

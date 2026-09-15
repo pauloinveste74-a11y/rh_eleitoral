@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Users,
   UserCog,
+  UserPlus,
   CheckSquare,
   Clock,
   MapPinned,
@@ -23,6 +24,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { label: "Painel", href: "/painel", icon: LayoutDashboard },
   { label: "Pessoas", href: "/pessoas", icon: Users },
+  { label: "Minha Equipe", href: "/minha-equipe", icon: UserPlus },
   { label: "Aprovações", href: "/aprovacoes", icon: CheckSquare },
   { label: "Ponto", href: "/ponto", icon: Clock },
   { label: "Operações", href: "/operacoes", icon: MapPinned },
