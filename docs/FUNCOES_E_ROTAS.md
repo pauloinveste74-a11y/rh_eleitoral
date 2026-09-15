@@ -109,13 +109,38 @@ quando o chamador não tinha `profiles.person_id` — `if not v_authorized`
 não disparava pra `NULL`. Corrigido com guard `is not null` +
 `coalesce(..., false)`.
 
-## 8. Importação em lote (Etapas 1, 6, 10)
+## 8. Importação em lote (Etapas 1, 6, 7, 10)
 
 Só **uma** função — o resto do fluxo (criar lote, gravar staging,
 confirmar) é feito por inserts/updates diretos do app, porque
 `administrador`/`rh` já tinham policy de escrita direta em
 `import_batches`/`import_staging_records`/`people`/satélites desde a
 Fase 1C/Etapa 1.
+
+**Etapa 7 (migração `0034`) — importação por PDF (spec 9.2), primeira
+fatia**: mesma tabela de staging, uma coluna nova
+(`import_batches.source_type`, `'excel' | 'pdf'`) diferencia a origem.
+`src/lib/imports/pdf-import.ts` extrai texto com `pdf-parse`
+(`pdfjs-dist` por baixo, sem OCR) e trata **cada página do PDF como uma
+pessoa** — mesma heurística simples do escopo desta etapa. Os campos são
+achados por regex (`extractCandidateFields`) e passam pela **mesma**
+`classifyRow()` que a importação por Excel já usava (validação/dedup
+contra o arquivo e contra o banco) — nenhuma lógica de classificação foi
+duplicada. `uploadPdfImportBatch()` (em
+`src/app/(app)/importacoes/actions.ts`) é o equivalente de
+`uploadImportBatch()` pra PDF; `confirmImportBatch()` é a mesma função
+pras duas origens — só passou a ler `import_batches.source_type` pra
+decidir se grava `people.origin = 'importacao_excel'` ou
+`'importacao_pdf'`.
+
+Fora de escopo desta etapa (deliberado, não esquecido): OCR de página
+sem texto (imagem digitalizada) — fica marcada `invalida` com motivo
+"requer OCR", nenhum provedor de OCR foi decidido/integrado ainda;
+várias pessoas na mesma página; e qualquer atualização/complemento/
+vínculo com pessoa já existente — esta etapa só **cria** gente nova, o
+que evita por completo o risco que a spec 9.2 aponta ("PDF/OCR nunca
+deve atualizar CPF/CNPJ/banco/PIX/função/coordenador/remuneração em
+silêncio") por nunca tocar num registro existente.
 
 | Função | Quem chama | Verifica | O que faz |
 | --- | --- | --- | --- |
@@ -198,12 +223,12 @@ exigem sessão (bloqueio otimista no `proxy.ts` + checagem de novo no
 | --- | --- |
 | `/validacoes` | Duas filas: "Minha equipe" (gestor, `decide_registration_submission()`) e "Validação do RH" (só admin/rh, `decide_rh_validation()`), cada uma com aprovar/solicitar correção (com checklist de campos)/rejeitar. Cada submissão da fila mostra também os documentos ativos da pessoa, com classificação inline (`decide_person_document()`, Nova versão Etapa 4). |
 
-### Importação em lote (Etapas 1/6/10)
+### Importação em lote (Etapas 1/6/7/10)
 
 | Rota | Descrição |
 | --- | --- |
-| `/importacoes` | Upload de planilha `.xlsx` + lista de lotes enviados. |
-| `/importacoes/[id]` | Prévia linha a linha (nome/CPF/resultado/erro); confirmar, cancelar ou (se já confirmado) reverter o lote. |
+| `/importacoes` | Upload de planilha `.xlsx` **ou** PDF com texto pesquisável (Etapa 7) + lista de lotes enviados, com selo do tipo (Excel/PDF). |
+| `/importacoes/[id]` | Prévia linha a linha ou página a página (nome/CPF/resultado/erro), conforme a origem; confirmar, cancelar ou (se já confirmado) reverter o lote. |
 
 ### Aprovações e Financeiro (Fases 2/3)
 

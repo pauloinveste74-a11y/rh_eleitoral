@@ -57,7 +57,7 @@ conta que não fosse o platform_admin (que bypassa toda RLS):
 | 8 | Documento: classificação válido/ilegível/divergente | 🟢 **Implementado na Etapa 4** — `decide_person_document()` (migração `0031`), tela em `/validacoes` |
 | 9.1 | Importação Excel com staging/prévia/conflitos | 🟢 Etapas 6/10 |
 | 9.1 | Importação CSV | 🔴 Ausente (só `.xlsx`) |
-| 9.2 | Importação por PDF (OCR, 1 ou várias pessoas) | 🔴 Ausente — `data_conflicts` existe desde `0018`, nunca usada |
+| 9.2 | Importação por PDF (OCR, 1 ou várias pessoas) | 🟡 **Implementado parcialmente na Etapa 7** (migração `0034`) — só PDF com texto pesquisável (sem OCR de imagem), heurística 1 página = 1 pessoa, somente criação (nunca atualiza pessoa existente). `data_conflicts` segue sem uso — comparação com pessoa já existente fica pra depois |
 | 10 | Gestor: documento válido/ilegível/divergente, documento substituto | 🟢 **Implementado na Etapa 4** — classificação inline em `/validacoes` (por documento, dentro de cada submissão da fila); substituto automático no reenvio já era da Etapa 3 |
 | 11 | Painel do coordenador com indicadores por escopo territorial | 🟢 **Implementado na Etapa 2** — sem migração nova, só consultas com a RLS já existente |
 | 12 | Contratos (modelos, versionamento, geração PF/PJ, upload assinado) | 🟢 **Implementado na Etapa 5** (migração `0032`) — geração em lote/grupo e assinatura digital integrada ficam fora, documentado no cabeçalho da migração |
@@ -94,7 +94,9 @@ em vez disso), `reconciliation_matches` (segue ausente — spec seção 14).
    Etapa 6.
 5. ✅ **Contratos (modelos, versionamento, geração PF/PJ, upload
    assinado, conferência)** — Etapa 5, a peça que era a maior.
-6. Importação por PDF com OCR e revisão humana.
+6. 🟡 **Importação por PDF** — Etapa 7 (migração `0034`), texto pesquisável
+   e criação apenas. OCR de imagem, múltiplas pessoas por página e
+   atualização/vínculo de pessoa existente ficam para uma etapa futura.
 7. Pagamentos com modelo rico (conciliação, PIX/TED).
 8. Central de pendências consolidada + relatórios novos.
 9. LGPD: aceite de veracidade/consentimento versionado.

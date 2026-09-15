@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { parseWorkbook, classifyRow, type ImportRowResult } from "@/lib/imports/person-import";
+import { classifyPdfBatch } from "@/lib/imports/pdf-import";
 import type { Json } from "@/types/database";
 import type { ImportBatchActionState } from "./action-state";
 
@@ -201,6 +202,165 @@ export async function uploadImportBatch(
   redirect(`/importacoes/${batch.id}`);
 }
 
+const PDF_MIME = "application/pdf";
+
+/**
+ * Nova versão, Etapa 7 (spec 9.2) — sobe um PDF, extrai o texto de cada
+ * página (uma página = uma pessoa, ver `pdf-import.ts`) e grava tudo em
+ * staging, na MESMA tabela e no mesmo formato do Excel — `confirmImportBatch()`
+ * abaixo não precisou de nenhuma mudança pra servir os dois. Página sem
+ * texto extraível (provável imagem digitalizada) entra como linha
+ * inválida, com mensagem clara — não tenta OCR nesta etapa.
+ */
+export async function uploadPdfImportBatch(
+  _prevState: ImportBatchActionState,
+  formData: FormData,
+): Promise<ImportBatchActionState> {
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { status: "error", message: "Selecione um arquivo .pdf." };
+  }
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return { status: "error", message: "Arquivo maior que 15 MB." };
+  }
+  if (file.type !== PDF_MIME && !file.name.toLowerCase().endsWith(".pdf")) {
+    return { status: "error", message: "Envie um arquivo .pdf." };
+  }
+
+  const supabase = await createClient();
+  const guard = await requireManager(supabase);
+  if (!guard.ok) return { status: "error", message: guard.message };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { status: "error", message: "Sessão expirada. Faça login novamente." };
+  }
+
+  const { data: campaignId } = await supabase.rpc("current_campaign_id");
+  if (!campaignId) {
+    return {
+      status: "error",
+      message: "Sua conta não está associada a uma campanha. Não é possível importar.",
+    };
+  }
+
+  const buffer = await file.arrayBuffer();
+
+  const { data: existingPeople } = await supabase
+    .from("people")
+    .select("cpf, status")
+    .eq("campaign_id", campaignId);
+  const cpfsExisting = new Set(
+    (existingPeople ?? [])
+      .filter((p) => p.status !== "arquivado" && p.status !== "rejeitado")
+      .map((p) => p.cpf),
+  );
+
+  let classified: Awaited<ReturnType<typeof classifyPdfBatch>>;
+  try {
+    classified = await classifyPdfBatch(buffer, cpfsExisting);
+  } catch {
+    return {
+      status: "error",
+      message: "Não foi possível ler o arquivo. Confirme que é um .pdf válido.",
+    };
+  }
+  if (classified.length === 0) {
+    return { status: "error", message: "O PDF não tem nenhuma página." };
+  }
+
+  const fileHash = createHash("sha256").update(Buffer.from(buffer)).digest("hex");
+  const storagePath = `${campaignId}/${randomUUID()}-${sanitizeFileName(file.name)}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("pessoas-importacoes")
+    .upload(storagePath, file, { contentType: PDF_MIME });
+  if (uploadError) {
+    return { status: "error", message: "Não foi possível enviar o arquivo." };
+  }
+
+  const counts: Record<ImportRowResult, number> = {
+    pronta: 0,
+    invalida: 0,
+    duplicada_arquivo: 0,
+    ja_existente: 0,
+  };
+  for (const row of classified) counts[row.result]++;
+
+  const { data: batch, error: batchError } = await supabase
+    .from("import_batches")
+    .insert({
+      campaign_id: campaignId,
+      source_type: "pdf",
+      template_version: "pdf-v1",
+      original_file_name: file.name,
+      storage_path: storagePath,
+      file_hash: fileHash,
+      created_by: user.id,
+      total_rows: classified.length,
+      valid_rows: counts.pronta,
+      duplicate_rows: counts.duplicada_arquivo + counts.ja_existente,
+      rejected_rows: counts.invalida,
+      error_rows: counts.invalida,
+      status: "preview",
+    })
+    .select("id")
+    .single();
+
+  if (batchError || !batch) {
+    return { status: "error", message: "Não foi possível registrar o lote de importação." };
+  }
+
+  const { data: insertedStaging, error: stagingError } = await supabase
+    .from("import_staging_records")
+    .insert(
+      classified.map((row) => ({
+        batch_id: batch.id,
+        row_number: row.rowNumber,
+        raw_data: toJson(row.rawData),
+        normalized_data: row.normalizedData ? toJson(row.normalizedData) : null,
+        result: row.result,
+      })),
+    )
+    .select("id, row_number");
+
+  if (stagingError || !insertedStaging) {
+    return {
+      status: "error",
+      message: "Lote criado, mas não foi possível gravar as páginas — tente novamente.",
+    };
+  }
+
+  const stagingIdByRow = new Map(insertedStaging.map((s) => [s.row_number, s.id]));
+  const errorRows = classified
+    .filter((row) => row.errors.length > 0)
+    .flatMap((row) =>
+      row.errors.map((err) => ({
+        staging_record_id: stagingIdByRow.get(row.rowNumber)!,
+        field_name: err.field,
+        error_code: row.requiresOcr ? "requer_ocr" : row.result,
+        error_message: err.message,
+      })),
+    )
+    .filter((e) => e.staging_record_id);
+
+  if (errorRows.length > 0) {
+    await supabase.from("import_row_errors").insert(errorRows);
+  }
+
+  await supabase.rpc("log_audit_event", {
+    p_action: "importacao.pdf.enviar",
+    p_entity_table: "import_batches",
+    p_entity_id: batch.id,
+    p_after_data: toJson({ total_pages: classified.length, ...counts }),
+  });
+
+  revalidatePath("/importacoes");
+  redirect(`/importacoes/${batch.id}`);
+}
+
 /**
  * Promove as linhas com result='pronta' de staging para `people` de fato —
  * a única escrita real desta etapa. Mesmo formato de gravação de
@@ -226,7 +386,7 @@ export async function confirmImportBatch(
 
   const { data: batchRow, error: batchFetchError } = await supabase
     .from("import_batches")
-    .select("id, status")
+    .select("id, status, source_type")
     .eq("id", batchId)
     .maybeSingle();
   if (batchFetchError || !batchRow) {
@@ -238,6 +398,7 @@ export async function confirmImportBatch(
       message: `Este lote já foi processado (status atual: ${batchRow.status}).`,
     };
   }
+  const origin = batchRow.source_type === "pdf" ? "importacao_pdf" : "importacao_excel";
 
   const { data: readyRows, error: readyError } = await supabase
     .from("import_staging_records")
@@ -273,7 +434,7 @@ export async function confirmImportBatch(
         phone: person.phone || null,
         whatsapp: person.whatsapp || null,
         email: person.email || null,
-        origin: "importacao_excel",
+        origin,
         created_by: user.id,
       })
       .select("id")

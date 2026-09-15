@@ -148,7 +148,7 @@ export interface Database {
           naturalidade: string | null;
           pais_nascimento: string;
           phone_alternate: string | null;
-          origin: "autocadastro" | "administrativo" | "importacao_excel";
+          origin: "autocadastro" | "administrativo" | "importacao_excel" | "importacao_pdf";
         } & Timestamps;
         Insert: Partial<Timestamps> & {
           id?: string;
@@ -174,7 +174,7 @@ export interface Database {
           naturalidade?: string | null;
           pais_nascimento?: string;
           phone_alternate?: string | null;
-          origin?: "autocadastro" | "administrativo" | "importacao_excel";
+          origin?: "autocadastro" | "administrativo" | "importacao_excel" | "importacao_pdf";
         };
         Update: Partial<Database["public"]["Tables"]["people"]["Insert"]>;
         Relationships: [];
@@ -857,6 +857,8 @@ export interface Database {
           confirmed_by: string | null;
           reverted_at: string | null;
           reverted_by: string | null;
+          /** Nova versão (Etapa 7, migração 0034) — excel (Etapas 1/6) ou pdf. */
+          source_type: "excel" | "pdf";
         };
         Insert: {
           id?: string;
@@ -879,6 +881,7 @@ export interface Database {
           confirmed_by?: string | null;
           reverted_at?: string | null;
           reverted_by?: string | null;
+          source_type?: "excel" | "pdf";
         };
         Update: Partial<Database["public"]["Tables"]["import_batches"]["Insert"]>;
         Relationships: [];

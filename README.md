@@ -895,10 +895,63 @@ Com isso, **o item 4 da ordem proposta (schema já pronto e ocioso) está
 completo** — nenhuma coluna morta identificada na matriz original ficou
 de fora.
 
-**Próxima etapa proposta**: importação por PDF com OCR (spec 9.2) —
-peça nova e ainda maior que contratos, com `data_conflicts` esperando
-desde a migração `0018` — ou pagamentos com modelo rico (conciliação,
-PIX/TED, spec 14). A decidir com o usuário.
+**Etapa 7 — importação por PDF, primeira fatia (concluída):**
+
+Spec 9.2 é grande (OCR, várias pessoas por documento, comparação com
+pessoa já existente com nível de confiança, complementar/atualizar/
+vincular). Escopo desta etapa, decidido antes de codificar: **só PDF
+com texto pesquisável** (sem OCR — exigiria decidir um provedor pago,
+decisão que não é minha pra tomar sozinho), **uma página = uma pessoa**,
+e **só criação** — nunca atualiza/complementa/vincula pessoa já
+existente. Essa última escolha não é só simplicidade: ela elimina por
+completo o risco que a própria spec 9.2 aponta como o mais grave
+("PDF/OCR nunca deve atualizar CPF/CNPJ/dados bancários/PIX/função/
+coordenador/remuneração em silêncio") — nenhum registro existente é
+tocado nesta etapa. Migração `0034_nova_versao_importacao_pdf.sql`.
+
+- **Reaproveitamento quase total da importação por Excel** — mesmas
+  tabelas de staging (`import_batches`/`import_staging_records`/
+  `import_row_errors`), coluna nova `import_batches.source_type`
+  (`'excel' | 'pdf'`) só pra diferenciar a origem. `people.origin` ganhou
+  o valor `'importacao_pdf'`. A única lógica genuinamente nova é
+  "extrair texto do PDF e achar candidatos a campo" — a
+  validação/dedup em si (`classifyRow()`) é a mesma função que a
+  importação por Excel já usava, sem duplicar regra nenhuma.
+- **`src/lib/imports/pdf-import.ts`** — extrai texto por página com
+  `pdf-parse` (2.4.5, reescrita moderna sobre `pdfjs-dist`, licença
+  Apache-2.0); página com pouco texto extraído (provável imagem
+  digitalizada) fica marcada `invalida` com o motivo "requer OCR" em vez
+  de tentar adivinhar. Campos achados por regex simples (CPF, "Nome:",
+  telefone, e-mail, data de nascimento).
+- **`/importacoes`** ganhou um segundo cartão de upload lado a lado com
+  o de Excel, e a lista de lotes ganhou uma coluna "Tipo"; `/importacoes/
+  [id]` troca "Linha"/"linha" por "Página"/"página" quando o lote é PDF.
+  `confirmImportBatch()` (uma função só pras duas origens) passou a ler
+  `import_batches.source_type` pra decidir o `people.origin` gravado.
+- **Verificado** (transação com `rollback`): lote com `source_type='pdf'`
+  e pessoa com `origin='importacao_pdf'` inseridos com sucesso; um
+  terceiro insert com `source_type` inválido foi rejeitado pelo `CHECK`
+  como esperado. Advisors de segurança sem achado novo (a migração só
+  adiciona coluna/constraint, nenhuma função nova).
+- `npm run typecheck`/`lint`/`build` — sem erros nem avisos.
+- **Risco não totalmente verificado**: o `package.json` do `pdf-parse`
+  lista `@napi-rs/canvas` (binário nativo) como dependência — usado só
+  por métodos que este projeto não chama (`getScreenshot()`/
+  `getImage()`), mas ele ainda precisa **instalar** com sucesso no
+  build da Vercel. `npm install` e `npm run build` locais (Windows)
+  passaram limpos; a compatibilidade real com o build serverless da
+  Vercel só fica confirmada depois do deploy — recomendo testar um
+  upload de PDF de verdade em produção assim que o deploy terminar.
+
+Fora de escopo desta etapa, para uma etapa futura: OCR de página sem
+texto (decisão de provedor pendente), mais de uma pessoa por página,
+comparação com pessoa já existente usando o `data_conflicts` (ainda
+sem uso desde a migração `0018`) e os fluxos de complementar/atualizar/
+vincular pessoa existente que a spec 9.2 pede no passo 8.
+
+**Próxima etapa proposta**: pagamentos com modelo rico (conciliação,
+PIX/TED, spec 14) ou a central de pendências consolidada (spec 16). A
+decidir com o usuário.
 
 ## Identidade visual (docs/IDENTIDADE_VISUAL.md)
 

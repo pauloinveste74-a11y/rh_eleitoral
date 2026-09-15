@@ -183,6 +183,20 @@ README, seção "Modelo de dados"):
   resolvia a correção desde a Etapa 11). `expenses.authorized_amount_cents`
   via novo parâmetro opcional em `create_expense()` (drop+recreate, mesmo
   footgun de sempre). Fecha o item 4 da ordem proposta da Nova versão.
+- Etapa 7 (`0034`): importação por PDF (spec 9.2), primeira fatia — só
+  PDF com texto pesquisável (sem OCR), uma página = uma pessoa, **só
+  criação** (nunca atualiza/vincula pessoa já existente, o que evita por
+  completo o risco que a spec aponta de PDF/OCR alterar CPF/CNPJ/
+  banco/PIX/função/coordenador/remuneração em silêncio). Reaproveita as
+  mesmas tabelas de staging da importação por Excel — só ganhou a coluna
+  `import_batches.source_type` (`'excel' | 'pdf'`) e o valor
+  `people.origin = 'importacao_pdf'`; a validação/dedup
+  (`classifyRow()`) é a função idêntica da importação por Excel, sem
+  duplicação. Nova lib `pdf-parse` (2.4.5) só pra extrair texto —
+  `@napi-rs/canvas` (dependência nativa dela, usada só por métodos que
+  este projeto não chama) ainda não teve a instalação verificada no
+  build da Vercel, só localmente. `/importacoes` ganhou um segundo
+  cartão de upload (PDF) lado a lado com o de Excel.
 
 ## Etapas 3 a 11 — páginas de aplicação (autocadastro, validações, importação, despesas, correção)
 

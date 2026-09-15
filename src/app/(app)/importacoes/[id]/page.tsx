@@ -79,7 +79,11 @@ export default async function ImportacaoDetalhePage({
     <>
       <PageHeader
         title={batch.original_file_name}
-        description="Prévia da importação — revise as linhas antes de confirmar."
+        description={
+          batch.source_type === "pdf"
+            ? "Prévia da importação — revise cada página (uma pessoa por página) antes de confirmar."
+            : "Prévia da importação — revise as linhas antes de confirmar."
+        }
       />
       <div className="flex flex-col gap-6">
         <Card>
@@ -151,14 +155,14 @@ export default async function ImportacaoDetalhePage({
 
         <Card>
           <CardHeader>
-            <CardTitle>Linhas</CardTitle>
+            <CardTitle>{batch.source_type === "pdf" ? "Páginas" : "Linhas"}</CardTitle>
           </CardHeader>
           <CardContent className="p-0 sm:p-0">
             <div className="p-6">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Linha</TableHead>
+                    <TableHead>{batch.source_type === "pdf" ? "Página" : "Linha"}</TableHead>
                     <TableHead>Nome</TableHead>
                     <TableHead>CPF</TableHead>
                     <TableHead>Resultado</TableHead>

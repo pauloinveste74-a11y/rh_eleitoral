@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ImportUploadForm } from "@/components/importacoes/import-upload-form";
+import { PdfUploadForm } from "@/components/importacoes/pdf-upload-form";
 
 export const metadata: Metadata = { title: "Importação de pessoas" };
 
@@ -61,21 +62,34 @@ export default async function ImportacoesPage() {
 
   const { data: batches } = await supabase
     .from("import_batches")
-    .select("id, original_file_name, status, total_rows, valid_rows, duplicate_rows, rejected_rows, imported_rows, created_at")
+    .select("id, original_file_name, status, source_type, total_rows, valid_rows, duplicate_rows, rejected_rows, imported_rows, created_at")
     .order("created_at", { ascending: false });
 
   return (
     <>
       <PageHeader
         title="Importação de pessoas"
-        description="Cadastre várias pessoas de uma vez a partir de uma planilha Excel — nada vira cadastro oficial antes de você revisar e confirmar a prévia."
+        description="Cadastre várias pessoas de uma vez a partir de uma planilha Excel ou de um PDF — nada vira cadastro oficial antes de você revisar e confirmar a prévia."
       />
 
-      <Card className="mb-6">
-        <CardContent className="p-6">
-          <ImportUploadForm />
-        </CardContent>
-      </Card>
+      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Card>
+          <CardContent className="p-6">
+            <p className="mb-3 text-sm font-medium text-brand-navy dark:text-slate-50">
+              Planilha (Excel)
+            </p>
+            <ImportUploadForm />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <p className="mb-3 text-sm font-medium text-brand-navy dark:text-slate-50">
+              PDF <span className="font-normal text-brand-graphite dark:text-slate-400">(spec 9.2 — Nova versão)</span>
+            </p>
+            <PdfUploadForm />
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardContent className="p-6">
@@ -88,6 +102,7 @@ export default async function ImportacoesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Arquivo</TableHead>
+                  <TableHead>Tipo</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Linhas</TableHead>
                   <TableHead>Enviado em</TableHead>
@@ -100,6 +115,11 @@ export default async function ImportacoesPage() {
                       <Link href={`/importacoes/${b.id}`} className="hover:underline">
                         {b.original_file_name}
                       </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" showIcon={false}>
+                        {b.source_type === "pdf" ? "PDF" : "Excel"}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <Badge variant={STATUS_VARIANT[b.status] ?? "secondary"}>
