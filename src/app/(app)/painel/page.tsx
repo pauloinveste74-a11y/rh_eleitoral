@@ -1,71 +1,53 @@
 import type { Metadata } from "next";
-import { Users, CheckSquare, Clock, Wallet } from "lucide-react";
+import Link from "next/link";
+import { Users, CheckSquare, FileWarning, Send, Wallet, Receipt } from "lucide-react";
 
+import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/layout/page-header";
+import { PERSON_STATUS_LABEL } from "@/lib/reports/pessoas";
+import {
+  fetchCoordinatorSummary,
+  fetchFinanceSummary,
+  fetchOrgSummary,
+  fetchRecentPeople,
+} from "@/lib/painel/dashboard";
 
 export const metadata: Metadata = {
   title: "Painel",
 };
 
-// Dados fictícios apenas para desenvolvimento — nenhuma informação real de
-// campanha, pessoa ou pagamento. Serão substituídos por consultas reais ao
-// Supabase quando os módulos correspondentes forem implementados.
-const kpis = [
-  { label: "Pessoas ativas", value: "128", icon: Users },
-  { label: "Aprovações pendentes", value: "7", icon: CheckSquare },
-  { label: "Pontos em aberto hoje", value: "342", icon: Clock },
-  { label: "Pagamentos a aprovar", value: "R$ 18.400,00", icon: Wallet },
-];
+const RECENT_LIMIT = 8;
 
-const recentActivity = [
-  {
-    person: "Fulano de Tal Silva",
-    action: "Registrou entrada de ponto",
-    city: "Plano Piloto",
-    status: "ok" as const,
-  },
-  {
-    person: "Ciclana Souza Pereira",
-    action: "Enviou documentos para validação",
-    city: "Ceilândia",
-    status: "pendente" as const,
-  },
-  {
-    person: "Beltrano Costa Lima",
-    action: "Aguardando validação da cidade",
-    city: "Gama",
-    status: "pendente" as const,
-  },
-  {
-    person: "Sicrana Oliveira Rocha",
-    action: "Cadastro rejeitado — documento ilegível",
-    city: "Ceilândia",
-    status: "atencao" as const,
-  },
-];
-
-const statusBadge: Record<
-  (typeof recentActivity)[number]["status"],
-  { label: string; variant: "success" | "warning" | "destructive" }
-> = {
-  ok: { label: "Concluído", variant: "success" },
-  pendente: { label: "Pendente", variant: "warning" },
-  atencao: { label: "Atenção", variant: "destructive" },
+const STATUS_VARIANT: Record<string, "success" | "warning" | "destructive" | "secondary"> = {
+  ativo: "success",
+  validado: "success",
+  aprovado_gestor: "success",
+  correcao_solicitada: "warning",
+  divergente: "warning",
+  aguardando_gestor: "warning",
+  aguardando_rh: "warning",
+  em_conferencia: "warning",
+  rejeitado: "destructive",
+  arquivado: "destructive",
+  suspenso: "destructive",
+  desligado: "destructive",
 };
 
-export default function PainelPage() {
-  return (
-    <>
-      <PageHeader
-        title="Painel"
-        description="Visão geral da campanha — dados fictícios de desenvolvimento (Fase 1A)."
-      />
+interface Kpi {
+  label: string;
+  value: number | string;
+  icon: typeof Users;
+  href?: string;
+}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {kpis.map(({ label, value, icon: Icon }) => (
-          <Card key={label}>
+function KpiGrid({ kpis }: { kpis: Kpi[] }) {
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {kpis.map(({ label, value, icon: Icon, href }) => {
+        const card = (
+          <Card className={href ? "transition-colors hover:border-slate-300 dark:hover:border-slate-700" : undefined}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle>{label}</CardTitle>
               <Icon className="h-4 w-4 text-slate-400" aria-hidden="true" />
@@ -76,59 +58,213 @@ export default function PainelPage() {
               </p>
             </CardContent>
           </Card>
-        ))}
-      </div>
+        );
+        return (
+          <div key={label}>
+            {href ? <Link href={href}>{card}</Link> : card}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
-      <Card className="mt-6">
+export default async function PainelPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return null;
+  }
+
+  const [{ data: profile }, { data: isAdminRh }, { data: isFinance }] = await Promise.all([
+    supabase.from("profiles").select("person_id").eq("id", user.id).maybeSingle(),
+    supabase.rpc("has_role", { role_codes: ["administrador", "rh"] }),
+    supabase.rpc("has_role", {
+      role_codes: ["administrador", "financeiro", "tesouraria"],
+    }),
+  ]);
+  const ownPersonId = profile?.person_id ?? null;
+
+  const coordinatorSummary = ownPersonId
+    ? await fetchCoordinatorSummary(supabase, user.id, ownPersonId)
+    : null;
+  // A seção "Minha equipe" só aparece se houver algo pra mostrar — evita um
+  // bloco vazio pra quem nunca convidou/coordenou ninguém.
+  const showCoordinatorSection =
+    coordinatorSummary !== null &&
+    (coordinatorSummary.teamCount > 0 ||
+      coordinatorSummary.pendingInvitesSent > 0 ||
+      coordinatorSummary.pendingDecisions > 0);
+
+  const orgSummary = isAdminRh ? await fetchOrgSummary(supabase) : null;
+  const financeSummary = isFinance ? await fetchFinanceSummary(supabase) : null;
+  const recentPeople = await fetchRecentPeople(supabase, RECENT_LIMIT);
+
+  const orgKpis: Kpi[] = orgSummary
+    ? [
+        { label: "Pessoas ativas", value: orgSummary.activePeople, icon: Users, href: "/relatorios/pessoas" },
+        {
+          label: "Aguardando gestor",
+          value: orgSummary.pendingGestor,
+          icon: CheckSquare,
+          href: "/validacoes",
+        },
+        { label: "Aguardando RH", value: orgSummary.pendingRh, icon: CheckSquare, href: "/validacoes" },
+        {
+          label: "Correções pendentes",
+          value: orgSummary.pendingCorrections,
+          icon: FileWarning,
+        },
+      ]
+    : [];
+
+  const financeKpis: Kpi[] = financeSummary
+    ? [
+        {
+          label: "Despesas a autorizar",
+          value: financeSummary.pendingExpenses,
+          icon: Receipt,
+          href: "/despesas",
+        },
+        {
+          label: "Pagamentos a aprovar",
+          value: financeSummary.pendingPayments,
+          icon: Wallet,
+          href: "/aprovacoes",
+        },
+      ]
+    : [];
+
+  const coordinatorKpis: Kpi[] = coordinatorSummary
+    ? [
+        { label: "Minha equipe", value: coordinatorSummary.teamCount, icon: Users, href: "/minha-equipe" },
+        {
+          label: "Cadastros a decidir",
+          value: coordinatorSummary.pendingDecisions,
+          icon: CheckSquare,
+          href: "/validacoes",
+        },
+        {
+          label: "Correções pendentes",
+          value: coordinatorSummary.pendingCorrections,
+          icon: FileWarning,
+        },
+        {
+          label: "Convites em aberto",
+          value: coordinatorSummary.pendingInvitesSent,
+          icon: Send,
+          href: "/minha-equipe",
+        },
+      ]
+    : [];
+
+  const hasAnyRoleSummary = orgKpis.length > 0 || financeKpis.length > 0 || showCoordinatorSection;
+
+  return (
+    <>
+      <PageHeader
+        title="Painel"
+        description="Indicadores reais da campanha, por escopo de acesso — administrador/RH veem a campanha inteira, coordenadores veem a própria equipe."
+      />
+
+      {orgKpis.length > 0 && (
+        <div className="mb-6">
+          <KpiGrid kpis={orgKpis} />
+        </div>
+      )}
+
+      {financeKpis.length > 0 && (
+        <div className="mb-6">
+          <KpiGrid kpis={financeKpis} />
+        </div>
+      )}
+
+      {showCoordinatorSection && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-50">
+              Minha equipe
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <KpiGrid kpis={coordinatorKpis} />
+          </CardContent>
+        </Card>
+      )}
+
+      {!hasAnyRoleSummary && (
+        <Card className="mb-6">
+          <CardContent className="p-6 text-sm text-slate-500 dark:text-slate-400">
+            Sem indicadores de gestão para o seu perfil de acesso.{" "}
+            {ownPersonId ? (
+              <Link href="/meu-cadastro" className="underline underline-offset-4">
+                Veja o seu cadastro
+              </Link>
+            ) : (
+              <Link href="/meu-cadastro" className="underline underline-offset-4">
+                Complete o seu cadastro
+              </Link>
+            )}
+            .
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
         <CardHeader>
           <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-50">
-            Atividade recente
+            Cadastros recentes
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                  <th scope="col" className="py-2 pr-4 font-medium">
-                    Pessoa
-                  </th>
-                  <th scope="col" className="py-2 pr-4 font-medium">
-                    Ação
-                  </th>
-                  <th scope="col" className="py-2 pr-4 font-medium">
-                    Cidade/RA
-                  </th>
-                  <th scope="col" className="py-2 font-medium">
-                    Situação
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentActivity.map((item) => (
-                  <tr
-                    key={item.person}
-                    className="border-b border-slate-100 last:border-0 dark:border-slate-800"
-                  >
-                    <td className="py-2 pr-4 text-slate-900 dark:text-slate-50">
-                      {item.person}
-                    </td>
-                    <td className="py-2 pr-4 text-slate-600 dark:text-slate-300">
-                      {item.action}
-                    </td>
-                    <td className="py-2 pr-4 text-slate-600 dark:text-slate-300">
-                      {item.city}
-                    </td>
-                    <td className="py-2">
-                      <Badge variant={statusBadge[item.status].variant}>
-                        {statusBadge[item.status].label}
-                      </Badge>
-                    </td>
+          {recentPeople.length === 0 ? (
+            <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+              Nenhum cadastro visível para o seu perfil ainda.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                    <th scope="col" className="py-2 pr-4 font-medium">
+                      Pessoa
+                    </th>
+                    <th scope="col" className="py-2 pr-4 font-medium">
+                      Cadastrado em
+                    </th>
+                    <th scope="col" className="py-2 font-medium">
+                      Situação
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {recentPeople.map((p) => (
+                    <tr
+                      key={p.id}
+                      className="border-b border-slate-100 last:border-0 dark:border-slate-800"
+                    >
+                      <td className="py-2 pr-4 text-slate-900 dark:text-slate-50">
+                        <Link href={`/pessoas/${p.id}/editar`} className="hover:underline">
+                          {p.fullName}
+                        </Link>
+                      </td>
+                      <td className="py-2 pr-4 text-slate-600 dark:text-slate-300">
+                        {new Date(p.createdAt).toLocaleDateString("pt-BR")}
+                      </td>
+                      <td className="py-2">
+                        <Badge variant={STATUS_VARIANT[p.status] ?? "secondary"}>
+                          {PERSON_STATUS_LABEL[p.status] ?? p.status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </>

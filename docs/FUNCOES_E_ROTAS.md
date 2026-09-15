@@ -140,7 +140,7 @@ exigem sessão (bloqueio otimista no `proxy.ts` + checagem de novo no
 
 | Rota | Descrição |
 | --- | --- |
-| `/painel` | Dashboard inicial (genérico — painel do coordenador com indicadores por escopo é pendência da "Nova versão", ver `docs/NOVA_VERSAO_MATRIZ.md`). |
+| `/painel` | Dashboard inicial — indicadores reais por papel (KPIs de campanha para administrador/RH, despesas/pagamentos pendentes para financeiro/tesouraria, "Minha equipe" para quem coordena, lista de cadastros recentes escopada pela RLS). Sem função nova: usa `src/lib/painel/dashboard.ts` sobre a RLS já existente (Nova versão, Etapa 2). |
 | `/pessoas` | Lista de pessoas cadastradas (cadastro administrativo). |
 | `/pessoas/novo` | Formulário de cadastro manual (`PersonForm`). |
 | `/pessoas/[id]/editar` | Edição + upload de documento + enviar para aprovação (cidade/eixo). |

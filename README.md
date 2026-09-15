@@ -631,12 +631,56 @@ do documento): busca em todo o histórico do git por credencial exposta
   empresa já criados (só criar + listar, mesmo padrão de
   `axes`/`cities`/`teams`, que também não têm edição).
 
-**Próxima etapa proposta**: painel do coordenador com indicadores por
-escopo territorial (spec seção 11) — ou, alternativamente, aproveitar
-schema já pronto e ocioso (hash/versionamento/classificação de
-documento, valor previous/new em correção, valor autorizado de despesa,
-IP/user-agent na auditoria), que é ganho rápido sem migração nova na
-maioria dos casos. A decidir com o usuário.
+**Etapa 2 — painel do coordenador com indicadores por escopo (spec
+seção 11, concluída):**
+
+- **Sem migração nova.** Toda a RLS necessária já existia (estendida
+  pelas Etapas 2/11 da iniciativa anterior): `people_select` (equipe via
+  `coordination_relationships`), `registration_submissions_select`
+  (`manager_person_id`), `correction_requests_select`,
+  `registration_invites_select` (`created_by`). `/painel` deixa de ser o
+  placeholder fictício da Fase 1A e passa a consultar o banco de
+  verdade, com o mesmo cliente/RLS já usado por `/relatorios` e
+  `/validacoes` — nenhum dado é lido fora do que a RLS já deixa cada
+  papel ver.
+- `src/lib/painel/dashboard.ts` (novo): `fetchCoordinatorSummary`
+  (equipe vigente, cadastros a decidir, correções pendentes dos
+  liderados, convites em aberto — mesmas fontes de `/minha-equipe` e
+  `/validacoes`), `fetchOrgSummary` (pessoas ativas, aguardando
+  gestor/RH, correções pendentes — campanha inteira, só não-zero pra
+  quem a RLS deixa ver), `fetchFinanceSummary` (despesas/pagamentos
+  pendentes), `fetchRecentPeople` (últimos cadastros visíveis — a RLS
+  resolve o escopo certo pra cada papel sem branch explícito).
+- `/painel` (reescrita): seções condicionais por papel —
+  administrador/RH veem KPIs de campanha; financeiro/tesouraria veem
+  despesas/pagamentos pendentes; quem tem equipe (própria ou por
+  convites enviados) vê o bloco "Minha equipe"; lista de "Cadastros
+  recentes" sempre no fim, escopada pela RLS. Cada KPI é um link pra
+  tela correspondente (`/validacoes`, `/minha-equipe`, `/despesas`,
+  `/relatorios/pessoas`).
+- `src/lib/reports/pessoas.ts`: `PERSON_STATUS_LABEL` ganhou os status
+  de autocadastro da migração `0013` (`aguardando_gestor`,
+  `correcao_solicitada` etc.) que faltavam desde aquela migração —
+  usados agora pelos badges de "Cadastros recentes".
+- `npm run typecheck`/`lint`/`build` — sem erros nem avisos; `/painel`
+  aparece no build como rota dinâmica (sem alteração de tamanho de
+  bundle relevante).
+- **Fora de escopo desta etapa**: indicadores de despesas/pagamentos
+  para coordenador (hoje só `administrador`/`financeiro`/`tesouraria`
+  veem `expenses`/`payments` — ampliar essa RLS é uma decisão de
+  exposição de dado financeiro, não um ajuste de painel); qualquer
+  gráfico/série temporal (só contadores atuais); indicadores
+  específicos por eixo/cidade/equipe dentro da própria equipe do
+  coordenador (a equipe hoje é tratada como um único conjunto, não
+  subdividida — o `/relatorios` já cobre filtro por território pra quem
+  tem acesso a relatórios).
+
+**Próxima etapa proposta**: aproveitar schema já pronto e ocioso
+(hash/versionamento/classificação de documento, valor previous/new em
+correção, valor autorizado de despesa, IP/user-agent na auditoria) —
+ganho rápido sem migração nova na maioria dos casos — antes de entrar
+no módulo de contratos (spec seção 12), que é a peça maior e ainda sem
+nenhuma tabela.
 
 ## Stack
 

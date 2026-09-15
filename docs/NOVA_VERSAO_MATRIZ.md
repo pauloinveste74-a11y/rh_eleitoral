@@ -40,7 +40,7 @@ novo além do padrão já conhecido e aceito.
 | 9.1 | Importação CSV | 🔴 Ausente (só `.xlsx`) |
 | 9.2 | Importação por PDF (OCR, 1 ou várias pessoas) | 🔴 Ausente — `data_conflicts` existe desde `0018`, nunca usada |
 | 10 | Gestor: documento válido/ilegível/divergente, documento substituto | 🔴 Ausente (só aprovar/rejeitar/corrigir o cadastro todo) |
-| 11 | Painel do coordenador com indicadores por escopo territorial | 🔴 Ausente — `/painel` é genérico da Fase 1A |
+| 11 | Painel do coordenador com indicadores por escopo territorial | 🟢 **Implementado na Etapa 2** — sem migração nova, só consultas com a RLS já existente |
 | 12 | Contratos (modelos, versionamento, geração PF/PJ, upload assinado) | 🔴 Ausente por completo — nenhuma tabela existe |
 | 13 | Despesas com autorizador/alçada | 🟢 Etapas 1/7/8/9 |
 | 13 | Valor autorizado ≠ valor pedido | 🟡 `expenses.authorized_amount_cents` existe, nunca difere de `requested_amount_cents` |
@@ -68,8 +68,8 @@ não necessariamente errada), `document_versions` (usa
 ## Ordem proposta (adaptando a seção 22 da spec ao que já existe)
 
 1. ~~Segurança~~ — feito, limpo.
-2. ✅ **Cargos configuráveis + pessoa jurídica** — esta etapa.
-3. Painel do coordenador com indicadores por escopo.
+2. ✅ **Cargos configuráveis + pessoa jurídica** — Etapa 1.
+3. ✅ **Painel do coordenador com indicadores por escopo** — Etapa 2.
 4. Uso do schema já pronto e ocioso (documento, correção, despesa,
    auditoria) — ganho rápido, quase sem migração nova.
 5. Contratos (modelos, geração, upload assinado) — a peça mais grande.

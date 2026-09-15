@@ -21,6 +21,15 @@ export const PERSON_STATUS_LABEL: Record<string, string> = {
   desligado: "Desligado",
   rejeitado: "Rejeitado",
   arquivado: "Arquivado",
+  // Etapa 2 (migração 0013) — fluxo de autocadastro/validação do gestor.
+  aguardando_gestor: "Aguardando gestor",
+  em_conferencia: "Em conferência",
+  correcao_solicitada: "Correção solicitada",
+  reenviado: "Reenviado",
+  divergente: "Divergente",
+  aprovado_gestor: "Aprovado pelo gestor",
+  aguardando_rh: "Aguardando RH",
+  validado: "Validado",
 };
 
 export interface PessoasFilters {

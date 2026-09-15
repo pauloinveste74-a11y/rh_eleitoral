@@ -136,6 +136,13 @@ README, seção "Modelo de dados"):
   `expense_approvals`, `registration_field_reviews`) nunca usado por
   nenhum código. Checagem de credencial exposta feita antes de mexer em
   qualquer coisa (nada encontrado).
+- Etapa 2 da mesma iniciativa (sem migração nova): `/painel` deixou de
+  ser o placeholder fictício da Fase 1A — `src/lib/painel/dashboard.ts`
+  monta indicadores reais (equipe do coordenador, pendências de
+  validação/correção/convites, KPIs de campanha pra admin/RH, despesas/
+  pagamentos pendentes pra financeiro/tesouraria) só com consultas sobre
+  a RLS que as Etapas 2/11 da iniciativa anterior já tinham estendido —
+  nenhuma política nova precisou ser criada.
 
 ## Etapas 3 a 11 — páginas de aplicação (autocadastro, validações, importação, despesas, correção)
 
