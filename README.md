@@ -24,11 +24,12 @@ Sistema de gestão de pessoas, operações e pagamentos para campanha eleitoral.
 > por convite, cadeia de coordenação, importação em lote por Excel e uma
 > reformulação de Despesas com autorizador/alçada — ver
 > [MVP — Cadastro, Convite, Coordenação, Importação e Despesas](#mvp--cadastro-convite-coordenação-importação-e-despesas)
-> logo abaixo. As Etapas 1, 2, 4 e 5 (camada de banco, migrações
-> `0013`–`0024`) estão aplicadas e verificadas em produção, e as Etapas 3,
-> 4 e 5 (páginas `/meu-cadastro`, `/minha-equipe`, `/cadastro/[token]` e
-> `/validacoes`, esta última com fila do gestor e do RH) já estão
-> implementadas e passando em `typecheck`/`lint`/`build`.
+> logo abaixo. As Etapas 1 a 6 estão implementadas — banco (migrações
+> `0013`–`0024`) aplicado e verificado em produção; app
+> (`/meu-cadastro`, `/minha-equipe`, `/cadastro/[token]`, `/validacoes` e
+> `/importacoes`) passando em `typecheck`/`lint`/`build`. Só a
+> reformulação de Despesas com autorizador/alçada (banco pronto, sem UI)
+> ainda falta.
 
 ## MVP — Cadastro, Convite, Coordenação, Importação e Despesas
 
@@ -304,10 +305,71 @@ existe):**
   campos específicos. Importação em lote por Excel (banco pronto desde a
   Etapa 1) segue sem UI.
 
-**Próxima etapa (6 — não iniciada)**: importação em lote por Excel
-(`import_batches`/`import_staging_records`/`import_row_errors`, banco
-pronto desde a Etapa 1) — única peça grande da spec original ainda sem
-nenhuma UI.
+**Etapa 6 — importação de pessoas em lote por Excel (concluída):**
+
+- **Sem migração nova** — `import_batches`/`import_staging_records`/
+  `import_row_errors` (Etapa 1) já tinham policy de `INSERT`/`UPDATE`
+  direta para `administrador`/`rh`, e `people`/satélites também (desde a
+  `0005`) — diferente de todo o resto desta iniciativa, aqui não precisou
+  de nenhuma função `SECURITY DEFINER` nova. Confirmação da importação é
+  uma Server Action fazendo os mesmos inserts diretos que `/pessoas/novo`
+  já faz, só que em lote.
+- **Nova dependência**: `xlsx` (SheetJS) para ler o arquivo `.xlsx` no
+  servidor. **Decisão deliberada**: a versão publicada no npm
+  (`0.18.5`) tem 2 vulnerabilidades conhecidas de severidade alta
+  (prototype pollution, `GHSA-4r6h-8v6p-xvw6`; ReDoS,
+  `GHSA-5pgg-2g8v-p4x9`) — relevantes aqui porque o app processa arquivo
+  enviado por usuário, exatamente o vetor das duas falhas. `npm audit`
+  não tem correção disponível via registry (o autor parou de publicar
+  versões novas no npm); instalado direto do CDN oficial do SheetJS
+  (`https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz`, canal de
+  distribuição documentado pelo próprio projeto), que já corrige as
+  duas. `npm audit` confirma 0 vulnerabilidades depois da troca.
+- `src/lib/imports/`: `columns.ts` (cabeçalho aceito, sem dependência de
+  `xlsx`/`server-only` — importável por um Client Component só pra
+  mostrar a lista de colunas) + `person-import.ts` (parsing do arquivo +
+  classificação de cada linha, reaproveitando exatamente os schemas de
+  `personSchema`/`addressSchema`/`bankAccountSchema`/`electoralDataSchema`
+  — mesma régua de validação de um cadastro manual, sem duplicar regra).
+  Casamento de cabeçalho tolera acento/caixa (`normalizeHeader()`); só
+  "Nome completo" e "CPF" são obrigatórios.
+- **Simplificação deliberada**: dos 10 valores possíveis de
+  `import_staging_records.result`, esta etapa usa 5 (`pronta`,
+  `invalida`, `duplicada_arquivo`, `ja_existente`, `importada`) — os
+  outros 5 (`incompleta`, `possivel_duplicidade`, `conflitante`,
+  `pendente_decisao`, `rejeitada`) implicam decisão manual linha a linha
+  ou correspondência difusa de nome, fora do escopo desta etapa.
+  "Reverter uma importação já confirmada" (`import_batches.status =
+  'revertido'`) também fica de fora — o schema já reserva o valor, mas
+  a lógica ("só reverter se nada do lote tiver vínculo posterior") não
+  foi implementada.
+- `/importacoes`: upload da planilha + lista de lotes já enviados.
+  `/importacoes/[id]`: prévia linha a linha (nome, CPF, resultado,
+  detalhe do erro) + "Confirmar importação" (só se `status = 'preview'`)
+  ou "Cancelar". Pessoa confirmada entra como `rascunho`/
+  `origin = 'importacao_excel'`, igual a uma pessoa criada manualmente —
+  seguem o mesmo `/pessoas` e o mesmo fluxo de aprovação de sempre.
+- **Verificado**: lógica de parsing/classificação testada isoladamente
+  fora do Next.js (`npx tsx`, com uma planilha montada em memória via
+  `xlsx`) cobrindo linha válida, nome faltando, CPF inválido, CPF
+  duplicado no arquivo e CPF já existente — todas as 5 classificações
+  bateram. Fluxo de gravação (staging → `people` → satélites →
+  contadores do lote) testado direto no banco em transação com
+  `rollback`, sem dado residual.
+- `npm run typecheck`/`lint`/`build` — sem erros nem avisos;
+  `/importacoes` e `/importacoes/[id]` aparecem no build.
+- **Riscos/pendências**: sem teste via upload real de arquivo pelo
+  navegador (Playwright pausado). Confirmação processa as linhas uma a
+  uma (sequencial, não em lote no banco) — aceitável para o volume
+  esperado de uma campanha, mas não pensado para milhares de linhas de
+  uma vez. Reversão de importação e as 5 classificações mais finas do
+  enum ficam para uma etapa futura, se a demanda aparecer.
+
+Com a Etapa 6, todos os 8 pontos da especificação original
+(`docs/IMPLEMENTACAO_CADASTRO_IMPORTACAO_DESPESAS.md`) têm pelo menos uma
+implementação funcional, exceto a reformulação de Despesas com
+autorizador/alçada (banco pronto desde a Etapa 1, seção "Despesas" do
+schema — UI ainda não escrita, é a única peça grande realmente pendente).
 
 ## Stack
 

@@ -95,16 +95,20 @@ README, seção "Modelo de dados"):
   vínculo nenhum); as outras 4 funções de decisão do projeto já eram
   imunes a esse padrão, conferido depois. `0024` (Etapa 5) fecha o
   segundo: RH valida/rejeita/pede correção sobre o que o gestor já
-  aprovou (`decide_rh_validation()`, só `administrador`/`rh`). Falta só
-  a importação em lote por Excel (Etapa 6).
+  aprovou (`decide_rh_validation()`, só `administrador`/`rh`). A Etapa 6
+  (importação em lote por Excel, `/importacoes`) **não precisou de
+  migração nova** — as tabelas de importação e `people`/satélites já
+  tinham policy de escrita direta para `administrador`/`rh` desde a
+  Etapa 1/Fase 1C.
 
-## Etapas 3, 4 e 5 — páginas de aplicação do autocadastro e das duas filas de validação
+## Etapas 3 a 6 — páginas de aplicação (autocadastro, validações e importação)
 
-`/meu-cadastro`, `/minha-equipe`, `/cadastro/[token]` (Etapa 3) e
+`/meu-cadastro`, `/minha-equipe`, `/cadastro/[token]` (Etapa 3),
 `/validacoes` (Etapa 4 — fila do gestor; Etapa 5 — segunda seção, fila do
-RH, só visível a administrador/rh) — todas implementadas. Detalhe
-completo na seção "MVP — Cadastro, Convite, Coordenação, Importação e
-Despesas" do `README.md`. Dois pontos que valem saber antes de mexer:
+RH, só visível a administrador/rh) e `/importacoes` (Etapa 6 — upload de
+planilha, prévia, confirmação) — todas implementadas. Detalhe completo na
+seção "MVP — Cadastro, Convite, Coordenação, Importação e Despesas" do
+`README.md`. Vale saber antes de mexer:
 
 - `PersonForm` (usado por `/pessoas`) ganhou props opcionais
   (`action`/`submitLabel`/`showSocialName`/`onSuccess`) pra ser
@@ -117,6 +121,16 @@ Despesas" do `README.md`. Dois pontos que valem saber antes de mexer:
   coordination_relationships, registration_submissions e os 8 valores
   novos de `PersonStatus` não estavam tipados); a Etapa 3 atualizou tudo
   que ela mesma passou a usar.
+- **Dependência `xlsx` instalada fora do npm registry, de propósito**:
+  `package.json` aponta pra
+  `https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz` em vez de
+  `"xlsx": "^0.20.3"`. A versão publicada no npm (`0.18.5`) tem 2 CVEs
+  de severidade alta relevantes pra este uso exato (processar arquivo
+  enviado por usuário) e o autor não publica correção no registry — o
+  canal de distribuição oficial pra versão corrigida é o CDN da própria
+  SheetJS. Rodar `npm update`/`npm install xlsx@latest` sem essa URL
+  reintroduziria as duas vulnerabilidades — não "corrigir" essa entrada
+  do `package.json` achando que é um erro de digitação.
 
 ## O que falta para o sistema funcionar de ponta a ponta
 

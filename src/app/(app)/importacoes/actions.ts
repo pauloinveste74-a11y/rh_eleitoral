@@ -1,0 +1,415 @@
+"use server";
+
+import { randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+
+import { createClient } from "@/lib/supabase/server";
+import { parseWorkbook, classifyRow, type ImportRowResult } from "@/lib/imports/person-import";
+import type { Json } from "@/types/database";
+import type { ImportBatchActionState } from "./action-state";
+
+function toJson(value: unknown): Json {
+  return value as Json;
+}
+
+function sanitizeFileName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-100);
+}
+
+const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024;
+const XLSX_MIME =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+async function requireManager(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { data: isManager, error } = await supabase.rpc("has_role", {
+    role_codes: ["administrador", "rh"],
+  });
+  if (error || !isManager) {
+    return {
+      ok: false,
+      message: "Você não tem permissão para importar pessoas — restrito a administrador e RH.",
+    };
+  }
+  return { ok: true };
+}
+
+/**
+ * Sobe a planilha, faz o parsing + classificação de cada linha
+ * (src/lib/imports/person-import.ts) e grava tudo em staging — nada vira
+ * `people` ainda (isso só acontece em confirmImportBatch, depois da
+ * prévia). Mesmo espírito de "nada é fonte oficial de dado antes de
+ * confirmar" da spec original (seção 2/10).
+ */
+export async function uploadImportBatch(
+  _prevState: ImportBatchActionState,
+  formData: FormData,
+): Promise<ImportBatchActionState> {
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { status: "error", message: "Selecione um arquivo .xlsx." };
+  }
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return { status: "error", message: "Arquivo maior que 15 MB." };
+  }
+  if (file.type !== XLSX_MIME && !file.name.toLowerCase().endsWith(".xlsx")) {
+    return { status: "error", message: "Envie um arquivo .xlsx (Excel)." };
+  }
+
+  const supabase = await createClient();
+  const guard = await requireManager(supabase);
+  if (!guard.ok) return { status: "error", message: guard.message };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { status: "error", message: "Sessão expirada. Faça login novamente." };
+  }
+
+  const { data: campaignId } = await supabase.rpc("current_campaign_id");
+  if (!campaignId) {
+    return {
+      status: "error",
+      message: "Sua conta não está associada a uma campanha. Não é possível importar.",
+    };
+  }
+
+  const buffer = await file.arrayBuffer();
+
+  let rows: Record<string, string>[];
+  try {
+    rows = parseWorkbook(buffer);
+  } catch {
+    return {
+      status: "error",
+      message: "Não foi possível ler o arquivo. Confirme que é um .xlsx válido.",
+    };
+  }
+  if (rows.length === 0) {
+    return {
+      status: "error",
+      message:
+        "Nenhuma linha de dados encontrada. Confira se a primeira linha é o cabeçalho e se os nomes das colunas batem com o modelo.",
+    };
+  }
+
+  const fileHash = createHash("sha256").update(Buffer.from(buffer)).digest("hex");
+  const storagePath = `${campaignId}/${randomUUID()}-${sanitizeFileName(file.name)}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("pessoas-importacoes")
+    .upload(storagePath, file, { contentType: XLSX_MIME });
+  if (uploadError) {
+    return { status: "error", message: "Não foi possível enviar o arquivo." };
+  }
+
+  const { data: existingPeople } = await supabase
+    .from("people")
+    .select("cpf, status")
+    .eq("campaign_id", campaignId);
+  const cpfsExisting = new Set(
+    (existingPeople ?? [])
+      .filter((p) => p.status !== "arquivado" && p.status !== "rejeitado")
+      .map((p) => p.cpf),
+  );
+
+  const cpfsSeenInFile = new Set<string>();
+  const classified = rows.map((row, i) =>
+    classifyRow(i + 2, row, cpfsSeenInFile, cpfsExisting),
+  );
+
+  const counts: Record<ImportRowResult, number> = {
+    pronta: 0,
+    invalida: 0,
+    duplicada_arquivo: 0,
+    ja_existente: 0,
+  };
+  for (const row of classified) counts[row.result]++;
+
+  const { data: batch, error: batchError } = await supabase
+    .from("import_batches")
+    .insert({
+      campaign_id: campaignId,
+      template_version: "v1",
+      original_file_name: file.name,
+      storage_path: storagePath,
+      file_hash: fileHash,
+      created_by: user.id,
+      total_rows: rows.length,
+      valid_rows: counts.pronta,
+      duplicate_rows: counts.duplicada_arquivo + counts.ja_existente,
+      rejected_rows: counts.invalida,
+      error_rows: counts.invalida,
+      status: "preview",
+    })
+    .select("id")
+    .single();
+
+  if (batchError || !batch) {
+    return { status: "error", message: "Não foi possível registrar o lote de importação." };
+  }
+
+  const { data: insertedStaging, error: stagingError } = await supabase
+    .from("import_staging_records")
+    .insert(
+      classified.map((row) => ({
+        batch_id: batch.id,
+        row_number: row.rowNumber,
+        raw_data: toJson(row.rawData),
+        normalized_data: row.normalizedData ? toJson(row.normalizedData) : null,
+        result: row.result,
+      })),
+    )
+    .select("id, row_number");
+
+  if (stagingError || !insertedStaging) {
+    return {
+      status: "error",
+      message: "Lote criado, mas não foi possível gravar as linhas — tente novamente.",
+    };
+  }
+
+  const stagingIdByRow = new Map(insertedStaging.map((s) => [s.row_number, s.id]));
+  const errorRows = classified
+    .filter((row) => row.errors.length > 0)
+    .flatMap((row) =>
+      row.errors.map((err) => ({
+        staging_record_id: stagingIdByRow.get(row.rowNumber)!,
+        field_name: err.field,
+        error_code: row.result,
+        error_message: err.message,
+      })),
+    )
+    .filter((e) => e.staging_record_id);
+
+  if (errorRows.length > 0) {
+    await supabase.from("import_row_errors").insert(errorRows);
+  }
+
+  await supabase.rpc("log_audit_event", {
+    p_action: "importacao.enviar",
+    p_entity_table: "import_batches",
+    p_entity_id: batch.id,
+    p_after_data: toJson({ total_rows: rows.length, ...counts }),
+  });
+
+  revalidatePath("/importacoes");
+  redirect(`/importacoes/${batch.id}`);
+}
+
+/**
+ * Promove as linhas com result='pronta' de staging para `people` de fato —
+ * a única escrita real desta etapa. Mesmo formato de gravação de
+ * savePerson() (/pessoas), só que em lote: insere people + satélites
+ * opcionais, direto (administrador/rh já tem policy de INSERT nessas
+ * tabelas — sem função SECURITY DEFINER nova nesta etapa). Corrida rara
+ * (CPF que virou duplicado entre a prévia e a confirmação) é tratada por
+ * linha, não aborta o lote inteiro.
+ */
+export async function confirmImportBatch(
+  batchId: string,
+): Promise<ImportBatchActionState> {
+  const supabase = await createClient();
+  const guard = await requireManager(supabase);
+  if (!guard.ok) return { status: "error", message: guard.message };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { status: "error", message: "Sessão expirada. Faça login novamente." };
+  }
+
+  const { data: batchRow, error: batchFetchError } = await supabase
+    .from("import_batches")
+    .select("id, status")
+    .eq("id", batchId)
+    .maybeSingle();
+  if (batchFetchError || !batchRow) {
+    return { status: "error", message: "Lote não encontrado." };
+  }
+  if (batchRow.status !== "preview") {
+    return {
+      status: "error",
+      message: `Este lote já foi processado (status atual: ${batchRow.status}).`,
+    };
+  }
+
+  const { data: readyRows, error: readyError } = await supabase
+    .from("import_staging_records")
+    .select("id, normalized_data")
+    .eq("batch_id", batchId)
+    .eq("result", "pronta");
+  if (readyError) {
+    return { status: "error", message: "Não foi possível ler as linhas prontas do lote." };
+  }
+
+  let imported = 0;
+  let failed = 0;
+
+  for (const staging of readyRows ?? []) {
+    const data = staging.normalized_data as {
+      person?: Record<string, string>;
+      address?: Record<string, string>;
+      bank?: Record<string, string>;
+      electoral?: Record<string, string>;
+    } | null;
+    const person = data?.person;
+    if (!person) {
+      failed++;
+      continue;
+    }
+
+    const { data: inserted, error: insertError } = await supabase
+      .from("people")
+      .insert({
+        full_name: person.fullName,
+        cpf: person.cpf,
+        birth_date: person.birthDate || null,
+        phone: person.phone || null,
+        whatsapp: person.whatsapp || null,
+        email: person.email || null,
+        origin: "importacao_excel",
+        created_by: user.id,
+      })
+      .select("id")
+      .single();
+
+    if (insertError || !inserted) {
+      failed++;
+      await supabase
+        .from("import_staging_records")
+        .update({ result: "ja_existente" })
+        .eq("id", staging.id);
+      await supabase.from("import_row_errors").insert({
+        staging_record_id: staging.id,
+        field_name: "cpf",
+        error_code: "conflito_na_confirmacao",
+        error_message:
+          insertError?.code === "23505"
+            ? "CPF passou a existir entre a prévia e a confirmação."
+            : "Não foi possível criar esta pessoa.",
+      });
+      continue;
+    }
+
+    const personId = inserted.id;
+
+    if (data?.address) {
+      const a = data.address;
+      await supabase.from("person_addresses").insert({
+        person_id: personId,
+        zip_code: a.zipCode,
+        street: a.street,
+        number: a.number || null,
+        complement: a.complement || null,
+        neighborhood: a.neighborhood,
+        city: a.city,
+        state: a.state?.toUpperCase(),
+        created_by: user.id,
+        updated_by: user.id,
+      });
+    }
+    if (data?.bank) {
+      const b = data.bank;
+      await supabase.from("person_bank_accounts").insert({
+        person_id: personId,
+        bank_code: b.bankCode,
+        bank_name: b.bankName || null,
+        agency: b.agency,
+        agency_digit: b.agencyDigit || null,
+        account_number: b.accountNumber,
+        account_digit: b.accountDigit || null,
+        account_type: b.accountType as "corrente" | "poupanca",
+        pix_key_type:
+          (b.pixKeyType as "cpf" | "email" | "telefone" | "aleatoria" | undefined) || null,
+        pix_key: b.pixKey || null,
+        created_by: user.id,
+        updated_by: user.id,
+      });
+    }
+    if (data?.electoral) {
+      const e = data.electoral;
+      await supabase.from("person_electoral_data").insert({
+        person_id: personId,
+        voter_id: e.voterId || null,
+        electoral_zone: e.electoralZone || null,
+        electoral_section: e.electoralSection || null,
+        voter_city: e.voterCity || null,
+        voter_state: e.voterState ? e.voterState.toUpperCase() : null,
+        created_by: user.id,
+        updated_by: user.id,
+      });
+    }
+
+    await supabase
+      .from("import_staging_records")
+      .update({ result: "importada", person_id: personId })
+      .eq("id", staging.id);
+    imported++;
+  }
+
+  await supabase
+    .from("import_batches")
+    .update({
+      status: "confirmado",
+      confirmed_at: new Date().toISOString(),
+      confirmed_by: user.id,
+      imported_rows: imported,
+      duplicate_rows: failed,
+    })
+    .eq("id", batchId);
+
+  await supabase.rpc("log_audit_event", {
+    p_action: "importacao.confirmar",
+    p_entity_table: "import_batches",
+    p_entity_id: batchId,
+    p_after_data: toJson({ imported, failed }),
+  });
+
+  revalidatePath(`/importacoes/${batchId}`);
+  revalidatePath("/importacoes");
+  revalidatePath("/pessoas");
+
+  if (failed > 0) {
+    return {
+      status: "error",
+      message: `${imported} pessoa(s) importada(s). ${failed} linha(s) falharam na confirmação (CPF passou a existir nesse meio-tempo) — veja o detalhe na tabela abaixo.`,
+    };
+  }
+  return { status: "success", message: `${imported} pessoa(s) importada(s) com sucesso.` };
+}
+
+/** Cancela um lote que ainda não foi confirmado — não desfaz nada, porque nada foi gravado em `people` ainda. */
+export async function cancelImportBatch(
+  batchId: string,
+): Promise<ImportBatchActionState> {
+  const supabase = await createClient();
+  const guard = await requireManager(supabase);
+  if (!guard.ok) return { status: "error", message: guard.message };
+
+  const { data: batchRow } = await supabase
+    .from("import_batches")
+    .select("status")
+    .eq("id", batchId)
+    .maybeSingle();
+  if (!batchRow || !["staging", "preview"].includes(batchRow.status)) {
+    return { status: "error", message: "Este lote não pode mais ser cancelado." };
+  }
+
+  const { error } = await supabase
+    .from("import_batches")
+    .update({ status: "cancelado" })
+    .eq("id", batchId);
+  if (error) {
+    return { status: "error", message: "Não foi possível cancelar o lote." };
+  }
+
+  revalidatePath(`/importacoes/${batchId}`);
+  revalidatePath("/importacoes");
+  return { status: "success" };
+}

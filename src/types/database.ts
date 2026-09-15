@@ -136,6 +136,19 @@ export interface Database {
           status: PersonStatus;
           created_by: string | null;
           updated_by: string | null;
+          // Migração 0013 (Etapa 1) — identificação estendida, tudo opcional.
+          rg: string | null;
+          cnh: string | null;
+          documento_orgao_expedidor: string | null;
+          documento_uf_expedicao: string | null;
+          documento_data_expedicao: string | null;
+          nome_mae: string | null;
+          nome_pai: string | null;
+          nacionalidade: string | null;
+          naturalidade: string | null;
+          pais_nascimento: string;
+          phone_alternate: string | null;
+          origin: "autocadastro" | "administrativo" | "importacao_excel";
         } & Timestamps;
         Insert: Partial<Timestamps> & {
           id?: string;
@@ -150,6 +163,18 @@ export interface Database {
           status?: PersonStatus;
           created_by?: string | null;
           updated_by?: string | null;
+          rg?: string | null;
+          cnh?: string | null;
+          documento_orgao_expedidor?: string | null;
+          documento_uf_expedicao?: string | null;
+          documento_data_expedicao?: string | null;
+          nome_mae?: string | null;
+          nome_pai?: string | null;
+          nacionalidade?: string | null;
+          naturalidade?: string | null;
+          pais_nascimento?: string;
+          phone_alternate?: string | null;
+          origin?: "autocadastro" | "administrativo" | "importacao_excel";
         };
         Update: Partial<Database["public"]["Tables"]["people"]["Insert"]>;
         Relationships: [];
@@ -673,6 +698,120 @@ export interface Database {
         };
         Update: Partial<
           Database["public"]["Tables"]["registration_submissions"]["Insert"]
+        >;
+        Relationships: [];
+      };
+      import_batches: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          template_version: string;
+          original_file_name: string;
+          storage_path: string;
+          file_hash: string;
+          created_by: string | null;
+          created_at: string;
+          total_rows: number;
+          valid_rows: number;
+          imported_rows: number;
+          duplicate_rows: number;
+          rejected_rows: number;
+          pending_rows: number;
+          error_rows: number;
+          status: "staging" | "preview" | "confirmado" | "revertido" | "cancelado";
+          confirmed_at: string | null;
+          confirmed_by: string | null;
+          reverted_at: string | null;
+          reverted_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          campaign_id: string;
+          template_version: string;
+          original_file_name: string;
+          storage_path: string;
+          file_hash: string;
+          created_by?: string | null;
+          created_at?: string;
+          total_rows?: number;
+          valid_rows?: number;
+          imported_rows?: number;
+          duplicate_rows?: number;
+          rejected_rows?: number;
+          pending_rows?: number;
+          error_rows?: number;
+          status?: "staging" | "preview" | "confirmado" | "revertido" | "cancelado";
+          confirmed_at?: string | null;
+          confirmed_by?: string | null;
+          reverted_at?: string | null;
+          reverted_by?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["import_batches"]["Insert"]>;
+        Relationships: [];
+      };
+      import_staging_records: {
+        Row: {
+          id: string;
+          batch_id: string;
+          row_number: number;
+          raw_data: Json;
+          normalized_data: Json | null;
+          result:
+            | "pronta"
+            | "importada"
+            | "incompleta"
+            | "invalida"
+            | "duplicada_arquivo"
+            | "ja_existente"
+            | "possivel_duplicidade"
+            | "conflitante"
+            | "pendente_decisao"
+            | "rejeitada";
+          person_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          batch_id: string;
+          row_number: number;
+          raw_data: Json;
+          normalized_data?: Json | null;
+          result?:
+            | "pronta"
+            | "importada"
+            | "incompleta"
+            | "invalida"
+            | "duplicada_arquivo"
+            | "ja_existente"
+            | "possivel_duplicidade"
+            | "conflitante"
+            | "pendente_decisao"
+            | "rejeitada";
+          person_id?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["import_staging_records"]["Insert"]
+        >;
+        Relationships: [];
+      };
+      import_row_errors: {
+        Row: {
+          id: string;
+          staging_record_id: string;
+          field_name: string | null;
+          error_code: string;
+          error_message: string;
+        };
+        Insert: {
+          id?: string;
+          staging_record_id: string;
+          field_name?: string | null;
+          error_code: string;
+          error_message: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["import_row_errors"]["Insert"]
         >;
         Relationships: [];
       };
