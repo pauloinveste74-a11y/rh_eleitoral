@@ -1,13 +1,19 @@
 import type { Metadata } from "next";
 
 import { createClient } from "@/lib/supabase/server";
+import { getPersonDocumentSignedUrl } from "@/app/(app)/pessoas/actions";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ValidationQueue,
   type ValidationQueueRow,
 } from "@/components/validacoes/validation-queue";
-import { decideRegistrationSubmission, decideRhValidation } from "./actions";
+import type { ReviewableDocument } from "@/components/validacoes/document-review-list";
+import {
+  decideRegistrationSubmission,
+  decideRhValidation,
+  decidePersonDocument,
+} from "./actions";
 import type { RegistrationSubmissionStatus } from "@/types/database";
 
 export const metadata: Metadata = { title: "Validações" };
@@ -36,14 +42,47 @@ async function loadQueue(
   );
 
   const personIds = pending.map((s) => s.person_id);
-  const { data: people } =
+  const [{ data: people }, { data: documents }] =
     personIds.length > 0
-      ? await supabase
-          .from("people")
-          .select("id, full_name, cpf")
-          .in("id", personIds)
-      : { data: [] as { id: string; full_name: string; cpf: string }[] };
+      ? await Promise.all([
+          supabase.from("people").select("id, full_name, cpf").in("id", personIds),
+          supabase
+            .from("person_documents")
+            .select("id, person_id, document_type, file_name, storage_path, review_status")
+            .in("person_id", personIds)
+            .eq("status", "ativo")
+            .order("created_at", { ascending: true }),
+        ])
+      : [
+          { data: [] as { id: string; full_name: string; cpf: string }[] },
+          { data: [] as Array<{
+              id: string;
+              person_id: string;
+              document_type: string;
+              file_name: string;
+              storage_path: string;
+              review_status: string | null;
+            }> },
+        ];
   const personById = new Map((people ?? []).map((p) => [p.id, p]));
+
+  // URLs assinadas (60s, mesma expiração de getPersonDocumentSignedUrl) —
+  // geradas em paralelo, uma por documento visível na fila.
+  const documentsByPerson = new Map<string, ReviewableDocument[]>();
+  await Promise.all(
+    (documents ?? []).map(async (doc) => {
+      const signedUrl = await getPersonDocumentSignedUrl(doc.storage_path);
+      const list = documentsByPerson.get(doc.person_id) ?? [];
+      list.push({
+        id: doc.id,
+        documentType: doc.document_type as ReviewableDocument["documentType"],
+        fileName: doc.file_name,
+        reviewStatus: (doc.review_status ?? "pendente") as ReviewableDocument["reviewStatus"],
+        signedUrl,
+      });
+      documentsByPerson.set(doc.person_id, list);
+    }),
+  );
 
   return pending.map((s) => ({
     id: s.id,
@@ -51,6 +90,7 @@ async function loadQueue(
     cpf: personById.get(s.person_id)?.cpf ?? "",
     origin: s.origin,
     date: status === "aprovado_gestor" ? s.validated_at : s.submitted_at,
+    documents: documentsByPerson.get(s.person_id) ?? [],
   }));
 }
 
@@ -106,6 +146,7 @@ export default async function ValidacoesPage() {
               decisionAction={(id) => decideRegistrationSubmission.bind(null, id)}
               primaryLabel="Aprovar"
               primaryValue="aprovar"
+              documentDecisionAction={(id) => decidePersonDocument.bind(null, id)}
             />
           </CardContent>
         </Card>
@@ -123,6 +164,7 @@ export default async function ValidacoesPage() {
                 decisionAction={(id) => decideRhValidation.bind(null, id)}
                 primaryLabel="Validar"
                 primaryValue="validar"
+                documentDecisionAction={(id) => decidePersonDocument.bind(null, id)}
               />
             </CardContent>
           </Card>

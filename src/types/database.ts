@@ -1272,6 +1272,14 @@ export interface Database {
         Args: { p_batch_id: string };
         Returns: undefined;
       };
+      decide_person_document: {
+        Args: {
+          p_document_id: string;
+          p_review_status: string;
+          p_rejection_reason?: string | null;
+        };
+        Returns: undefined;
+      };
       record_person_document: {
         Args: {
           p_person_id: string;

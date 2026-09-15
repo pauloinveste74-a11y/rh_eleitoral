@@ -54,11 +54,11 @@ conta que não fosse o platform_admin (que bypassa toda RLS):
 | 7 | Dados cadastrais PF (identificação, filiação, naturalidade...) | 🟢 migração `0013` |
 | 8 | Documento: hash, detecção de repetição | 🟢 **Implementado na Etapa 3** — `record_person_document()` (migração `0030`) rejeita duplicata exata |
 | 8 | Documento: versionamento (substituição) | 🟢 **Implementado na Etapa 3** — reenvio do mesmo tipo após ilegível/divergente vira substituto automático, o anterior é marcado `removido` |
-| 8 | Documento: classificação válido/ilegível/divergente | 🟡 Colunas prontas e já lidas pela lógica de versionamento; falta a função/tela do gestor pra setar (`review_status`/`reviewed_by`/`reviewed_at`/`rejection_reason`) — próxima etapa |
+| 8 | Documento: classificação válido/ilegível/divergente | 🟢 **Implementado na Etapa 4** — `decide_person_document()` (migração `0031`), tela em `/validacoes` |
 | 9.1 | Importação Excel com staging/prévia/conflitos | 🟢 Etapas 6/10 |
 | 9.1 | Importação CSV | 🔴 Ausente (só `.xlsx`) |
 | 9.2 | Importação por PDF (OCR, 1 ou várias pessoas) | 🔴 Ausente — `data_conflicts` existe desde `0018`, nunca usada |
-| 10 | Gestor: documento válido/ilegível/divergente, documento substituto | 🟡 Substituto funciona (reenvio automático — Etapa 3); classificação pelo gestor em si ainda sem função/tela (só aprovar/rejeitar/corrigir o cadastro todo hoje) — e a RLS que faltava pra ele nem ver o documento da equipe foi corrigida na mesma etapa |
+| 10 | Gestor: documento válido/ilegível/divergente, documento substituto | 🟢 **Implementado na Etapa 4** — classificação inline em `/validacoes` (por documento, dentro de cada submissão da fila); substituto automático no reenvio já era da Etapa 3 |
 | 11 | Painel do coordenador com indicadores por escopo territorial | 🟢 **Implementado na Etapa 2** — sem migração nova, só consultas com a RLS já existente |
 | 12 | Contratos (modelos, versionamento, geração PF/PJ, upload assinado) | 🔴 Ausente por completo — nenhuma tabela existe |
 | 13 | Despesas com autorizador/alçada | 🟢 Etapas 1/7/8/9 |
@@ -89,10 +89,10 @@ não necessariamente errada), `document_versions` (usa
 1. ~~Segurança~~ — feito, limpo.
 2. ✅ **Cargos configuráveis + pessoa jurídica** — Etapa 1.
 3. ✅ **Painel do coordenador com indicadores por escopo** — Etapa 2.
-4. 🟡 Uso do schema já pronto e ocioso — **parcial na Etapa 3**
-   (documento: hash + versionamento, e dois bugs de RLS/auditoria
-   corrigidos de brinde). Falta: classificação do documento pelo gestor
-   (função + tela), `correction_requests.previous_values`/`new_values`,
+4. 🟡 Uso do schema já pronto e ocioso — **documento fechado nas Etapas
+   3+4** (hash, versionamento, classificação pelo gestor, e dois bugs de
+   RLS/auditoria corrigidos de brinde). Falta ainda:
+   `correction_requests.previous_values`/`new_values`,
    `expenses.authorized_amount_cents`, `audit_logs.ip_address`/`user_agent`.
 5. Contratos (modelos, geração, upload assinado) — a peça mais grande.
 6. Importação por PDF com OCR e revisão humana.

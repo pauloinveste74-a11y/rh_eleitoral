@@ -739,12 +739,40 @@ bypassa toda RLS):
   `new_values`; `expenses.authorized_amount_cents`; `audit_logs.ip_address`/
   `user_agent`.
 
-**Próxima etapa proposta**: função + tela de classificação de documento
-pelo gestor (aprovar/ilegível/divergente), agora que a leitura já
-funciona — fecha o item 10 da spec por completo. Os demais itens do
-schema ocioso (correção previous/new, despesa autorizada, IP/user-agent
-da auditoria) ficam pra depois, ou entram junto se forem pequenos o
-suficiente.
+**Etapa 4 — classificação de documento pelo gestor (spec seção 10,
+concluída):**
+
+- Migração `0031_nova_versao_classificacao_documento.sql`:
+  `decide_person_document(p_document_id, p_review_status, p_rejection_reason?)`
+  — mesmo padrão de `decide_registration_submission()` (autoriza
+  administrador/rh ou o coordenador direto da pessoa via
+  `coordination_relationships` vigente; audita com insert direto em
+  `audit_logs`, não usa `log_audit_event()`, que rejeitaria o
+  coordenador comum). `p_review_status` em `aprovado`/`ilegivel`/
+  `divergente`; motivo obrigatório pras duas últimas.
+- `/validacoes`: cada linha da fila (gestor e RH, mesmo componente
+  genérico) ganhou uma segunda linha expandida com os documentos ativos
+  da pessoa — link "Ver documento" (URL assinada) + badge de status +
+  três botões de classificação inline (aprovar/ilegível/divergente) com
+  campo de motivo. `src/components/validacoes/document-review-list.tsx`
+  (novo); `ValidationQueueRow` ganhou `documents`; `loadQueue()` busca
+  `person_documents` ativos dos `personIds` da fila em paralelo com as
+  URLs assinadas.
+- **Verificado** (transação com `rollback`, sem dado residual):
+  classificação sem motivo rejeitada corretamente pra
+  `ilegivel`/`divergente`; classificação com motivo grava
+  `review_status`/`reviewed_by`/`reviewed_at`/`rejection_reason` e audita.
+- `npm run typecheck`/`lint`/`build` — sem erros nem avisos.
+- Com isso, o item 10 da spec (documento válido/ilegível/divergente,
+  substituto) está completo — o substituto automático no reenvio já
+  tinha sido feito na Etapa 3.
+
+**Próxima etapa proposta**: os demais itens do schema ocioso —
+`correction_requests.previous_values`/`new_values` (preservar o antes/
+depois de uma correção), `expenses.authorized_amount_cents` (valor
+autorizado divergir do pedido), `audit_logs.ip_address`/`user_agent` —
+antes de entrar no módulo de contratos (spec seção 12), que é a peça
+maior e ainda sem nenhuma tabela.
 
 ## Stack
 

@@ -90,6 +90,7 @@ não bloqueia criação nem decisão.
 | --- | --- | --- | --- |
 | `decide_registration_submission(p_submission_id, p_decision, p_reason?, p_field_names?)` | `authenticated` | `administrador`/`rh`, ou a pessoa cujo `people.id` bate com `manager_person_id` da submissão (gestor pessoa física); submissão em `aguardando_validacao_gestor` | `aprovar` → `aprovado_gestor`; `rejeitar` → `rejeitado`; `solicitar_correcao` → `correcao_solicitada` + cria `correction_requests` com os campos apontados (`p_field_names`, Etapa 11). Audita com insert direto (gestor comum não é admin/rh). |
 | `decide_rh_validation(p_submission_id, p_decision, p_reason?, p_field_names?)` | `authenticated` | **Só** `administrador`/`rh` (sem caminho "gestor pessoa física" — diferente da anterior); submissão em `aprovado_gestor` | `validar` → `validado`; `rejeitar` → `rejeitado`; `solicitar_correcao` → `correcao_solicitada` + `correction_requests`. Audita via `log_audit_event()` direto (só admin/rh chama, sempre pode). |
+| `decide_person_document(p_document_id, p_review_status, p_rejection_reason?)` *(Nova versão, Etapa 4 — `0031`)* | `authenticated` | Chamador é `administrador`/`rh`, ou é o coordenador direto da pessoa do documento (`coordination_relationships` vigente) | Classifica um documento (`aprovado`/`ilegivel`/`divergente`, motivo obrigatório pras duas últimas) — `reviewed_by`/`reviewed_at`/`rejection_reason`. Usada por `/validacoes` (linha expandida de documentos em cada submissão da fila). |
 
 **Bug de segurança corrigido durante a Etapa 4** (documentado em detalhe
 no `README.md`): a primeira versão de `decide_registration_submission`
@@ -158,7 +159,7 @@ exigem sessão (bloqueio otimista no `proxy.ts` + checagem de novo no
 
 | Rota | Descrição |
 | --- | --- |
-| `/validacoes` | Duas filas: "Minha equipe" (gestor, `decide_registration_submission()`) e "Validação do RH" (só admin/rh, `decide_rh_validation()`), cada uma com aprovar/solicitar correção (com checklist de campos)/rejeitar. |
+| `/validacoes` | Duas filas: "Minha equipe" (gestor, `decide_registration_submission()`) e "Validação do RH" (só admin/rh, `decide_rh_validation()`), cada uma com aprovar/solicitar correção (com checklist de campos)/rejeitar. Cada submissão da fila mostra também os documentos ativos da pessoa, com classificação inline (`decide_person_document()`, Nova versão Etapa 4). |
 
 ### Importação em lote (Etapas 1/6/10)
 

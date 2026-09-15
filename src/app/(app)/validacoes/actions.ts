@@ -94,3 +94,44 @@ export async function decideRhValidation(
   revalidatePath("/validacoes");
   return { status: "success" };
 }
+
+const DOCUMENT_DECISIONS = ["aprovado", "ilegivel", "divergente"];
+
+/**
+ * Classificação de um documento pelo gestor (coordenador direto da pessoa)
+ * ou administrador/rh — via decide_person_document() (migração 0031, Nova
+ * versão Etapa 4). Ao contrário das duas decisões acima, essa não decide a
+ * submissão inteira, só um documento específico dentro dela.
+ */
+export async function decidePersonDocument(
+  documentId: string,
+  _prevState: ValidationActionState,
+  formData: FormData,
+): Promise<ValidationActionState> {
+  const reviewStatus = String(formData.get("reviewStatus") ?? "");
+  const reason = String(formData.get("rejectionReason") ?? "").trim();
+
+  if (!DOCUMENT_DECISIONS.includes(reviewStatus)) {
+    return { status: "error", message: "Classificação inválida." };
+  }
+  if (reviewStatus !== "aprovado" && !reason) {
+    return { status: "error", message: "Informe o motivo da classificação." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("decide_person_document", {
+    p_document_id: documentId,
+    p_review_status: reviewStatus,
+    p_rejection_reason: reason || null,
+  });
+
+  if (error) {
+    return {
+      status: "error",
+      message: error.message || "Não foi possível classificar o documento.",
+    };
+  }
+
+  revalidatePath("/validacoes");
+  return { status: "success" };
+}

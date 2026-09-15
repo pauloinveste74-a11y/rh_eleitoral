@@ -1,3 +1,5 @@
+import { Fragment } from "react";
+
 import {
   Table,
   TableBody,
@@ -9,6 +11,7 @@ import {
 import { formatCpf } from "@/lib/validations/cpf";
 import type { ValidationActionState } from "@/app/(app)/validacoes/action-state";
 import { ValidationDecisionForm } from "./validation-decision-form";
+import { DocumentReviewList, type ReviewableDocument } from "./document-review-list";
 
 export type ValidationQueueRow = {
   id: string;
@@ -17,6 +20,8 @@ export type ValidationQueueRow = {
   origin: "autocadastro" | "administrativo" | "importacao_excel";
   /** Data de referência da linha (enviado em / aprovado pelo gestor em, conforme `dateLabel`). */
   date: string | null;
+  /** Documentos ativos da pessoa — classificação inline (Nova versão, Etapa 4). */
+  documents: ReviewableDocument[];
 };
 
 const ORIGIN_LABEL: Record<ValidationQueueRow["origin"], string> = {
@@ -32,6 +37,7 @@ export function ValidationQueue({
   decisionAction,
   primaryLabel,
   primaryValue,
+  documentDecisionAction,
 }: {
   rows: ValidationQueueRow[];
   emptyMessage: string;
@@ -44,6 +50,12 @@ export function ValidationQueue({
   ) => Promise<ValidationActionState>;
   primaryLabel: string;
   primaryValue: string;
+  documentDecisionAction: (
+    documentId: string,
+  ) => (
+    prevState: ValidationActionState,
+    formData: FormData,
+  ) => Promise<ValidationActionState>;
 }) {
   if (rows.length === 0) {
     return (
@@ -66,23 +78,36 @@ export function ValidationQueue({
       </TableHeader>
       <TableBody>
         {rows.map((row) => (
-          <TableRow key={row.id}>
-            <TableCell className="font-medium text-slate-900 dark:text-slate-50">
-              {row.fullName}
-            </TableCell>
-            <TableCell>{row.cpf ? formatCpf(row.cpf) : "—"}</TableCell>
-            <TableCell>{ORIGIN_LABEL[row.origin]}</TableCell>
-            <TableCell>
-              {row.date ? new Date(row.date).toLocaleDateString("pt-BR") : "—"}
-            </TableCell>
-            <TableCell>
-              <ValidationDecisionForm
-                action={decisionAction(row.id)}
-                primaryLabel={primaryLabel}
-                primaryValue={primaryValue}
-              />
-            </TableCell>
-          </TableRow>
+          <Fragment key={row.id}>
+            <TableRow>
+              <TableCell className="font-medium text-slate-900 dark:text-slate-50">
+                {row.fullName}
+              </TableCell>
+              <TableCell>{row.cpf ? formatCpf(row.cpf) : "—"}</TableCell>
+              <TableCell>{ORIGIN_LABEL[row.origin]}</TableCell>
+              <TableCell>
+                {row.date ? new Date(row.date).toLocaleDateString("pt-BR") : "—"}
+              </TableCell>
+              <TableCell>
+                <ValidationDecisionForm
+                  action={decisionAction(row.id)}
+                  primaryLabel={primaryLabel}
+                  primaryValue={primaryValue}
+                />
+              </TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell colSpan={5} className="bg-slate-50/60 dark:bg-slate-900/40">
+                <p className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+                  Documentos
+                </p>
+                <DocumentReviewList
+                  documents={row.documents}
+                  decideAction={documentDecisionAction}
+                />
+              </TableCell>
+            </TableRow>
+          </Fragment>
         ))}
       </TableBody>
     </Table>

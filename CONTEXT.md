@@ -153,6 +153,12 @@ README, seção "Modelo de dados"):
   nova `record_person_document()` (hash com dedup + versionamento via
   `replaces_document_id` quando reenvia o mesmo tipo após
   ilegível/divergente). Ver `docs/NOVA_VERSAO_MATRIZ.md` pra detalhe.
+- Etapa 4 (`0031`): `decide_person_document()` — gestor (coordenador
+  direto via `coordination_relationships`) ou administrador/rh
+  classificam um documento como aprovado/ilegível/divergente (motivo
+  obrigatório pras duas últimas). `/validacoes` ganhou uma linha
+  expandida por submissão da fila com os documentos ativos da pessoa e
+  os três botões de classificação inline. Fecha o item 10 da spec.
 
 ## Etapas 3 a 11 — páginas de aplicação (autocadastro, validações, importação, despesas, correção)
 
