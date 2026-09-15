@@ -967,24 +967,33 @@ item a item em `docs/IDENTIDADE_VISUAL.md`, com o que ficou pendente
 documentado honestamente (modo escuro de marca, mascaramento de CPF,
 gráficos, relatórios em PDF).
 
-## IA (Claude) para checagem de dados (docs/IA_DIVERGENCIAS.md)
+## IA (OpenAI) para checagem de dados (docs/IA_DIVERGENCIAS.md)
 
 Pedido do usuário: cruzar dados da importação contra cadastros já
 existentes e contra o documento de identidade anexado, avisando de
 divergências (ex.: mesmo CPF com nomes diferentes) pro administrador
 aceitar ou não — e, depois, avisar de pagamento fora do previsto no
-contrato, com prazo pra decidir. **Etapa A concluída**: `data_conflicts`
-(existia desde a migração `0018`, nunca usada) passou a ser alimentada
-por uma detecção determinística no import (nome divergente pro mesmo
-CPF) + `/divergencias` (tela nova) com um botão "Verificar com IA" sob
-demanda que lê o RG/CNH da pessoa via `@anthropic-ai/sdk` (cliente
-construído do zero, nada disso existia) e compara — resposta sempre
-estruturada via tool use forçado, decisão final sempre humana
-(`resolve_data_conflict()`). **Pendente**: configurar
-`ANTHROPIC_API_KEY` (mesmo processo da `SUPABASE_SERVICE_ROLE_KEY`) —
-sem ela só o botão de IA fica indisponível, o resto de `/divergencias`
-funciona normalmente. **Etapa B** (conciliação contrato × pagamento,
-com prazo de resolução) está planejada em `docs/IA_DIVERGENCIAS.md`,
+contrato, com prazo pra decidir. Combinado inicialmente API da
+Anthropic (Claude); o usuário colou uma chave `sk-proj-...` (formato
+OpenAI, incompatível) e confirmou que era pra usar OpenAI mesmo — o
+cliente foi trocado antes de qualquer coisa ir pro ar.
+**Etapa A concluída**: `data_conflicts` (existia desde a migração
+`0018`, nunca usada) passou a ser alimentada por uma detecção
+determinística no import (nome divergente pro mesmo CPF) +
+`/divergencias` (tela nova) com um botão "Verificar com IA" sob
+demanda que lê o RG/CNH da pessoa via `openai` (cliente construído do
+zero, nada disso existia — Responses API, modelo `gpt-5.4-mini`) e
+compara — resposta sempre estruturada via Structured Outputs (JSON
+Schema), decisão final sempre humana (`resolve_data_conflict()`).
+**`OPENAI_API_KEY` já configurada** (mesmo processo da
+`SUPABASE_SERVICE_ROLE_KEY`) e testada ao vivo — chamada real
+confirma que chave/modelo/formato estão certos, mas **a conta está
+sem crédito** ("You have no credits remaining"); o botão de IA
+retorna esse erro até o usuário adicionar crédito em
+platform.openai.com/settings/organization/billing — o resto de
+`/divergencias` funciona normalmente enquanto isso. **Etapa B**
+(conciliação contrato × pagamento, com prazo de resolução) está
+planejada em `docs/IA_DIVERGENCIAS.md`,
 ainda não iniciada — falta schema novo (`contracts`/`payments` hoje são
 tabelas desconectadas, sem campo de carga horária nem período).
 

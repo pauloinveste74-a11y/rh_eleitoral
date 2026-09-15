@@ -264,13 +264,18 @@ colar esse valor no chat de novo — é uma credencial que ignora RLS por
 completo; se precisar reconfigurar, o caminho é painel do Supabase →
 Settings → API → `service_role` secret.
 
-**`ANTHROPIC_API_KEY`** (novo, IA para checagem de dados,
-`docs/IA_DIVERGENCIAS.md`) ainda **não está configurada em nenhum
-ambiente** — mesmo processo: gerar em console.anthropic.com, colar em
-`.env.local` e no Vercel. Sem ela, `/divergencias` funciona
-normalmente (a detecção de nome divergente no import independe de IA)
-— só o botão "Verificar com IA" fica indisponível, com mensagem clara
-(`getAnthropicClient()`), sem travar a página.
+**`OPENAI_API_KEY`** (novo, IA para checagem de dados,
+`docs/IA_DIVERGENCIAS.md`) **já está configurada** (`.env.local` e
+Vercel, 15/09/2026) e testada ao vivo (chave/modelo/formato corretos)
+— mas **a conta está sem crédito**, então o botão "Verificar com IA"
+em `/divergencias` retorna esse erro até o usuário adicionar crédito
+em platform.openai.com/settings/organization/billing. O resto de
+`/divergencias` funciona normalmente enquanto isso (a detecção de
+nome divergente no import independe de IA). Combinado inicialmente
+Anthropic (Claude); trocado pra OpenAI a pedido do usuário antes de ir
+pro ar — se for mexer em `src/lib/ai/`, é `openai-client.ts`
+(`getOpenAiClient()`) + `document-cross-check.ts`
+(Responses API, `gpt-5.4-mini`), não mais Anthropic.
 
 ## Padrões de arquitetura que vale conhecer antes de mexer no código
 

@@ -1,12 +1,16 @@
-# IA (Claude) para checagem de dados
+# IA (OpenAI) para checagem de dados
 
 > Pedido do usuário: uma "central inteligente" que cruza dados da
 > importação (planilha/PDF) contra cadastros já existentes e contra o
 > documento de identidade anexado, avisando o administrador de
 > divergências (ex.: mesmo CPF com nomes diferentes) — e, depois,
 > avisando de pagamento fora do previsto no contrato, com prazo pra
-> decidir. Confirmado: **API da Anthropic (Claude)**, as duas partes
-> planejadas juntas, implementadas uma etapa de cada vez.
+> decidir. Combinado inicialmente API da Anthropic (Claude); o usuário
+> colou uma chave da OpenAI ("sk-proj-...", formato incompatível com a
+> Anthropic) e confirmou que era pra usar OpenAI mesmo — o cliente foi
+> trocado (`@anthropic-ai/sdk` → `openai`) antes de qualquer coisa ir
+> pro ar. As duas partes planejadas juntas, implementadas uma etapa de
+> cada vez.
 
 ## Etapa A — divergência de nome/CPF + verificação de documento por IA (concluída)
 
@@ -32,14 +36,18 @@
   **só** quando `p_apply_correction = true` (nunca mexe em CPF/dados
   bancários) — mesma cautela da spec 9.2 sobre nunca sobrescrever
   campo sensível sem confirmação humana explícita.
-- **Cliente Anthropic, do zero** (`src/lib/ai/`) — nenhuma
-  infraestrutura de IA existia neste projeto antes.
-  `anthropic-client.ts` (`getAnthropicClient()`, mesmo formato de erro
-  de `src/lib/supabase/admin.ts` quando falta a chave) +
-  `document-cross-check.ts` (`crossCheckIdentityDocument()` — manda o
-  RG/CNH pro Claude via bloco `image`/`document` nativo da API,
-  resposta sempre estruturada via *tool use* forçado, nunca parsing de
-  texto livre).
+- **Cliente OpenAI, do zero** (`src/lib/ai/`) — nenhuma infraestrutura
+  de IA existia neste projeto antes. `openai-client.ts`
+  (`getOpenAiClient()`, mesmo formato de erro de
+  `src/lib/supabase/admin.ts` quando falta a chave) +
+  `document-cross-check.ts` (`crossCheckIdentityDocument()` — usa a
+  Responses API (`client.responses.create`), manda o RG/CNH via bloco
+  `input_image`/`input_file` nativo, resposta sempre estruturada via
+  *Structured Outputs* (`text.format: {type: "json_schema", strict:
+  true}`), nunca parsing de texto livre. Modelo `gpt-5.4-mini`
+  (camada "mini", custo baixo, suficiente pra ler um documento de
+  identidade — trocar a constante `MODEL` no arquivo se a OpenAI
+  descontinuar/renomear).
 - **`/divergencias`** (nova, item de navegação próprio): lista
   conflitos pendentes da campanha. Botão **"Verificar com IA"** (só
   aparece quando a pessoa tem RG/CNH cadastrado) roda a checagem **sob
@@ -61,12 +69,17 @@
   `p_apply_correction=true`, tentar resolver um conflito já resolvido
   rejeitado corretamente. `npm run typecheck`/`lint`/`build` sem
   erros. Advisors sem achado novo além do padrão de sempre.
-- **Pendente do usuário**: configurar `ANTHROPIC_API_KEY`
-  (console.anthropic.com) em `.env.local` e no Vercel — mesmo processo
-  já usado pra `SUPABASE_SERVICE_ROLE_KEY`. Sem ela, o resto de
-  `/divergencias` funciona normalmente (a detecção determinística
-  independe da IA) — só o botão "Verificar com IA" retorna erro claro
-  em vez de travar.
+- **`OPENAI_API_KEY` configurada** em `.env.local` e no Vercel
+  (15/09/2026) — mesmo processo já usado pra
+  `SUPABASE_SERVICE_ROLE_KEY`. Testada ao vivo com uma chamada real à
+  API (imagem de 1×1 pixel, só pra confirmar chave/modelo/formato da
+  chamada — resposta estruturada recebida corretamente, então o
+  pipeline está certo). **Achado no mesmo teste**: a conta da OpenAI
+  está **sem crédito** ("You have no credits remaining") — o botão
+  "Verificar com IA" vai retornar esse erro até o usuário adicionar
+  crédito em platform.openai.com/settings/organization/billing. O
+  resto de `/divergencias` funciona normalmente enquanto isso (a
+  detecção determinística de nome divergente independe da IA).
 
 ## Etapa B — conciliação contrato × pagamento (planejada, não iniciada)
 
