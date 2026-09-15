@@ -39,6 +39,8 @@ export interface Database {
           document_number: string | null;
           legal_name: string | null;
           trade_name: string | null;
+          phone: string | null;
+          email: string | null;
         } & Timestamps;
         Insert: Partial<Timestamps> & {
           id?: string;
@@ -48,6 +50,8 @@ export interface Database {
           document_number?: string | null;
           legal_name?: string | null;
           trade_name?: string | null;
+          phone?: string | null;
+          email?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["campaigns"]["Insert"]>;
         Relationships: [];

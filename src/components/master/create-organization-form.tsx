@@ -60,6 +60,17 @@ export function CreateOrganizationForm() {
             <Label htmlFor="tradeName">Nome fantasia (opcional)</Label>
             <Input id="tradeName" name="tradeName" placeholder="Agilize" />
           </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="phone">Telefone/WhatsApp (opcional)</Label>
+            <Input id="phone" name="phone" type="tel" placeholder="(61) 91234-5678" />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="email">E-mail (opcional)</Label>
+            <Input id="email" name="email" type="email" placeholder="contato@agilize.com" />
+            {state.errors?.email && (
+              <p className="text-sm text-red-600" role="alert">{state.errors.email[0]}</p>
+            )}
+          </div>
         </div>
 
         <p className="text-sm font-medium text-brand-navy dark:text-slate-50">

@@ -10,6 +10,7 @@ import { derivePasswordFromPhone } from "@/lib/temp-password";
 import { slugify } from "@/lib/slug";
 import {
   createOrganizationSchema,
+  updateOrganizationSchema,
   addOrganizationAdminSchema,
 } from "@/lib/validations/organization";
 import type { Json } from "@/types/database";
@@ -106,6 +107,8 @@ export async function createOrganization(
     documentNumber: String(formData.get("documentNumber") ?? ""),
     legalName: String(formData.get("legalName") ?? ""),
     tradeName: String(formData.get("tradeName") ?? ""),
+    phone: String(formData.get("phone") ?? ""),
+    email: String(formData.get("email") ?? ""),
     adminFullName: String(formData.get("adminFullName") ?? ""),
     adminEmail: String(formData.get("adminEmail") ?? ""),
     adminPhone: String(formData.get("adminPhone") ?? ""),
@@ -130,6 +133,8 @@ export async function createOrganization(
       document_number: parsed.data.documentNumber,
       legal_name: parsed.data.legalName || null,
       trade_name: parsed.data.tradeName || null,
+      phone: parsed.data.phone || null,
+      email: parsed.data.email || null,
     })
     .select("id")
     .single();
@@ -193,6 +198,75 @@ export async function createOrganization(
     recipientPhone: parsed.data.adminPhone,
     documentNumber: parsed.data.documentNumber,
   };
+}
+
+/**
+ * Edita os dados da própria organização (nome, CNPJ, razão social/nome
+ * fantasia, telefone, e-mail) — faltava desde a Etapa 1, que só tinha
+ * formulário de criação. Sem isso não havia como dar um CNPJ pra uma
+ * organização criada antes desta iniciativa (achado testando com a
+ * campanha "Bia Kicis - Senadora").
+ */
+export async function updateOrganization(
+  campaignId: string,
+  _prevState: OrganizationActionState,
+  formData: FormData,
+): Promise<OrganizationActionState> {
+  const parsed = updateOrganizationSchema.safeParse({
+    name: String(formData.get("name") ?? ""),
+    documentNumber: String(formData.get("documentNumber") ?? ""),
+    legalName: String(formData.get("legalName") ?? ""),
+    tradeName: String(formData.get("tradeName") ?? ""),
+    phone: String(formData.get("phone") ?? ""),
+    email: String(formData.get("email") ?? ""),
+  });
+  if (!parsed.success) {
+    return {
+      status: "error",
+      errors: parsed.error.flatten().fieldErrors,
+      message: "Corrija os campos destacados.",
+    };
+  }
+
+  const supabase = await createClient();
+  const guard = await requirePlatformAdmin(supabase);
+  if (!guard.ok) return { status: "error", message: guard.message };
+
+  const { error } = await supabase
+    .from("campaigns")
+    .update({
+      name: parsed.data.name,
+      document_number: parsed.data.documentNumber,
+      legal_name: parsed.data.legalName || null,
+      trade_name: parsed.data.tradeName || null,
+      phone: parsed.data.phone || null,
+      email: parsed.data.email || null,
+    })
+    .eq("id", campaignId);
+
+  if (error) {
+    const duplicate = error.message?.toLowerCase().includes("duplicate");
+    return {
+      status: "error",
+      message: duplicate
+        ? "Já existe outra organização com esse CNPJ."
+        : "Não foi possível salvar as alterações.",
+    };
+  }
+
+  await supabase.rpc("log_audit_event", {
+    p_action: "organizacao.editar",
+    p_entity_table: "campaigns",
+    p_entity_id: campaignId,
+    p_after_data: toJson({
+      name: parsed.data.name,
+      document_number: parsed.data.documentNumber,
+    }),
+  });
+
+  revalidatePath(`/master/organizacoes/${campaignId}`);
+  revalidatePath("/master/organizacoes");
+  return { status: "success" };
 }
 
 export async function addOrganizationAdmin(

@@ -76,8 +76,19 @@ no `README.md`):
   explicar a restrição real do Supabase Auth (mínimo 6 caracteres) —
   usuário confirmou manter 6.
 
+## Etapa 3 — editar organização já criada (nome, CNPJ, telefone, e-mail)
+
+Achado testando a Etapa 2: `/master/organizacoes` só tinha formulário
+de **criação** — não havia como dar um CNPJ pra "Bia Kicis - Senadora"
+(criada antes desta iniciativa) nem editar nada depois. Migração
+`0037` acrescenta `campaigns.phone`/`campaigns.email` (spec 7.2);
+`updateOrganization()` (nova ação) + `EditOrganizationForm` em
+`/master/organizacoes/[id]` editam nome, CNPJ, razão social, nome
+fantasia, telefone e e-mail de qualquer organização já existente —
+mesmos campos do formulário de criação, agora também editáveis depois.
+
 ## Próxima etapa proposta
 
 Nenhuma decidida ainda — a critério do usuário. Candidato natural:
-completar os campos de endereço/contato da organização (spec seção
-7.2), ou usuário com vínculo em mais de uma organização.
+usuário com vínculo em mais de uma organização, ou os demais campos da
+spec 7.1/7.3 (endereço, representante legal).

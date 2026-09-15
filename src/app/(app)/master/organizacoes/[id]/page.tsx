@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { formatCnpj } from "@/lib/validations/cnpj";
 import { AddOrganizationAdminForm } from "@/components/master/add-organization-admin-form";
+import { EditOrganizationForm } from "@/components/master/edit-organization-form";
 import {
   EnterOrganizationButton,
   LinkSelfButton,
@@ -56,7 +57,7 @@ export default async function OrganizacaoDetalhePage({
 
   const { data: campaign } = await supabase
     .from("campaigns")
-    .select("id, name, slug, document_number, legal_name, trade_name, status")
+    .select("id, name, slug, document_number, legal_name, trade_name, phone, email, status")
     .eq("id", id)
     .maybeSingle();
 
@@ -114,27 +115,26 @@ export default async function OrganizacaoDetalhePage({
             <CardTitle>Dados da organização</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
-              <div>
-                <div className="text-brand-graphite dark:text-slate-400">Slug</div>
-                <div className="font-medium">{campaign.slug}</div>
-              </div>
-              <div>
-                <div className="text-brand-graphite dark:text-slate-400">Razão social</div>
-                <div className="font-medium">{campaign.legal_name || "—"}</div>
-              </div>
-              <div>
-                <div className="text-brand-graphite dark:text-slate-400">Nome fantasia</div>
-                <div className="font-medium">{campaign.trade_name || "—"}</div>
-              </div>
-              <div>
-                <div className="text-brand-graphite dark:text-slate-400">Status</div>
-                <Badge variant={STATUS_VARIANT[campaign.status] ?? "secondary"}>
-                  {campaign.status}
-                </Badge>
-              </div>
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <span className="text-brand-graphite dark:text-slate-400">
+                Slug: <span className="font-medium">{campaign.slug}</span>
+              </span>
+              <Badge variant={STATUS_VARIANT[campaign.status] ?? "secondary"}>
+                {campaign.status}
+              </Badge>
             </div>
-            <div className="flex flex-wrap items-start gap-3">
+            <EditOrganizationForm
+              campaignId={campaign.id}
+              defaultValues={{
+                name: campaign.name,
+                documentNumber: campaign.document_number,
+                legalName: campaign.legal_name,
+                tradeName: campaign.trade_name,
+                phone: campaign.phone,
+                email: campaign.email,
+              }}
+            />
+            <div className="flex flex-wrap items-start gap-3 border-t border-border-default pt-4 dark:border-slate-800">
               <EnterOrganizationButton campaignId={campaign.id} />
               <OrganizationStatusActions
                 campaignId={campaign.id}

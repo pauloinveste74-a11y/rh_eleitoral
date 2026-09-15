@@ -1350,6 +1350,29 @@ direto na tela de organizações, não no painel comum.
   avisos; advisors de segurança sem achado novo (só a função
   `current_campaign_id()` mudou, sem policy nova).
 
+### Etapa 3 — editar organização já criada (concluída)
+
+Testando a Etapa 2, o usuário não achou onde adicionar o CNPJ
+`68.608.387/0001-05` na campanha "Bia Kicis - Senadora" (criada antes
+desta iniciativa) — a razão: `/master/organizacoes` só tinha
+formulário de **criação**, sem edição do que já existe.
+
+- Migração `0037_multi_tenant_organizacoes_contato.sql`:
+  `campaigns` ganhou `phone`/`email` (spec 7.2 — contato da própria
+  organização, distinto do telefone/e-mail do administrador).
+- Nova ação `updateOrganization()` + componente `EditOrganizationForm`
+  em `/master/organizacoes/[id]`: edita nome, CNPJ, razão social, nome
+  fantasia, telefone e e-mail de qualquer organização já existente —
+  reaproveita o mesmo schema Zod da criação
+  (`organizationFieldsSchema`, extraído de `createOrganizationSchema`
+  pra não duplicar validação). `CreateOrganizationForm` também ganhou
+  os campos telefone/e-mail (antes só existiam pro administrador, não
+  pra organização em si).
+- **Verificado**: `update` de teste (transação com `rollback`)
+  confirmando que a campanha existente aceita CNPJ novo;
+  `npm run typecheck`/`lint`/`build` sem erros; advisors sem achado
+  novo (migração só adiciona coluna).
+
 ## Aprovações
 
 Núcleo do fluxo de validação territorial de uma pessoa, cobrindo só os
