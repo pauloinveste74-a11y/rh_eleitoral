@@ -18,9 +18,12 @@ import { CONTRACT_PLACEHOLDERS_PF, CONTRACT_PLACEHOLDERS_PJ } from "@/lib/valida
 export function PublishVersionForm({
   contractTemplateId,
   contractType,
+  suggestedBody,
 }: {
   contractTemplateId: string;
   contractType: ContractTemplateInput["contractType"];
+  /** Texto sugerido da biblioteca (contract_templates.source_catalog_code) — pré-preenche o textarea pra revisão antes de publicar. */
+  suggestedBody?: string;
 }) {
   const action = publishTemplateVersion.bind(null, contractTemplateId);
   const [state, dispatch, isPending] = useActionState(
@@ -28,7 +31,7 @@ export function PublishVersionForm({
     initialContractTemplateActionState,
   );
   const placeholders = contractType === "pf" ? CONTRACT_PLACEHOLDERS_PF : CONTRACT_PLACEHOLDERS_PJ;
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(!!suggestedBody);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -51,12 +54,18 @@ export function PublishVersionForm({
       <p className="text-xs text-brand-graphite dark:text-slate-400">
         Placeholders disponíveis: {placeholders.map((p) => `{{${p}}}`).join(", ")}
       </p>
+      {suggestedBody && (
+        <p className="text-xs text-state-info dark:text-sky-300">
+          Texto sugerido da biblioteca de contratos — revise antes de publicar.
+        </p>
+      )}
       <div className="flex flex-col gap-2">
         <Label htmlFor="pv-body">Conteúdo do modelo</Label>
         <textarea
           id="pv-body"
           name="body"
           rows={10}
+          defaultValue={suggestedBody}
           className="rounded-md border border-border-default bg-white p-3 text-sm dark:border-slate-700 dark:bg-slate-900"
           placeholder={`Pelo presente instrumento, {{nome_contratado}}...`}
         />

@@ -7,7 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { TemplateForm } from "@/components/contratos/template-form";
 import { PublishVersionForm } from "@/components/contratos/publish-version-form";
 import { LegalApprovalForm } from "@/components/contratos/legal-approval-form";
+import { CatalogLibrary } from "@/components/contratos/catalog-library";
 import { contractTypeLabels } from "@/lib/validations/contract";
+import { CONTRACT_BASE_BODY_PF, CONTRACT_BASE_BODY_PJ } from "@/lib/contracts/base-bodies";
 
 export const metadata: Metadata = { title: "Modelos de contrato" };
 
@@ -59,17 +61,22 @@ export default async function ContratoModelosPage() {
     );
   }
 
-  const [{ data: templates }, { data: versions }, { data: jobFunctions }] = await Promise.all([
-    supabase
-      .from("contract_templates")
-      .select("id, name, contract_type, status, legal_approval_status, legal_approval_note")
-      .order("name"),
-    supabase
-      .from("template_versions")
-      .select("id, contract_template_id, version_number, status, valid_from, valid_until")
-      .order("version_number", { ascending: false }),
-    supabase.from("job_functions").select("id, name").eq("status", "ativa").order("name"),
-  ]);
+  const [{ data: templates }, { data: versions }, { data: jobFunctions }, { data: catalogItems }] =
+    await Promise.all([
+      supabase
+        .from("contract_templates")
+        .select("id, name, contract_type, status, legal_approval_status, legal_approval_note, source_catalog_code")
+        .order("name"),
+      supabase
+        .from("template_versions")
+        .select("id, contract_template_id, version_number, status, valid_from, valid_until")
+        .order("version_number", { ascending: false }),
+      supabase.from("job_functions").select("id, name").eq("status", "ativa").order("name"),
+      supabase
+        .from("contract_type_catalog")
+        .select("id, code, contract_type, label")
+        .order("display_order"),
+    ]);
 
   const versionsByTemplate = new Map<string, typeof versions>();
   for (const v of versions ?? []) {
@@ -86,11 +93,18 @@ export default async function ContratoModelosPage() {
       />
 
       {canManage && (
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <TemplateForm jobFunctions={jobFunctions ?? []} />
-          </CardContent>
-        </Card>
+        <>
+          <Card className="mb-6">
+            <CardContent className="p-6">
+              <CatalogLibrary items={catalogItems ?? []} />
+            </CardContent>
+          </Card>
+          <Card className="mb-6">
+            <CardContent className="p-6">
+              <TemplateForm jobFunctions={jobFunctions ?? []} />
+            </CardContent>
+          </Card>
+        </>
       )}
 
       <div className="flex flex-col gap-6">
@@ -153,7 +167,17 @@ export default async function ContratoModelosPage() {
                 </div>
 
                 {canManage && (
-                  <PublishVersionForm contractTemplateId={t.id} contractType={t.contract_type} />
+                  <PublishVersionForm
+                    contractTemplateId={t.id}
+                    contractType={t.contract_type}
+                    suggestedBody={
+                      t.source_catalog_code && (versionsByTemplate.get(t.id) ?? []).length === 0
+                        ? t.contract_type === "pf"
+                          ? CONTRACT_BASE_BODY_PF
+                          : CONTRACT_BASE_BODY_PJ
+                        : undefined
+                    }
+                  />
                 )}
                 {canApprove && <LegalApprovalForm contractTemplateId={t.id} />}
               </CardContent>

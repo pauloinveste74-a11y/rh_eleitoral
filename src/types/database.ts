@@ -1228,6 +1228,7 @@ export interface Database {
           legal_approved_by: string | null;
           legal_approved_at: string | null;
           legal_approval_note: string | null;
+          source_catalog_code: string | null;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -1244,11 +1245,32 @@ export interface Database {
           legal_approved_by?: string | null;
           legal_approved_at?: string | null;
           legal_approval_note?: string | null;
+          source_catalog_code?: string | null;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["contract_templates"]["Insert"]>;
+        Relationships: [];
+      };
+      contract_type_catalog: {
+        Row: {
+          id: string;
+          code: string;
+          contract_type: "pf" | "pj";
+          label: string;
+          display_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          code: string;
+          contract_type: "pf" | "pj";
+          label: string;
+          display_order: number;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["contract_type_catalog"]["Insert"]>;
         Relationships: [];
       };
       template_versions: {

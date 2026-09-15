@@ -173,3 +173,45 @@ adaptador formal de OCR).
 
 **Próximo passo confirmado pelo usuário**: biblioteca jurídica de
 contratos do Caderno A (seções 11-29, item 3 da recomendação).
+
+## Biblioteca de contratos — concluída
+
+Migração `0043_biblioteca_contratos.sql`:
+
+- Tabela nova `contract_type_catalog` (referência global, mesmo padrão
+  de `public.roles`) com os 31 tipos nomeados do Caderno A (seções
+  11/12 — 14 PF + 17 PJ).
+- `contract_templates.source_catalog_code` (nulo pra modelo escrito à
+  mão) marca de qual item do catálogo um modelo nasceu.
+- `generate_contract()` ganhou 4 chaves novas em `variables_used`
+  (`telefone`, `email` pra PF e PJ; `endereco_completo`,
+  `representante_cpf` pra PJ) — dado que já existia em `people`/
+  `legal_entities`, sem coluna nova em `contracts`.
+- `src/lib/contracts/base-bodies.ts`: corpo-base PF/PJ (seções 15/16),
+  usando só as chaves flat que `generate_contract()` já substitui —
+  onde o caderno pede um dado sem fonte no modelo atual (testemunha
+  por nome, forma de pagamento específica, critério/fonte do preço,
+  fiscal PJ nomeado), o texto usa linguagem genérica ou linha de
+  assinatura em branco, nunca um `{{placeholder}}` sem substituição.
+- `/contratos/modelos` ganhou a `CatalogLibrary` — um clique cria o
+  modelo (`status: 'rascunho'`, não aparece em `/contratos` pra gerar
+  contrato real) e pré-preenche o texto sugerido em
+  `PublishVersionForm` pra revisão humana antes de publicar de
+  propósito (mesmo fluxo de um modelo escrito à mão) — "carregar como
+  rascunho sem risco", como a recomendação original pedia.
+
+Verificado por transação de teste (sem `commit`): `generate_contract()`
+PF e PJ com todos os dados novos preenchidos → confirma as 4 chaves em
+`variables_used` e substituídas no `generated_body`; conferência manual
+de que todo `{{...}}` usado em `CONTRACT_BASE_BODY_PF`/`PJ` está na
+lista de chaves suportadas (nenhum placeholder sem substituição).
+
+**Fora desta etapa, sem mudança** (leitura literal das seções 17-29+
+pediria um subsistema por peça): limite do art. 100-A, anexo nominal
+de PJ fornecedora de equipe, campos de justificativa de preço/
+evidência de execução/documento fiscal como módulos, campos
+especializados de advocacia/contabilidade/gráfica/marketing, termo de
+militância não remunerada como tipo de documento separado, cláusulas
+de app/geolocalização, anexos numerados como entidade própria, os 22
+documentos auxiliares da seção 13, trilha de aprovação contábil e
+estado "arquivado" do modelo.

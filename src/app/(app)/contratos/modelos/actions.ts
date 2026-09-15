@@ -10,6 +10,51 @@ import {
 } from "@/lib/validations/contract";
 import type { ContractTemplateActionState } from "./action-state";
 
+/**
+ * Cria o modelo a partir de um item da biblioteca (contract_type_catalog)
+ * — mesma policy de insert de createContractTemplate() (administrador/rh),
+ * mas sem publicar versão nenhuma: o modelo nasce 'rascunho' (RLS/
+ * status='ativo' de /contratos já impede geração de contrato real com
+ * ele) até alguém revisar o texto sugerido em PublishVersionForm
+ * (pré-preenchido via source_catalog_code, ver /contratos/modelos) e
+ * publicar de propósito — mesmo fluxo humano de um modelo escrito à mão.
+ */
+export async function createTemplateFromCatalog(
+  catalogId: string,
+): Promise<ContractTemplateActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { status: "error", message: "Sessão expirada. Faça login novamente." };
+  }
+
+  const { data: catalogItem } = await supabase
+    .from("contract_type_catalog")
+    .select("code, contract_type, label")
+    .eq("id", catalogId)
+    .maybeSingle();
+  if (!catalogItem) {
+    return { status: "error", message: "Item do catálogo não encontrado." };
+  }
+
+  const { error } = await supabase.from("contract_templates").insert({
+    name: catalogItem.label,
+    contract_type: catalogItem.contract_type,
+    source_catalog_code: catalogItem.code,
+    responsible_profile_id: user.id,
+    created_by: user.id,
+  });
+
+  if (error) {
+    return { status: "error", message: "Não foi possível criar o modelo." };
+  }
+
+  revalidatePath("/contratos/modelos");
+  return { status: "success" };
+}
+
 function fieldsOf(formData: FormData, names: string[]): Record<string, string> {
   return Object.fromEntries(
     names.map((name) => [name, String(formData.get(name) ?? "")]),
