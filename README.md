@@ -24,13 +24,13 @@ Sistema de gestão de pessoas, operações e pagamentos para campanha eleitoral.
 > por convite, cadeia de coordenação, importação em lote por Excel e uma
 > reformulação de Despesas com autorizador/alçada — ver
 > [MVP — Cadastro, Convite, Coordenação, Importação e Despesas](#mvp--cadastro-convite-coordenação-importação-e-despesas)
-> logo abaixo. As Etapas 1 a 10 estão implementadas — banco (migrações
-> `0013`–`0027`) aplicado e verificado em produção; app
-> (`/meu-cadastro`, `/minha-equipe`, `/cadastro/[token]`, `/validacoes`,
-> `/importacoes` (com reversão), `/despesas` com autorizador de registro
-> e `/despesas/alcadas` com escopo de eixo/cidade) passando em
-> `typecheck`/`lint`/`build`. Todos os pontos da spec original têm
-> implementação funcional agora.
+> logo abaixo. As Etapas 1 a 11 estão implementadas — banco (migrações
+> `0013`–`0028`) aplicado e verificado em produção; app
+> (`/meu-cadastro`, `/minha-equipe`, `/cadastro/[token]` (com correção
+> campo a campo), `/validacoes`, `/importacoes` (com reversão),
+> `/despesas` com autorizador de registro e `/despesas/alcadas` com
+> escopo de eixo/cidade) passando em `typecheck`/`lint`/`build`. Todos
+> os pontos da spec original têm implementação funcional agora.
 
 ## MVP — Cadastro, Convite, Coordenação, Importação e Despesas
 
@@ -499,10 +499,73 @@ com autorizador **e alçada**") tem UI própria e considera escopo.
 - `npm run typecheck`/`lint`/`build` — sem erros nem avisos.
 - **Riscos/pendências**: sem teste via navegador (Playwright pausado).
 
-Com a Etapa 10, as pendências que sobram em toda a iniciativa são só a
-revisão campo a campo da correção de cadastro (reabre o cadastro
-inteiro, não só os campos apontados) — não pontos inteiros da spec sem
-nenhuma implementação.
+**Etapa 11 — revisão campo a campo + reabertura do cabo eleitoral
+(concluída):**
+
+Duas lacunas fechadas juntas, porque são a mesma funcionalidade na
+prática:
+
+1. "Solicitar correção" (Etapas 4/5) sempre gravava
+   `correction_requests.field_names` vazio — o gestor/RH não tinha como
+   apontar QUAIS campos estavam errados, só um motivo em texto livre.
+2. **Achado ao investigar o item 1**: o cabo eleitoral
+   (`/cadastro/[token]`) **nunca conseguia reabrir o próprio cadastro**
+   depois de uma correção solicitada — a página pública só olhava
+   `registration_invites.status` (que fica `concluido` para sempre
+   depois do primeiro envio), nunca `people.status`. Era um bug
+   funcional real, não só falta de granularidade: pra esse público (sem
+   login), "correção solicitada" simplesmente não tinha como acontecer
+   na prática.
+
+- Migração `0028_etapa11_revisao_campo_a_campo.sql`:
+  - `decide_registration_submission()`/`decide_rh_validation()` ganham
+    `p_field_names text[]` (precisou `drop function` antes — mesmo
+    cuidado da Etapa 7, adicionar parâmetro muda a assinatura).
+  - `get_public_registration_status(p_token)`: **nova função anon** —
+    devolve o status da pessoa, os dados atuais (pra pré-popular o
+    formulário) e a correção pendente (motivo + campos), protegida só
+    pelo token. Não muda nada, só lê.
+  - `update_public_registration(p_token, ...)`: **nova função anon** —
+    o cabo eleitoral reedita os próprios dados; só funciona se
+    `people.status` estiver em `correcao_solicitada`/`reenviado`
+    (diferente de `submit_public_registration()`, que só cria uma vez).
+  - `submit_public_registration_for_review()` perde a checagem de
+    `invite.status = 'concluido'` (era o que impedia reenviar — o bug
+    real) e passa a marcar `correction_requests.resolved_at` ao
+    reenviar. `submit_registration_for_review()` (coordenador) ganha a
+    mesma resolução, por consistência.
+  - `correction_requests_select`: estendida pra a própria pessoa e o
+    gestor dela — **outro achado durante o teste**: antes só
+    administrador/rh liam, e o coordenador não conseguia ver a própria
+    correção pendente em `/meu-cadastro`.
+- `src/lib/validations/correction-fields.ts`: lista canônica dos campos
+  que podem ser apontados — mesmas chaves de `PersonFormValues`, usada
+  tanto pelo seletor do gestor quanto por quem corrige.
+- `PersonForm` ganha `editableFields?: string[] | null` — quando
+  informado, só os campos da lista ficam editáveis, o resto vira
+  somente leitura (`disabled`). `/validacoes` ganha um checklist de
+  campos (recolhido por padrão) junto ao motivo, só relevante quando a
+  decisão é "Solicitar correção". `/meu-cadastro` e `/cadastro/[token]`
+  passam a mostrar um aviso com o motivo da correção e travar os campos
+  não apontados.
+- **Verificado** (fluxo completo simulado direto no banco, em
+  transação com `rollback`, sem dado residual): convite → autocadastro
+  → `solicitar_correcao` com `field_names=['cpf','phone']` →
+  `get_public_registration_status` devolve exatamente o motivo, os
+  campos e os dados atuais pra pré-popular → `update_public_registration`
+  corrige (`people.status` vira `reenviado`) → reenvio funciona (o bug
+  da reabertura está corrigido) → a correção antiga é marcada como
+  resolvida automaticamente. Testado também: convite cancelado bloqueia
+  `update_public_registration`.
+- `npm run typecheck`/`lint`/`build` — sem erros nem avisos.
+- **Riscos/pendências**: sem teste via navegador (Playwright pausado).
+  A saudação personalizada ("Olá, {nome}!") da página pública foi
+  simplificada — `get_public_registration_status()` não devolve
+  `contact_name` do convite (só dados da pessoa); recuperável numa
+  futura iteração se fizer falta.
+
+Com a Etapa 11, todas as pendências documentadas na especificação
+original foram endereçadas.
 
 ## Stack
 

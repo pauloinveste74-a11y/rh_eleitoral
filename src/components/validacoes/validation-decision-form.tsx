@@ -6,6 +6,7 @@ import { initialValidationActionState } from "@/app/(app)/validacoes/action-stat
 import type { ValidationActionState } from "@/app/(app)/validacoes/action-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CORRECTION_FIELDS } from "@/lib/validations/correction-fields";
 
 /**
  * Formulário de decisão genérico — usado tanto pela fila do gestor
@@ -13,6 +14,11 @@ import { Input } from "@/components/ui/input";
  * (decide_rh_validation, "Validar"). `action` já vem vinculada ao id da
  * submissão pelo chamador (`.bind(null, submissionId)`), mesmo padrão de
  * ApprovalDecisionForm (/aprovacoes).
+ *
+ * Etapa 11: o checklist de campos (`fieldNames`, sempre presente no
+ * formulário, sem condicionar à visibilidade de "Solicitar correção") só
+ * importa quando essa é a decisão escolhida — a Server Action ignora
+ * `fieldNames` nas outras duas.
  */
 export function ValidationDecisionForm({
   action,
@@ -53,6 +59,19 @@ export function ValidationDecisionForm({
         name="reason"
         placeholder="Motivo (obrigatório para solicitar correção)"
       />
+      <details className="text-xs text-slate-500 dark:text-slate-400">
+        <summary className="cursor-pointer select-none">
+          Campos a corrigir (só usado se a decisão for &quot;Solicitar correção&quot;)
+        </summary>
+        <div className="mt-2 grid grid-cols-2 gap-1 sm:grid-cols-3">
+          {CORRECTION_FIELDS.map((f) => (
+            <label key={f.key} className="flex items-center gap-1.5">
+              <input type="checkbox" name="fieldNames" value={f.key} />
+              {f.label}
+            </label>
+          ))}
+        </div>
+      </details>
       <div className="flex flex-wrap gap-2">
         <Button
           type="submit"

@@ -932,6 +932,36 @@ export interface Database {
         >;
         Relationships: [];
       };
+      correction_requests: {
+        Row: {
+          id: string;
+          submission_id: string;
+          requested_by: string | null;
+          requested_at: string;
+          field_names: string[];
+          reason: string;
+          due_at: string | null;
+          resolved_at: string | null;
+          previous_values: Json | null;
+          new_values: Json | null;
+        };
+        Insert: {
+          id?: string;
+          submission_id: string;
+          requested_by?: string | null;
+          requested_at?: string;
+          field_names: string[];
+          reason: string;
+          due_at?: string | null;
+          resolved_at?: string | null;
+          previous_values?: Json | null;
+          new_values?: Json | null;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["correction_requests"]["Insert"]
+        >;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -1090,6 +1120,7 @@ export interface Database {
           p_submission_id: string;
           p_decision: string;
           p_reason?: string | null;
+          p_field_names?: string[] | null;
         };
         Returns: undefined;
       };
@@ -1098,12 +1129,48 @@ export interface Database {
           p_submission_id: string;
           p_decision: string;
           p_reason?: string | null;
+          p_field_names?: string[] | null;
         };
         Returns: undefined;
       };
       revert_import_batch: {
         Args: { p_batch_id: string };
         Returns: undefined;
+      };
+      get_public_registration_status: {
+        Args: { p_token: string };
+        // `returns table (...)` — PostgREST/supabase-js devolve um array.
+        Returns: {
+          invite_status: string;
+          person_id: string | null;
+          person_status: string | null;
+          full_name: string | null;
+          cpf: string | null;
+          birth_date: string | null;
+          phone: string | null;
+          whatsapp: string | null;
+          email: string | null;
+          address: Json | null;
+          bank: Json | null;
+          electoral: Json | null;
+          correction_reason: string | null;
+          correction_fields: string[] | null;
+        }[];
+      };
+      update_public_registration: {
+        Args: {
+          p_token: string;
+          p_full_name: string;
+          p_cpf: string;
+          p_birth_date: string | null;
+          p_phone: string | null;
+          p_whatsapp: string | null;
+          p_email: string | null;
+          p_address?: Json | null;
+          p_bank?: Json | null;
+          p_electoral?: Json | null;
+        };
+        Returns: string;
       };
     };
     Enums: Record<string, never>;

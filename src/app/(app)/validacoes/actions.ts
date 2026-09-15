@@ -21,6 +21,7 @@ export async function decideRegistrationSubmission(
 ): Promise<ValidationActionState> {
   const decision = String(formData.get("decision") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
+  const fieldNames = formData.getAll("fieldNames").map(String);
 
   if (!GESTOR_DECISIONS.includes(decision)) {
     return { status: "error", message: "Decisão inválida." };
@@ -37,6 +38,7 @@ export async function decideRegistrationSubmission(
     p_submission_id: submissionId,
     p_decision: decision,
     p_reason: reason || null,
+    p_field_names: decision === "solicitar_correcao" && fieldNames.length > 0 ? fieldNames : null,
   });
 
   if (error) {
@@ -62,6 +64,7 @@ export async function decideRhValidation(
 ): Promise<ValidationActionState> {
   const decision = String(formData.get("decision") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
+  const fieldNames = formData.getAll("fieldNames").map(String);
 
   if (!RH_DECISIONS.includes(decision)) {
     return { status: "error", message: "Decisão inválida." };
@@ -78,6 +81,7 @@ export async function decideRhValidation(
     p_submission_id: submissionId,
     p_decision: decision,
     p_reason: reason || null,
+    p_field_names: decision === "solicitar_correcao" && fieldNames.length > 0 ? fieldNames : null,
   });
 
   if (error) {

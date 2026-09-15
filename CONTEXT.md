@@ -77,7 +77,7 @@ README, seção "Modelo de dados"):
 - `0011`: `rh` ganha leitura/edição de outros `profiles` (pra tela de
   Usuários).
 - `0012`: `profiles.phone`.
-- `0013`–`0027`: **camada de banco de uma iniciativa nova e separada**
+- `0013`–`0028`: **camada de banco de uma iniciativa nova e separada**
   (spec `docs/IMPLEMENTACAO_CADASTRO_IMPORTACAO_DESPESAS.md` — autocadastro
   por convite, cadeia de coordenação, importação por Excel, despesas com
   autorizador/alçada). Aplicadas e verificadas (advisors + testes
@@ -115,20 +115,32 @@ README, seção "Modelo de dados"):
   corrigi um bug real (não de autorização desta vez): a função apagava
   `people` antes de desvincular `import_staging_records.person_id`,
   violando a FK (que é `RESTRICT`, não `CASCADE`) — corrigido invertendo
-  a ordem.
+  a ordem. `0028` (Etapa 11) fecha duas lacunas juntas: o gestor/RH passa
+  a poder apontar QUAIS campos precisam de correção (`p_field_names`), e
+  — achado ao investigar isso — o cabo eleitoral (autocadastro público,
+  sem login) **nunca conseguia reabrir** o próprio cadastro depois de
+  uma correção solicitada (a página só olhava
+  `registration_invites.status`, que fica `concluido` pra sempre).
+  Corrigido com duas funções novas anon
+  (`get_public_registration_status`/`update_public_registration`) e
+  removendo um guard que bloqueava reenvio. Achado um segundo gap no
+  mesmo teste: `correction_requests_select` só liberava admin/rh — o
+  próprio coordenador não lia a própria correção pendente.
 
-## Etapas 3 a 6 — páginas de aplicação (autocadastro, validações e importação)
+## Etapas 3 a 11 — páginas de aplicação (autocadastro, validações, importação, despesas, correção)
 
-`/meu-cadastro`, `/minha-equipe`, `/cadastro/[token]` (Etapa 3),
-`/validacoes` (Etapa 4 — fila do gestor; Etapa 5 — segunda seção, fila do
-RH, só visível a administrador/rh) e `/importacoes` (Etapa 6 — upload de
-planilha, prévia, confirmação) — todas implementadas. Detalhe completo na
-seção "MVP — Cadastro, Convite, Coordenação, Importação e Despesas" do
-`README.md`. Vale saber antes de mexer:
+`/meu-cadastro`, `/minha-equipe`, `/cadastro/[token]` (Etapa 3, com
+correção campo a campo desde a Etapa 11), `/validacoes` (Etapa 4 — fila
+do gestor; Etapa 5 — segunda seção, fila do RH, só visível a
+administrador/rh), `/importacoes` (Etapa 6, com reversão desde a Etapa
+10) e `/despesas`/`/despesas/alcadas` (Etapa 7/8/9) — todas
+implementadas. Detalhe completo na seção "MVP — Cadastro, Convite,
+Coordenação, Importação e Despesas" do `README.md`. Vale saber antes de
+mexer:
 
 - `PersonForm` (usado por `/pessoas`) ganhou props opcionais
-  (`action`/`submitLabel`/`showSocialName`/`onSuccess`) pra ser
-  reaproveitado em `/meu-cadastro` e `/cadastro/[token]` sem duplicar a
+  (`action`/`submitLabel`/`showSocialName`/`onSuccess`/`editableFields`)
+  pra ser reaproveitado em `/meu-cadastro` e `/cadastro/[token]` sem duplicar a
   estrutura do formulário — nenhum uso existente em `/pessoas` mudou de
   comportamento.
 - `src/types/database.ts` é mantido à mão (não é gerado automaticamente

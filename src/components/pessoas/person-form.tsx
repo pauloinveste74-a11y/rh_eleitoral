@@ -93,6 +93,7 @@ export function PersonForm({
   submitLabel,
   showSocialName = true,
   onSuccess,
+  editableFields,
 }: {
   mode: "create" | "edit";
   personId?: string;
@@ -117,6 +118,15 @@ export function PersonForm({
    * upload de documento sem recarregar a página.
    */
   onSuccess?: () => void;
+  /**
+   * Etapa 11 — revisão campo a campo: quando informado (não `null`/`undefined`),
+   * só os campos cujas chaves estão nesta lista ficam editáveis — o resto
+   * vira somente leitura. Usado por /meu-cadastro e /cadastro/[token]
+   * quando people.status = 'correcao_solicitada'/'reenviado', a partir de
+   * correction_requests.field_names. `undefined`/`null` (padrão) = tudo
+   * editável, comportamento de sempre.
+   */
+  editableFields?: string[] | null;
 }) {
   const action =
     actionOverride ??
@@ -154,6 +164,16 @@ export function PersonForm({
     return state.errors?.[field]?.[0];
   }
 
+  // Sem editableFields (undefined/null) = tudo editável, sempre foi assim.
+  // Com editableFields = só quem está na lista fica editável; os travados
+  // ganham `disabled` (bloqueia interação) mas continuam sendo enviados no
+  // submit com o valor de defaultValues — é o react-hook-form que monta o
+  // FormData a partir do estado interno, não do HTML do <input>, então um
+  // campo disabled não desaparece do payload.
+  function isLocked(field: keyof PersonFormValues): boolean {
+    return editableFields != null && !editableFields.includes(field);
+  }
+
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
@@ -167,35 +187,35 @@ export function PersonForm({
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2 sm:col-span-2">
             <Label htmlFor="fullName">Nome completo</Label>
-            <Input id="fullName" {...register("fullName")} />
+            <Input id="fullName" disabled={isLocked("fullName")} {...register("fullName")} />
             <FieldError message={errorFor("fullName")} />
           </div>
           {showSocialName && (
             <div className="flex flex-col gap-2 sm:col-span-2">
               <Label htmlFor="socialName">Nome social (opcional)</Label>
-              <Input id="socialName" {...register("socialName")} />
+              <Input id="socialName" disabled={isLocked("socialName")} {...register("socialName")} />
             </div>
           )}
           <div className="flex flex-col gap-2">
             <Label htmlFor="cpf">CPF</Label>
-            <Input id="cpf" placeholder="000.000.000-00" {...register("cpf")} />
+            <Input id="cpf" placeholder="000.000.000-00" disabled={isLocked("cpf")} {...register("cpf")} />
             <FieldError message={errorFor("cpf")} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="birthDate">Data de nascimento</Label>
-            <Input id="birthDate" type="date" {...register("birthDate")} />
+            <Input id="birthDate" type="date" disabled={isLocked("birthDate")} {...register("birthDate")} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="phone">Telefone</Label>
-            <Input id="phone" {...register("phone")} />
+            <Input id="phone" disabled={isLocked("phone")} {...register("phone")} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="whatsapp">WhatsApp</Label>
-            <Input id="whatsapp" {...register("whatsapp")} />
+            <Input id="whatsapp" disabled={isLocked("whatsapp")} {...register("whatsapp")} />
           </div>
           <div className="flex flex-col gap-2 sm:col-span-2">
             <Label htmlFor="email">E-mail</Label>
-            <Input id="email" type="email" {...register("email")} />
+            <Input id="email" type="email" disabled={isLocked("email")} {...register("email")} />
             <FieldError message={errorFor("email")} />
           </div>
         </CardContent>
@@ -208,35 +228,35 @@ export function PersonForm({
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
             <Label htmlFor="zipCode">CEP</Label>
-            <Input id="zipCode" {...register("zipCode")} />
+            <Input id="zipCode" disabled={isLocked("zipCode")} {...register("zipCode")} />
             <FieldError message={errorFor("zipCode")} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="state">UF</Label>
-            <Input id="state" maxLength={2} {...register("state")} />
+            <Input id="state" maxLength={2} disabled={isLocked("state")} {...register("state")} />
             <FieldError message={errorFor("state")} />
           </div>
           <div className="flex flex-col gap-2 sm:col-span-2">
             <Label htmlFor="street">Logradouro</Label>
-            <Input id="street" {...register("street")} />
+            <Input id="street" disabled={isLocked("street")} {...register("street")} />
             <FieldError message={errorFor("street")} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="number">Número</Label>
-            <Input id="number" {...register("number")} />
+            <Input id="number" disabled={isLocked("number")} {...register("number")} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="complement">Complemento</Label>
-            <Input id="complement" {...register("complement")} />
+            <Input id="complement" disabled={isLocked("complement")} {...register("complement")} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="neighborhood">Bairro</Label>
-            <Input id="neighborhood" {...register("neighborhood")} />
+            <Input id="neighborhood" disabled={isLocked("neighborhood")} {...register("neighborhood")} />
             <FieldError message={errorFor("neighborhood")} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="city">Cidade</Label>
-            <Input id="city" {...register("city")} />
+            <Input id="city" disabled={isLocked("city")} {...register("city")} />
             <FieldError message={errorFor("city")} />
           </div>
         </CardContent>
@@ -249,34 +269,34 @@ export function PersonForm({
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
             <Label htmlFor="bankCode">Código do banco</Label>
-            <Input id="bankCode" placeholder="000" {...register("bankCode")} />
+            <Input id="bankCode" placeholder="000" disabled={isLocked("bankCode")} {...register("bankCode")} />
             <FieldError message={errorFor("bankCode")} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="bankName">Nome do banco</Label>
-            <Input id="bankName" {...register("bankName")} />
+            <Input id="bankName" disabled={isLocked("bankName")} {...register("bankName")} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="agency">Agência</Label>
-            <Input id="agency" {...register("agency")} />
+            <Input id="agency" disabled={isLocked("agency")} {...register("agency")} />
             <FieldError message={errorFor("agency")} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="agencyDigit">Dígito da agência</Label>
-            <Input id="agencyDigit" {...register("agencyDigit")} />
+            <Input id="agencyDigit" disabled={isLocked("agencyDigit")} {...register("agencyDigit")} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="accountNumber">Número da conta</Label>
-            <Input id="accountNumber" {...register("accountNumber")} />
+            <Input id="accountNumber" disabled={isLocked("accountNumber")} {...register("accountNumber")} />
             <FieldError message={errorFor("accountNumber")} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="accountDigit">Dígito da conta</Label>
-            <Input id="accountDigit" {...register("accountDigit")} />
+            <Input id="accountDigit" disabled={isLocked("accountDigit")} {...register("accountDigit")} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="accountType">Tipo de conta</Label>
-            <Select id="accountType" {...register("accountType")}>
+            <Select id="accountType" disabled={isLocked("accountType")} {...register("accountType")}>
               <option value="">Selecione</option>
               <option value="corrente">Corrente</option>
               <option value="poupanca">Poupança</option>
@@ -285,7 +305,7 @@ export function PersonForm({
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="pixKeyType">Tipo de chave PIX</Label>
-            <Select id="pixKeyType" {...register("pixKeyType")}>
+            <Select id="pixKeyType" disabled={isLocked("pixKeyType")} {...register("pixKeyType")}>
               <option value="">Nenhuma</option>
               <option value="cpf">CPF</option>
               <option value="email">E-mail</option>
@@ -295,7 +315,7 @@ export function PersonForm({
           </div>
           <div className="flex flex-col gap-2 sm:col-span-2">
             <Label htmlFor="pixKey">Chave PIX</Label>
-            <Input id="pixKey" {...register("pixKey")} />
+            <Input id="pixKey" disabled={isLocked("pixKey")} {...register("pixKey")} />
           </div>
         </CardContent>
       </Card>
@@ -307,24 +327,24 @@ export function PersonForm({
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
             <Label htmlFor="voterId">Título de eleitor</Label>
-            <Input id="voterId" {...register("voterId")} />
+            <Input id="voterId" disabled={isLocked("voterId")} {...register("voterId")} />
             <FieldError message={errorFor("voterId")} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="voterState">UF de votação</Label>
-            <Input id="voterState" maxLength={2} {...register("voterState")} />
+            <Input id="voterState" maxLength={2} disabled={isLocked("voterState")} {...register("voterState")} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="electoralZone">Zona</Label>
-            <Input id="electoralZone" {...register("electoralZone")} />
+            <Input id="electoralZone" disabled={isLocked("electoralZone")} {...register("electoralZone")} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="electoralSection">Seção</Label>
-            <Input id="electoralSection" {...register("electoralSection")} />
+            <Input id="electoralSection" disabled={isLocked("electoralSection")} {...register("electoralSection")} />
           </div>
           <div className="flex flex-col gap-2 sm:col-span-2">
             <Label htmlFor="voterCity">Cidade de votação</Label>
-            <Input id="voterCity" {...register("voterCity")} />
+            <Input id="voterCity" disabled={isLocked("voterCity")} {...register("voterCity")} />
           </div>
         </CardContent>
       </Card>

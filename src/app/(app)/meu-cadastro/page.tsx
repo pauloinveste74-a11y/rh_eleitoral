@@ -42,6 +42,7 @@ export default async function MeuCadastroPage() {
     { data: bank },
     { data: electoral },
     { data: documents },
+    { data: submissions },
   ] = personId
     ? await Promise.all([
         supabase.from("people").select("*").eq("id", personId).maybeSingle(),
@@ -66,6 +67,7 @@ export default async function MeuCadastroPage() {
           .eq("person_id", personId)
           .eq("status", "ativo")
           .order("created_at", { ascending: false }),
+        supabase.from("registration_submissions").select("id").eq("person_id", personId),
       ])
     : [
         { data: null },
@@ -73,7 +75,29 @@ export default async function MeuCadastroPage() {
         { data: null },
         { data: null },
         { data: null },
+        { data: null },
       ];
+
+  // Etapa 11 — correção pendente (se houver), pra travar no formulário só
+  // os campos que o gestor/RH apontou. registration_submissions/
+  // correction_requests não têm FK direta pra profiles; join feito em JS.
+  const submissionIds = (submissions ?? []).map((s) => s.id);
+  const { data: correction } =
+    submissionIds.length > 0
+      ? await supabase
+          .from("correction_requests")
+          .select("reason, field_names, requested_at")
+          .in("submission_id", submissionIds)
+          .is("resolved_at", null)
+          .order("requested_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : { data: null };
+
+  const editableFields =
+    correction?.field_names && correction.field_names.length > 0
+      ? correction.field_names
+      : null;
 
   const defaultValues: Partial<PersonFormValues> | undefined = person
     ? {
@@ -121,12 +145,32 @@ export default async function MeuCadastroPage() {
         description="Preencha seus dados pessoais e anexe seus documentos. Endereço, dados bancários e eleitorais podem ser completados depois."
       />
       <div className="flex flex-col gap-6">
+        {correction && (
+          <Card className="border-amber-300 dark:border-amber-700">
+            <CardHeader>
+              <CardTitle>Seu gestor pediu uma correção</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                {correction.reason}
+              </p>
+              {editableFields && (
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                  Só os campos apontados estão liberados para edição abaixo —
+                  o resto ficou travado.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <PersonForm
           mode={person ? "edit" : "create"}
           defaultValues={defaultValues}
           action={saveOwnRegistration}
           submitLabel="Salvar meus dados"
           showSocialName={false}
+          editableFields={editableFields}
         />
 
         {personId && person && (

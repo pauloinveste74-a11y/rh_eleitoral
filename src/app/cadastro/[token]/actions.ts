@@ -191,6 +191,131 @@ export async function submitPublicRegistration(
   return { status: "success" };
 }
 
+/**
+ * Etapa 11 — cabo eleitoral reedita os próprios dados depois de uma
+ * correção solicitada (update_public_registration, anon, protegida pelo
+ * token). Mesma validação de submitPublicRegistration; a função no banco
+ * é que decide se o status atual permite editar.
+ */
+export async function updatePublicRegistration(
+  token: string,
+  _prevState: PublicRegistrationActionState,
+  formData: FormData,
+): Promise<PublicRegistrationActionState> {
+  const errors: Partial<Record<string, string[]>> = {};
+
+  const personParsed = personSchema.safeParse(
+    fieldsOf(formData, PERSON_FIELDS),
+  );
+  if (!personParsed.success) {
+    Object.assign(errors, personParsed.error.flatten().fieldErrors);
+  }
+
+  const addressRaw = fieldsOf(formData, ADDRESS_FIELDS);
+  const addressPresent = !isSectionEmpty(addressRaw);
+  const addressParsed = addressPresent
+    ? addressSchema.safeParse(addressRaw)
+    : null;
+  if (addressParsed && !addressParsed.success) {
+    Object.assign(errors, addressParsed.error.flatten().fieldErrors);
+  }
+
+  const bankRaw = fieldsOf(formData, BANK_FIELDS);
+  const bankPresent = !isSectionEmpty(bankRaw);
+  const bankParsed = bankPresent ? bankAccountSchema.safeParse(bankRaw) : null;
+  if (bankParsed && !bankParsed.success) {
+    Object.assign(errors, bankParsed.error.flatten().fieldErrors);
+  }
+
+  const electoralRaw = fieldsOf(formData, ELECTORAL_FIELDS);
+  const electoralPresent = !isSectionEmpty(electoralRaw);
+  const electoralParsed = electoralPresent
+    ? electoralDataSchema.safeParse(electoralRaw)
+    : null;
+  if (electoralParsed && !electoralParsed.success) {
+    Object.assign(errors, electoralParsed.error.flatten().fieldErrors);
+  }
+
+  if (!personParsed.success || Object.keys(errors).length > 0) {
+    return {
+      status: "error",
+      errors,
+      message: "Corrija os campos destacados.",
+    };
+  }
+
+  const person = personParsed.data;
+  const supabase = await createClient();
+
+  const addressJson =
+    addressPresent && addressParsed?.success
+      ? {
+          zip_code: addressParsed.data.zipCode,
+          street: addressParsed.data.street,
+          number: addressParsed.data.number || null,
+          complement: addressParsed.data.complement || null,
+          neighborhood: addressParsed.data.neighborhood,
+          city: addressParsed.data.city,
+          state: addressParsed.data.state,
+        }
+      : null;
+
+  const bankJson =
+    bankPresent && bankParsed?.success
+      ? {
+          bank_code: bankParsed.data.bankCode,
+          bank_name: bankParsed.data.bankName || null,
+          agency: bankParsed.data.agency,
+          agency_digit: bankParsed.data.agencyDigit || null,
+          account_number: bankParsed.data.accountNumber,
+          account_digit: bankParsed.data.accountDigit || null,
+          account_type: bankParsed.data.accountType,
+          pix_key_type: bankParsed.data.pixKeyType || null,
+          pix_key: bankParsed.data.pixKey || null,
+        }
+      : null;
+
+  const electoralJson =
+    electoralPresent && electoralParsed?.success
+      ? {
+          voter_id: electoralParsed.data.voterId || null,
+          electoral_zone: electoralParsed.data.electoralZone || null,
+          electoral_section: electoralParsed.data.electoralSection || null,
+          voter_city: electoralParsed.data.voterCity || null,
+          voter_state: electoralParsed.data.voterState || null,
+        }
+      : null;
+
+  const { error } = await supabase.rpc("update_public_registration", {
+    p_token: token,
+    p_full_name: person.fullName,
+    p_cpf: person.cpf,
+    p_birth_date: person.birthDate || null,
+    p_phone: person.phone || null,
+    p_whatsapp: person.whatsapp || null,
+    p_email: person.email || null,
+    p_address: toJson(addressJson),
+    p_bank: toJson(bankJson),
+    p_electoral: toJson(electoralJson),
+  });
+
+  if (error) {
+    if (error.code === "23505") {
+      return {
+        status: "error",
+        errors: { cpf: ["CPF já cadastrado para outra pessoa nesta campanha."] },
+      };
+    }
+    return {
+      status: "error",
+      message: error.message || "Não foi possível salvar a correção.",
+    };
+  }
+
+  revalidatePath(`/cadastro/${token}`);
+  return { status: "success" };
+}
+
 function sanitizeFileName(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-100);
 }
