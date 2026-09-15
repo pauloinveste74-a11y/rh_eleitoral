@@ -302,9 +302,14 @@ esse valor no chat** — é uma credencial que ignora RLS por completo.
   direto dentro de uma função `SECURITY DEFINER` (para papéis que não
   são `administrador`/`rh`, como `decide_approval()`,
   `create_payment()`).
-- **Login sempre e-mail + senha**, sem links de convite/magic link (foi
-  removido — ver `README.md`, seção Usuários, para o histórico de por
-  que essa decisão mudou de rumo três vezes na mesma fase).
+- **Login sempre e-mail + senha** (mais CNPJ desde o Multi-tenant),
+  sem links de convite/magic link (foi removido — ver `README.md`,
+  seção Usuários, para o histórico de por que essa decisão mudou de
+  rumo três vezes na mesma fase). **Nunca guardar senha no cliente**
+  (localStorage/cookie legível por JS) — "lembrar login" (Multi-tenant,
+  Etapa 4) guarda só CNPJ + e-mail; a senha fica por conta do
+  gerenciador de senha do navegador (`autoComplete="username"` no
+  e-mail, `"current-password"` na senha).
 - **Dinheiro em centavos** (`amount_cents bigint`), nunca float.
 - **Bug conhecido do Next.js 16 e como evitá-lo**: qualquer Server
   Action que toque cookies de sessão do Supabase (`createClient()` de

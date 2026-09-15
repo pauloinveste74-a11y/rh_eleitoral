@@ -1373,6 +1373,33 @@ formulário de **criação**, sem edição do que já existe.
   `npm run typecheck`/`lint`/`build` sem erros; advisors sem achado
   novo (migração só adiciona coluna).
 
+### Etapa 4 — "lembrar CNPJ e e-mail" no login (concluída)
+
+Pedido: uma caixa em `/login` pra logar só clicando em "Entrar", sem
+redigitar tudo. Guardar a **senha** em `localStorage` (texto puro,
+legível por qualquer script que rode na página) foi recusado depois de
+explicar o risco — confirmado com o usuário manter só CNPJ + e-mail
+guardados pelo app, com a senha ficando por conta do gerenciador de
+senha nativo do navegador.
+
+- **`src/lib/auth/remembered-login-store.ts`** (novo): external store
+  (`useSyncExternalStore`, mesmo padrão de `sidebar-collapse-store.ts`)
+  que guarda `{ documentNumber, email }` em `localStorage` — nunca a
+  senha. Evita divergência de hidratação entre servidor e cliente (o
+  mesmo problema que motivou o padrão original na Fase de identidade
+  visual).
+- **`login-form.tsx`**: campo de e-mail ganhou `autoComplete="username"`
+  (par correto com `current-password` da senha, pro navegador oferecer
+  salvar/preencher a senha sozinho). Checkbox "Lembrar CNPJ e e-mail
+  neste navegador" — ao logar com sucesso, salva ou limpa o que está
+  guardado conforme o estado da caixa. O valor da caixa é lido do
+  evento nativo de submit (`event.currentTarget.elements`), não de um
+  `ref` — um `ref` acessado dentro da função passada pra
+  `handleSubmit()` do React Hook Form dispara o lint
+  `react-hooks/refs` ("Cannot access refs during render") mesmo só
+  rodando depois, no submit.
+- **Verificado**: `npm run typecheck`/`lint`/`build` sem erros.
+
 ## Aprovações
 
 Núcleo do fluxo de validação territorial de uma pessoa, cobrindo só os

@@ -1,12 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { createClient } from "@/lib/supabase/client";
 import { loginSchema, type LoginInput } from "@/lib/validations/auth";
+import { formatCnpj } from "@/lib/validations/cnpj";
+import {
+  getRememberedLoginServerSnapshot,
+  getRememberedLoginSnapshot,
+  setRememberedLogin,
+  subscribeRememberedLogin,
+} from "@/lib/auth/remembered-login-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,17 +39,38 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const [formError, setFormError] = useState<string | null>(null);
 
+  // "Lembrar meus dados de acesso" — só CNPJ + e-mail (nunca a senha,
+  // que fica com o gerenciador de senha do navegador). Lido via
+  // external store pra não divergir entre servidor e cliente na
+  // primeira renderização (mesmo padrão de sidebar-collapse-store.ts).
+  const remembered = useSyncExternalStore(
+    subscribeRememberedLogin,
+    getRememberedLoginSnapshot,
+    getRememberedLoginServerSnapshot,
+  );
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { documentNumber: "", email: "", password: "" },
+    values: {
+      documentNumber: remembered ? formatCnpj(remembered.documentNumber) : "",
+      email: remembered?.email ?? "",
+      password: "",
+    },
   });
 
-  async function onSubmit(values: LoginInput) {
+  async function onSubmit(values: LoginInput, event?: React.BaseSyntheticEvent) {
     setFormError(null);
+    // Lido do evento nativo de submit (não de um ref) — refs não devem
+    // ser acessados dentro de uma função criada durante a renderização
+    // (`handleSubmit(onSubmit)`), mesmo que só rode depois, no submit.
+    const form = event?.currentTarget as HTMLFormElement | undefined;
+    const rememberMeChecked =
+      form?.elements.namedItem("rememberMe") instanceof HTMLInputElement
+        ? (form.elements.namedItem("rememberMe") as HTMLInputElement).checked
+        : false;
     const supabase = createClient();
     const { data: authData, error } = await supabase.auth.signInWithPassword(values);
 
@@ -76,6 +104,14 @@ export function LoginForm() {
         setFormError(GENERIC_ERROR);
         return;
       }
+    }
+
+    // "Lembrar meus dados de acesso" — só CNPJ + e-mail, nunca a senha
+    // (fica com o gerenciador de senha do navegador).
+    if (rememberMeChecked) {
+      setRememberedLogin({ documentNumber: values.documentNumber, email: values.email });
+    } else {
+      setRememberedLogin(null);
     }
 
     // Master aterrissa no painel de organizações (Multi-tenant, Etapa 2)
@@ -116,7 +152,7 @@ export function LoginForm() {
         <Input
           id="email"
           type="email"
-          autoComplete="email"
+          autoComplete="username"
           aria-invalid={errors.email ? "true" : undefined}
           aria-describedby={errors.email ? "email-error" : undefined}
           {...register("email")}
@@ -143,6 +179,20 @@ export function LoginForm() {
             {errors.password.message}
           </p>
         )}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input
+          id="rememberMe"
+          name="rememberMe"
+          type="checkbox"
+          key={remembered ? "remembered" : "fresh"}
+          defaultChecked={remembered !== null}
+          className="h-4 w-4 rounded border-border-default text-brand-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-navy dark:border-slate-700"
+        />
+        <Label htmlFor="rememberMe" className="cursor-pointer text-sm font-normal">
+          Lembrar CNPJ e e-mail neste navegador
+        </Label>
       </div>
 
       {formError && (
