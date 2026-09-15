@@ -14,13 +14,15 @@ import {
 import { AxisForm } from "@/components/configuracoes/axis-form";
 import { CityForm } from "@/components/configuracoes/city-form";
 import { TeamForm } from "@/components/configuracoes/team-form";
+import { JobFunctionForm } from "@/components/configuracoes/job-function-form";
+import { contractTypeLabels } from "@/lib/validations/job-function";
 
 export const metadata: Metadata = { title: "Configurações" };
 
 export default async function ConfiguracoesPage() {
   const supabase = await createClient();
 
-  const [{ data: isAdmin }, { data: axes }, { data: cities }, { data: teams }] =
+  const [{ data: isAdmin }, { data: axes }, { data: cities }, { data: teams }, { data: jobFunctions }] =
     await Promise.all([
       supabase.rpc("is_admin"),
       supabase.from("axes").select("id, name, code").order("name"),
@@ -29,11 +31,17 @@ export default async function ConfiguracoesPage() {
         .select("id, name, state, is_administrative_region, axis_id")
         .order("name"),
       supabase.from("teams").select("id, name, city_id").order("name"),
+      supabase
+        .from("job_functions")
+        .select("id, name, category, contract_type, requires_coordinator, status")
+        .order("display_order")
+        .order("name"),
     ]);
 
   const axesList = axes ?? [];
   const citiesList = cities ?? [];
   const teamsList = teams ?? [];
+  const jobFunctionsList = jobFunctions ?? [];
   const axisNameById = new Map(axesList.map((a) => [a.id, a.name]));
   const cityNameById = new Map(citiesList.map((c) => [c.id, c.name]));
 
@@ -149,6 +157,45 @@ export default async function ConfiguracoesPage() {
                         {team.name}
                       </TableCell>
                       <TableCell>{cityNameById.get(team.city_id)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Cargos</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            {isAdmin && <JobFunctionForm />}
+            {jobFunctionsList.length === 0 ? (
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Nenhum cargo cadastrado.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Categoria</TableHead>
+                    <TableHead>Contratação</TableHead>
+                    <TableHead>Coordenador</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {jobFunctionsList.map((jf) => (
+                    <TableRow key={jf.id}>
+                      <TableCell className="font-medium text-slate-900 dark:text-slate-50">
+                        {jf.name}
+                      </TableCell>
+                      <TableCell>{jf.category || "—"}</TableCell>
+                      <TableCell>{contractTypeLabels[jf.contract_type]}</TableCell>
+                      <TableCell>{jf.requires_coordinator ? "Sim" : "Não"}</TableCell>
+                      <TableCell>{jf.status === "ativa" ? "Ativa" : "Inativa"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   BarChart3,
   Settings,
+  Building2,
 } from "lucide-react";
 
 export interface NavItem {
@@ -26,6 +27,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { label: "Painel", href: "/painel", icon: LayoutDashboard },
   { label: "Pessoas", href: "/pessoas", icon: Users },
+  { label: "Empresas (PJ)", href: "/empresas", icon: Building2 },
   { label: "Minha Equipe", href: "/minha-equipe", icon: UserPlus },
   { label: "Validações", href: "/validacoes", icon: ClipboardCheck },
   { label: "Importar pessoas", href: "/importacoes", icon: FileSpreadsheet },

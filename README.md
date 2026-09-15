@@ -573,6 +573,71 @@ prática:
 Com a Etapa 11, todas as pendências documentadas na especificação
 original foram endereçadas.
 
+## Nova versão — RH Eleitoral (docs/NOVA_VERSAO_RH_ELEITORAL.md)
+
+Especificação separada, pedida depois da iniciativa acima, bem maior:
+cargos configuráveis, pessoa jurídica, contratos, importação por PDF,
+painel do coordenador e um modelo de pagamentos mais rico. Ver
+`docs/NOVA_VERSAO_MATRIZ.md` pro levantamento completo requisito × estado
+real, feito antes de qualquer código desta iniciativa — boa parte da
+spec **já estava implementada** pela iniciativa anterior; outra parte é
+schema pronto desde a Etapa 1 (`notifications`, `data_conflicts`,
+`expense_documents`, `expense_approvals`, `registration_field_reviews`)
+nunca usado por nenhum código de app.
+
+**Segurança conferida antes de qualquer código** (exigido pela seção 23
+do documento): busca em todo o histórico do git por credencial exposta
+(JWT, `sb_secret_`, `.env*` versionado) — nada encontrado, só menções ao
+*nome* da variável `SUPABASE_SERVICE_ROLE_KEY`, nunca ao valor.
+
+**Etapa 1 — cargos configuráveis e pessoa jurídica (concluída):**
+
+- Migração `0029_nova_versao_cargos_e_pessoa_juridica.sql`: duas tabelas
+  novas.
+  - `job_functions` (spec seção 4.1) — cargo/função de trabalho
+    configurável por campanha, **distinto** de `roles` (perfil de
+    acesso). Campos: nome, descrição, categoria, tipo de contratação
+    (PF/PJ), jornada de referência, faixa de remuneração, documentos
+    exigidos, necessidade de coordenador, papéis de acesso sugeridos
+    (informativo), status, ordem de exibição. Leitura liberada a
+    qualquer `authenticated` da campanha (catálogo de referência, mesmo
+    espírito de `roles`); escrita só `administrador` (mesmo padrão de
+    `axes`/`cities`/`teams`, `0005`).
+  - `legal_entities` (spec seção 5.1-PJ) — cadastro-mestre de pessoa
+    jurídica: razão social, nome fantasia, CNPJ (único por campanha
+    entre não-arquivados, mesmo padrão do CPF em `people`), inscrições,
+    representante legal (nome + CPF), contatos, endereço e dados
+    bancários **embutidos na própria tabela** (sem satélite — sem
+    autocadastro de PJ ainda, um registro por CNPJ não pede a mesma
+    normalização de `people`). RLS espelha `people`: leitura
+    administrador/rh/auditor, escrita administrador/rh.
+  - Nova função de validação de CNPJ (`src/lib/validations/cnpj.ts`),
+    mesmo algoritmo/estilo de `cpf.ts`.
+- `/configuracoes` ganha a seção "Cargos" (cria e lista), ao lado de
+  Eixos/Cidades/Equipes. Novo módulo `/empresas` (só administrador/rh):
+  cria e lista PJ.
+- **Verificado** (testes funcionais diretos em transação com `rollback`,
+  sem dado residual): criação de cargo e de empresa; unicidade de CNPJ
+  por campanha rejeitando duplicata corretamente.
+- `npm run typecheck`/`lint`/`build` — sem erros nem avisos;
+  `/empresas` aparece no build.
+- **Escopo desta etapa, deliberadamente de fora** (documentado no
+  cabeçalho da própria migração): ligar `job_functions` ao autocadastro
+  ou ao cadastro administrativo de `people` — mudança maior em telas já
+  em produção, fica pra depois; upload de documento societário/contrato
+  pra `legal_entities`; `job_functions.default_contract_template_id`
+  (não existe `contract_templates` ainda — seção 12 da spec); unificar
+  PJ com aprovações/pagamentos/despesas de `people`; edição de cargo ou
+  empresa já criados (só criar + listar, mesmo padrão de
+  `axes`/`cities`/`teams`, que também não têm edição).
+
+**Próxima etapa proposta**: painel do coordenador com indicadores por
+escopo territorial (spec seção 11) — ou, alternativamente, aproveitar
+schema já pronto e ocioso (hash/versionamento/classificação de
+documento, valor previous/new em correção, valor autorizado de despesa,
+IP/user-agent na auditoria), que é ganho rápido sem migração nova na
+maioria dos casos. A decidir com o usuário.
+
 ## Stack
 
 - [Next.js 16](https://nextjs.org) (App Router, Turbopack) + TypeScript estrito

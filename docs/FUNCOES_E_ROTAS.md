@@ -140,10 +140,11 @@ exigem sessão (bloqueio otimista no `proxy.ts` + checagem de novo no
 
 | Rota | Descrição |
 | --- | --- |
-| `/painel` | Dashboard inicial. |
+| `/painel` | Dashboard inicial (genérico — painel do coordenador com indicadores por escopo é pendência da "Nova versão", ver `docs/NOVA_VERSAO_MATRIZ.md`). |
 | `/pessoas` | Lista de pessoas cadastradas (cadastro administrativo). |
 | `/pessoas/novo` | Formulário de cadastro manual (`PersonForm`). |
 | `/pessoas/[id]/editar` | Edição + upload de documento + enviar para aprovação (cidade/eixo). |
+| `/empresas` *(Nova versão, Etapa 1)* | Cadastro-mestre de pessoa jurídica (`legal_entities`) — só administrador/rh; cria e lista, sem edição/documento/contrato ainda. |
 
 ### Autocadastro e equipe (Etapas 2/3/11)
 
@@ -206,7 +207,7 @@ exigem sessão (bloqueio otimista no `proxy.ts` + checagem de novo no
 | --- | --- |
 | `/ponto` | Nunca implementado — fora de escopo (spec seção 20: "não ativar Ponto"). |
 | `/operacoes` | Nunca implementado — idem. |
-| `/configuracoes` | Cadastro de eixos/cidades/equipes (base territorial). |
+| `/configuracoes` | Cadastro de eixos/cidades/equipes (base territorial) + cargos configuráveis (`job_functions`, Nova versão Etapa 1). |
 
 ---
 

@@ -126,6 +126,16 @@ README, seção "Modelo de dados"):
   removendo um guard que bloqueava reenvio. Achado um segundo gap no
   mesmo teste: `correction_requests_select` só liberava admin/rh — o
   próprio coordenador não lia a própria correção pendente.
+- `0029`: **início de uma segunda iniciativa separada**, ainda maior
+  (`docs/NOVA_VERSAO_RH_ELEITORAL.md`) — cargos configuráveis
+  (`job_functions`) e pessoa jurídica (`legal_entities`). Antes de
+  qualquer código, foi levantada uma matriz requisito × estado real
+  (`docs/NOVA_VERSAO_MATRIZ.md`) — boa parte da spec nova já estava
+  coberta pela iniciativa anterior, e uma parte é schema pronto desde a
+  Etapa 1 (`notifications`, `data_conflicts`, `expense_documents`,
+  `expense_approvals`, `registration_field_reviews`) nunca usado por
+  nenhum código. Checagem de credencial exposta feita antes de mexer em
+  qualquer coisa (nada encontrado).
 
 ## Etapas 3 a 11 — páginas de aplicação (autocadastro, validações, importação, despesas, correção)
 

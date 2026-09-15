@@ -8,6 +8,7 @@ import {
   citySchema,
   teamSchema,
 } from "@/lib/validations/territory";
+import { jobFunctionSchema } from "@/lib/validations/job-function";
 import type { TerritoryActionState } from "./action-state";
 
 function fieldsOf(formData: FormData, names: string[]): Record<string, string> {
@@ -91,6 +92,77 @@ export async function createCity(
       };
     }
     return { status: "error", message: "Não foi possível criar a cidade." };
+  }
+
+  revalidatePath("/configuracoes");
+  return { status: "success" };
+}
+
+/**
+ * Cargo/função de trabalho (Nova versão, spec seção 4.1) — só
+ * administrador cria (RLS de job_functions, mesmo padrão de
+ * axes/cities/teams).
+ */
+export async function createJobFunction(
+  _prevState: TerritoryActionState,
+  formData: FormData,
+): Promise<TerritoryActionState> {
+  const parsed = jobFunctionSchema.safeParse(
+    fieldsOf(formData, [
+      "name",
+      "description",
+      "category",
+      "contractType",
+      "workloadReference",
+      "salaryRangeMinReais",
+      "salaryRangeMaxReais",
+      "requiresCoordinator",
+    ]),
+  );
+  if (!parsed.success) {
+    return {
+      status: "error",
+      errors: parsed.error.flatten().fieldErrors,
+      message: "Corrija os campos destacados.",
+    };
+  }
+
+  const supabase = await createClient();
+  const { data: campaignId, error: campaignError } = await supabase.rpc(
+    "current_campaign_id",
+  );
+  if (campaignError || !campaignId) {
+    return {
+      status: "error",
+      message: "Não foi possível identificar sua campanha.",
+    };
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { error } = await supabase.from("job_functions").insert({
+    campaign_id: campaignId,
+    name: parsed.data.name,
+    description: parsed.data.description || null,
+    category: parsed.data.category || null,
+    contract_type: parsed.data.contractType,
+    workload_reference: parsed.data.workloadReference || null,
+    salary_range_min_cents: parsed.data.salaryRangeMinCents,
+    salary_range_max_cents: parsed.data.salaryRangeMaxCents,
+    requires_coordinator: parsed.data.requiresCoordinator,
+    created_by: user?.id ?? null,
+  });
+
+  if (error) {
+    if (error.code === "23505") {
+      return {
+        status: "error",
+        errors: { name: ["Já existe um cargo com esse nome nesta campanha."] },
+      };
+    }
+    return { status: "error", message: "Não foi possível criar o cargo." };
   }
 
   revalidatePath("/configuracoes");
