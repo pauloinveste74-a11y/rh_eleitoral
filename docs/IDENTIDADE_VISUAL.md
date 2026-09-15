@@ -147,38 +147,77 @@ Mapeamento aplicado (modo claro):
   recolhida em particular só dá pra conferir de verdade logado; peço
   que você teste o botão de recolher em `/painel` depois do deploy.
 
+## Fase 4 — logo vetorial e ícone em todo badge de status (aplicada)
+
+- **Logo vetorial** (`src/components/layout/brand-mark.tsx`,
+  `src/app/icon.svg`, `public/icon.svg`): desenho novo, geométrico e
+  plano, seguindo literalmente a descrição do manual (seção 2.1: escudo
+  + letra A + linha ascendente + circuito) — não é uma tentativa de
+  recriar o mockup 3D do `.docx` (o próprio manual pede simplificação
+  pra versão vetorial, seção 14). Favicon vem automaticamente do
+  `src/app/icon.svg` (convenção do Next.js); `public/icon.svg` é a
+  cópia usada no `manifest.webmanifest` (ícone de PWA).
+  - **Achado durante a verificação visual**: a versão padrão (metade
+    azul-marinho / metade dourada) fica com a metade azul-marinho
+    **invisível** num fundo também azul-marinho (mesma cor, sem
+    contraste) — exatamente o caso que o manual previu com a variante
+    "Negativa" (seção 2.1: "fundos azul-marinho... branco com dourado
+    opcional"). `BrandMark` ganhou `variant="negative"` (escudo branco,
+    "A" azul-marinho) usada no `/login`; a variante padrão continua no
+    cabeçalho (fundo branco, sem esse problema). Confirmado com
+    screenshot antes e depois da correção.
+- **Ícone em todo badge de status** (seção 13 do checklist): em vez de
+  mapear ~50 strings de status por tela (volume da Fase 2, alto risco
+  de escolha errada de ícone por status), o componente `Badge` passou a
+  escolher um ícone **por variante** automaticamente
+  (`success`→`CheckCircle2`, `warning`→`AlertCircle`,
+  `destructive`→`XCircle`, `info`→`Info`, `secondary`→`Circle`) —
+  como toda tela já reduz o status pra uma dessas variantes, o sistema
+  inteiro ganha ícone de uma vez, sem tocar nas ~11 telas que têm seu
+  próprio mapa de status. Pode ser desligado por badge (`showIcon={false}`)
+  ou trocado (`icon={OutroIcone}`) quando não servir.
+- **Verificado**: `npm run typecheck`/`lint`/`build` sem erros nem
+  avisos. Não foi possível screenshot de badge em tela autenticada
+  (mesma limitação de credencial) — o logo foi verificado visualmente
+  (antes/depois do achado da variante negativa); o ícone do badge foi
+  conferido só por leitura de código + build, recomendo conferência
+  visual do usuário nas telas de `/validacoes`, `/despesas` ou
+  `/contratos`.
+
 ## Checklist de aprovação visual (seção 13 do manual) — status honesto
 
 | Item do checklist | Status |
 | --- | --- |
-| Marca aplicada na versão correta e com área de proteção | 🔴 Não aplicável ainda — não existe logo vetorial (ver Fase 4) |
+| Marca aplicada na versão correta e com área de proteção | 🟢 Logo vetorial (Fase 4) — padrão e negativa; falta a "área de proteção" formal (espaçamento mínimo ao redor) em uso livre, hoje só implícito |
 | Somente cores previstas neste manual | 🟢 Modo claro, sim (Fases 1–2). Modo escuro segue com a paleta slate anterior, de propósito |
 | Títulos e corpo seguem a hierarquia tipográfica | 🟢 Manrope/Inter, `PageHeader` em 28px |
 | A ação principal está evidente e não há competição entre botões | 🟡 O componente `Button` distingue primário/secundário/destrutivo; não auditei tela a tela se cada formulário usa só uma ação primária |
-| Status tem rótulo, ícone e cor acessível | 🟡 Rótulo+cor sim (paleta funcional); a maioria dos badges de status não tem ícone, só texto — o manual pede os três |
+| Status tem rótulo, ícone e cor acessível | 🟢 Rótulo+cor+ícone (Fase 4) — automático por variante do `Badge` |
 | Campos possuem rótulos, ajuda, erro e foco visível | 🟡 Rótulo/erro/foco sim; nem todo campo tem texto de ajuda |
 | Tabelas mantêm alinhamento numérico, filtros e leitura em telas menores | 🟢 Números tabulares + valores à direita (Fase 3); tabelas já eram roláveis horizontalmente |
-| Dados pessoais aparecem mascarados conforme o contexto | ⚪ Não auditado nesta rodada — é comportamento de dado, não só visual |
-| A interface funciona por teclado e com zoom de 200% | ⚪ Não testado formalmente |
-| Login, dashboard, pessoa, despesas, relatórios revisados | 🟢 Revisados nas Fases 1–3 ("Central de IA" do manual não existe no sistema, é feature futura fora de escopo) |
+| Dados pessoais aparecem mascarados conforme o contexto | 🔴 Auditado agora: CPF aparece sempre por extenso (`formatCpf()` só formata, nunca mascara) em pelo menos 11 arquivos (`/pessoas`, `/meu-cadastro`, `/cadastro/[token]`, `/validacoes`, relatórios etc.). É comportamento de dado com implicação de segurança (quem pode revelar, ação auditada), não um ajuste visual — não implementado aqui de propósito |
+| A interface funciona por teclado e com zoom de 200% | ⚪ Não testado interativamente; auditoria de código: todo controle usa elemento nativo (`<button>`/`<a>`/campo de formulário, não `<div onClick>`), e o foco visível (`focus-ring`) é centralizado nos componentes-base desde a Fase 1 — mas isso não substitui um teste de verdade |
+| Login, dashboard, pessoa, despesas, relatórios revisados | 🟢 Revisados nas Fases 1–4 ("Central de IA" do manual não existe no sistema, é feature futura fora de escopo) |
 
-## Fase 4 — pendente (fora de escopo até aqui)
+## Pendente (fora de escopo até aqui)
 
-- **Logo vetorial**: o próprio manual diz que "a arte conceitual
-  aprovada deve ser redesenhada em vetor antes do uso definitivo"
-  (seção 14) — a imagem embutida no `.docx` é um mockup, não um SVG
-  final. Não tentei vetorizar o brasão (risco alto de sair errado sem
-  um designer); favicon/logo continuam como estão até existir o SVG.
-- **Modo escuro de marca**: propositalmente adiado (instrução do
-  próprio manual).
-- **Ícone em todo badge de status**: o manual pede rótulo+ícone+cor
-  sempre; hoje é só rótulo+cor na maioria das telas — precisaria mapear
-  um ícone por status em cada tela (`decide_registration_submission`,
-  contrato, documento etc.), volume parecido com a Fase 2.
+- **Modo escuro de marca**: propositalmente adiado — o manual pede
+  explicitamente pra só fazer isso depois do modo claro homologado
+  (seção 12.1), e essa aprovação é decisão de quem é dono da marca, não
+  algo que eu decida sozinho.
+- **Mascaramento de dado pessoal** (seção 7.1/18): achado real, CPF
+  sempre visível por extenso — é feature de segurança/UX (precisa de
+  desenho: quem revela, se fica registrado em auditoria), não um ajuste
+  de CSS. Fica como próxima etapa a decidir com o usuário.
 - **Gráficos**: paleta de série já documentada (seção 9.2), mas o
   sistema não tem nenhum gráfico implementado ainda — nada a aplicar.
-- **Relatórios/documentos** (seção 11): capa com brasão, cabeçalho
-  preto, rodapé institucional — os exports atuais são CSV puro, sem
-  layout visual a aplicar.
-- **Teclado/zoom 200%/mascaramento de dado pessoal**: testes formais
-  ainda não feitos.
+- **Relatórios/documentos com layout visual** (seção 11): capa com
+  brasão, cabeçalho preto, rodapé institucional — os exports atuais são
+  CSV puro; um layout de verdade precisa de geração de PDF, que é uma
+  capacidade nova (biblioteca), não CSS.
+- **Teclado/zoom 200%**: só auditado por leitura de código (ver
+  checklist acima), nunca testado interativamente de fato.
+- **"Área de proteção" da marca**: o espaçamento mínimo ao redor do
+  brasão (metade da largura do "A", seção 2.2) não é imposto
+  estruturalmente em nenhum lugar — hoje depende de quem usa `BrandMark`
+  dar espaço suficiente.

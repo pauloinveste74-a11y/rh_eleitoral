@@ -229,14 +229,15 @@ e o `README.md` continuam sendo a referência de arquitetura/histórico.
 
 `docs/IDENTIDADE_VISUAL.md` — acompanhamento da aplicação do manual de
 marca (`docs/MANUAL_IDENTIDADE_VISUAL_RH_ELEITORAL_FINAL.docx`, Agilize
-Tecnologia). Fase 1 (tokens, tipografia, os 7 componentes de
-`src/components/ui/*`, navegação e login), Fase 2 (~44 telas com
-`slate-*` solto) e Fase 3 (sidebar recolhível via
-`useSyncExternalStore`, tamanho de ícone por contexto, números
-tabulares/valores à direita) já aplicadas, com checklist de aprovação
-visual (seção 13 do manual) avaliado item a item. Fase 4 (logo vetorial,
-modo escuro de marca, ícone em todo badge de status, gráficos)
-documentada como pendente.
+Tecnologia). Fases 1–4 aplicadas: tokens/tipografia/componentes-base/
+navegação/login; ~44 telas com `slate-*` solto; sidebar recolhível +
+números tabulares; logo vetorial (`src/components/layout/brand-mark.tsx`
+— com variante `negative`, necessária porque a versão padrão desaparece
+num fundo azul-marinho igual ao dela) + ícone automático por variante em
+todo `Badge`. Pendente, documentado: modo escuro de marca (decisão do
+dono da marca, manual pede pra adiar), mascaramento de CPF (achado real,
+é feature de segurança, não CSS), gráficos (nada implementado ainda),
+relatórios com layout em PDF.
 
 ## O que falta para o sistema funcionar de ponta a ponta
 

@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { BrandMark } from "@/components/layout/brand-mark";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = {
@@ -17,6 +18,11 @@ export const metadata: Metadata = {
 export default function LoginPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-brand-navy px-4 dark:bg-slate-900">
+      {/* Marca vertical, versão negativa (fundo azul-marinho) — manual de
+          identidade visual, seção 2.1 ("Principal vertical: Login, capa,
+          apresentações" + "Negativa: fundos azul-marinho... branco com
+          dourado opcional"). */}
+      <BrandMark size={64} variant="negative" />
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="font-heading text-xl font-bold text-brand-navy dark:text-slate-50">

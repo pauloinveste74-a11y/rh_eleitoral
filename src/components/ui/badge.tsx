@@ -1,10 +1,18 @@
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
+import {
+  CheckCircle2,
+  AlertCircle,
+  XCircle,
+  Info,
+  Circle,
+  type LucideIcon,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors",
+  "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors",
   {
     variants: {
       // Paleta funcional do manual de identidade visual, seção 4: fundo
@@ -25,14 +33,44 @@ const badgeVariants = cva(
   },
 );
 
+// Ícone padrão por variante — seção 13 do manual ("status tem rótulo,
+// ícone e cor acessível... nunca apenas ponto colorido"). Nomeado 1:1
+// com as 5 categorias da paleta funcional (seção 4): Informação, Sucesso,
+// Atenção, Erro, Neutro. Como toda tela já reduz seu status pra uma
+// dessas variantes de Badge, ganhar o ícone aqui cobre o sistema inteiro
+// de uma vez, sem precisar mapear cada string de status individualmente.
+const DEFAULT_VARIANT_ICON: Partial<Record<string, LucideIcon>> = {
+  info: Info,
+  success: CheckCircle2,
+  warning: AlertCircle,
+  destructive: XCircle,
+  secondary: Circle,
+};
+
 export interface BadgeProps
   extends
     React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {}
+    VariantProps<typeof badgeVariants> {
+  /** Passe `false` pra suprimir o ícone padrão (ex.: badge muito compacto). */
+  showIcon?: boolean;
+  /** Troca o ícone padrão da variante por um específico. */
+  icon?: LucideIcon;
+}
 
-function Badge({ className, variant, ...props }: BadgeProps) {
+function Badge({
+  className,
+  variant,
+  showIcon = true,
+  icon,
+  children,
+  ...props
+}: BadgeProps) {
+  const Icon = icon ?? (showIcon ? DEFAULT_VARIANT_ICON[variant ?? "default"] : undefined);
   return (
-    <div className={cn(badgeVariants({ variant }), className)} {...props} />
+    <div className={cn(badgeVariants({ variant }), className)} {...props}>
+      {Icon && <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />}
+      {children}
+    </div>
   );
 }
 

@@ -4,6 +4,7 @@ import { LogOut, UserCircle, IdCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { logout } from "@/app/(app)/actions";
 import { MobileNav } from "./mobile-nav";
+import { BrandMark } from "./brand-mark";
 
 export function Topbar({
   userLabel,
@@ -15,6 +16,8 @@ export function Topbar({
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border-default bg-white px-4 dark:border-slate-800 dark:bg-slate-950">
       <MobileNav />
+      {/* Marca horizontal — manual de identidade visual, seção 2.1 ("Horizontal: cabeçalho... brasão à esquerda e bloco textual à direita"). */}
+      <BrandMark size={28} className="hidden sm:block" />
       <span className="font-heading font-bold text-brand-navy dark:text-slate-50">
         RH Eleitoral
       </span>
