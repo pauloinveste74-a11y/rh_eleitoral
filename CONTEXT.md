@@ -77,7 +77,7 @@ README, seção "Modelo de dados"):
 - `0011`: `rh` ganha leitura/edição de outros `profiles` (pra tela de
   Usuários).
 - `0012`: `profiles.phone`.
-- `0013`–`0024`: **camada de banco de uma iniciativa nova e separada**
+- `0013`–`0025`: **camada de banco de uma iniciativa nova e separada**
   (spec `docs/IMPLEMENTACAO_CADASTRO_IMPORTACAO_DESPESAS.md` — autocadastro
   por convite, cadeia de coordenação, importação por Excel, despesas com
   autorizador/alçada). Aplicadas e verificadas (advisors + testes
@@ -99,7 +99,13 @@ README, seção "Modelo de dados"):
   (importação em lote por Excel, `/importacoes`) **não precisou de
   migração nova** — as tabelas de importação e `people`/satélites já
   tinham policy de escrita direta para `administrador`/`rh` desde a
-  Etapa 1/Fase 1C.
+  Etapa 1/Fase 1C. `0025` (Etapa 7) **estende** `create_expense()` (não
+  cria uma v2) com o autorizador de registro — como a lista de
+  parâmetros cresceu, precisou de um `drop function` explícito antes do
+  `create or replace` (Postgres identifica função por assinatura
+  completa; só crescer a lista teria criado uma sobrecarga em vez de
+  substituir). Também soma `financeiro` a `profiles_select` (mesmo
+  padrão aditivo de `0010`/`0011`).
 
 ## Etapas 3 a 6 — páginas de aplicação (autocadastro, validações e importação)
 

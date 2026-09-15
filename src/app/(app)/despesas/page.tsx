@@ -21,7 +21,7 @@ export default async function DespesasPage() {
       supabase
         .from("expenses")
         .select(
-          "id, person_id, category, amount_cents, expense_date, receipt_storage_path, status",
+          "id, person_id, category, amount_cents, expense_date, receipt_storage_path, status, protocol, authorizer_name_snapshot, unidentified_authorizer, unidentified_authorizer_name",
         )
         .order("expense_date", { ascending: false }),
     ]);
@@ -45,6 +45,9 @@ export default async function DespesasPage() {
       expenseDate: e.expense_date,
       status: e.status,
       receiptUrl: await getExpenseReceiptSignedUrl(e.receipt_storage_path),
+      protocol: e.protocol,
+      authorizerName: e.authorizer_name_snapshot ?? e.unidentified_authorizer_name,
+      unidentifiedAuthorizer: e.unidentified_authorizer,
     })),
   );
 

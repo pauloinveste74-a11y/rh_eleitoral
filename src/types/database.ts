@@ -491,6 +491,40 @@ export interface Database {
           decided_by: string | null;
           decided_at: string | null;
           decision_reason: string | null;
+          // Migração 0020/0025 (Etapa 1/7) — autorizador de registro e alçada.
+          category_id: string | null;
+          purpose: string | null;
+          vendor_name: string | null;
+          vendor_document: string | null;
+          requested_amount_cents: number | null;
+          authorized_amount_cents: number | null;
+          payment_method:
+            | "pix"
+            | "transferencia"
+            | "dinheiro"
+            | "cartao"
+            | "boleto"
+            | "outro"
+            | null;
+          purchaser_person_id: string | null;
+          authorized_by_profile_id: string | null;
+          authorizer_name_snapshot: string | null;
+          authorizer_phone_snapshot: string | null;
+          authorization_role_snapshot: string | null;
+          authorized_at: string | null;
+          authorization_channel:
+            | "presencial"
+            | "whatsapp"
+            | "telefone"
+            | "sistema"
+            | "outro"
+            | null;
+          protocol: string | null;
+          unidentified_authorizer: boolean;
+          unidentified_authorizer_name: string | null;
+          unidentified_authorizer_phone: string | null;
+          unidentified_authorizer_reason: string | null;
+          unidentified_authorizer_evidence: string | null;
         } & Timestamps;
         Insert: Partial<Timestamps> & {
           id?: string;
@@ -513,8 +547,91 @@ export interface Database {
           decided_by?: string | null;
           decided_at?: string | null;
           decision_reason?: string | null;
+          category_id?: string | null;
+          purpose?: string | null;
+          vendor_name?: string | null;
+          vendor_document?: string | null;
+          requested_amount_cents?: number | null;
+          authorized_amount_cents?: number | null;
+          payment_method?:
+            | "pix"
+            | "transferencia"
+            | "dinheiro"
+            | "cartao"
+            | "boleto"
+            | "outro"
+            | null;
+          purchaser_person_id?: string | null;
+          authorized_by_profile_id?: string | null;
+          authorizer_name_snapshot?: string | null;
+          authorizer_phone_snapshot?: string | null;
+          authorization_role_snapshot?: string | null;
+          authorized_at?: string | null;
+          authorization_channel?:
+            | "presencial"
+            | "whatsapp"
+            | "telefone"
+            | "sistema"
+            | "outro"
+            | null;
+          protocol?: string | null;
+          unidentified_authorizer?: boolean;
+          unidentified_authorizer_name?: string | null;
+          unidentified_authorizer_phone?: string | null;
+          unidentified_authorizer_reason?: string | null;
+          unidentified_authorizer_evidence?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["expenses"]["Insert"]>;
+        Relationships: [];
+      };
+      expense_categories: {
+        Row: {
+          id: string;
+          campaign_id: string | null;
+          code: string;
+          name: string;
+          status: "ativa" | "inativa";
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id?: string | null;
+          code: string;
+          name: string;
+          status?: "ativa" | "inativa";
+          created_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["expense_categories"]["Insert"]
+        >;
+        Relationships: [];
+      };
+      expense_authorization_rules: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          role_id: string | null;
+          profile_id: string | null;
+          axis_id: string | null;
+          city_id: string | null;
+          max_amount_cents: number;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id: string;
+          role_id?: string | null;
+          profile_id?: string | null;
+          axis_id?: string | null;
+          city_id?: string | null;
+          max_amount_cents: number;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["expense_authorization_rules"]["Insert"]
+        >;
         Relationships: [];
       };
       person_documents: {
@@ -866,6 +983,17 @@ export interface Database {
           p_description: string;
           p_expense_date: string;
           p_receipt_storage_path: string;
+          p_category_id?: string | null;
+          p_purpose?: string | null;
+          p_vendor_name?: string | null;
+          p_vendor_document?: string | null;
+          p_payment_method?: string | null;
+          p_purchaser_person_id?: string | null;
+          p_authorized_by_profile_id?: string | null;
+          p_unidentified_authorizer_name?: string | null;
+          p_unidentified_authorizer_phone?: string | null;
+          p_unidentified_authorizer_reason?: string | null;
+          p_authorization_channel?: string | null;
         };
         Returns: string;
       };

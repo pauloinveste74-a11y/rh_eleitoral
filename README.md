@@ -24,12 +24,12 @@ Sistema de gestão de pessoas, operações e pagamentos para campanha eleitoral.
 > por convite, cadeia de coordenação, importação em lote por Excel e uma
 > reformulação de Despesas com autorizador/alçada — ver
 > [MVP — Cadastro, Convite, Coordenação, Importação e Despesas](#mvp--cadastro-convite-coordenação-importação-e-despesas)
-> logo abaixo. As Etapas 1 a 6 estão implementadas — banco (migrações
-> `0013`–`0024`) aplicado e verificado em produção; app
-> (`/meu-cadastro`, `/minha-equipe`, `/cadastro/[token]`, `/validacoes` e
-> `/importacoes`) passando em `typecheck`/`lint`/`build`. Só a
-> reformulação de Despesas com autorizador/alçada (banco pronto, sem UI)
-> ainda falta.
+> logo abaixo. As Etapas 1 a 7 estão implementadas — banco (migrações
+> `0013`–`0025`) aplicado e verificado em produção; app
+> (`/meu-cadastro`, `/minha-equipe`, `/cadastro/[token]`, `/validacoes`,
+> `/importacoes` e o `/despesas` com autorizador de registro) passando em
+> `typecheck`/`lint`/`build`. Todos os pontos da spec original têm
+> implementação funcional agora.
 
 ## MVP — Cadastro, Convite, Coordenação, Importação e Despesas
 
@@ -365,11 +365,65 @@ existe):**
   uma vez. Reversão de importação e as 5 classificações mais finas do
   enum ficam para uma etapa futura, se a demanda aparecer.
 
-Com a Etapa 6, todos os 8 pontos da especificação original
-(`docs/IMPLEMENTACAO_CADASTRO_IMPORTACAO_DESPESAS.md`) têm pelo menos uma
-implementação funcional, exceto a reformulação de Despesas com
-autorizador/alçada (banco pronto desde a Etapa 1, seção "Despesas" do
-schema — UI ainda não escrita, é a única peça grande realmente pendente).
+**Etapa 7 — despesas com autorizador de registro (concluída):**
+
+- Migração `0025_etapa7_despesas_autorizador.sql`: **estende**
+  `create_expense()` (mesma função da Fase 6, `0009` — não uma v2) com 11
+  parâmetros novos, todos opcionais (`default null`) no final da lista:
+  categoria estruturada (`p_category_id`), motivo (`p_purpose`),
+  fornecedor (`p_vendor_name`/`p_vendor_document`), forma de pagamento,
+  comprador (`p_purchaser_person_id` — se omitido, é a própria pessoa
+  reembolsada) e o **autorizador de registro**: pessoa do sistema
+  (`p_authorized_by_profile_id`, com snapshot de nome/telefone/papel
+  gravado no momento da criação) **ou** alguém não identificado no
+  sistema (`p_unidentified_authorizer_name/phone/reason`, texto livre) —
+  a função rejeita se os dois caminhos vierem preenchidos juntos. Gera
+  `protocol` automaticamente (`EXP-AAAAMMDD-XXXXXX`). `decide_expense()`
+  **não muda** — continua decidindo por status, que nenhuma coluna nova
+  afeta.
+- **Cuidado técnico**: como a lista de parâmetros cresceu (6 → 17),
+  `create or replace function` sozinho teria criado uma SEGUNDA função
+  sobrecarregada em vez de substituir a de 6 parâmetros da Fase 6 (Postgres
+  identifica uma função pela assinatura completa) — a migração começa com
+  um `drop function` explícito da assinatura antiga antes de recriar.
+- `profiles_select` ganhou o papel `financeiro` na lista que enxerga
+  outros perfis (mesmo padrão aditivo de `0010`/`0011`, que já tinham
+  acrescentado `auditor` e `rh`) — necessário pra quem cria a despesa
+  poder escolher "autorizador = pessoa do sistema" num select; sem isso
+  o financeiro veria uma lista vazia.
+- Alçada (`expense_authorization_rules`, criada na Etapa 1) **continua
+  só informativa e sem UI de configuração** nesta etapa — só dá pra
+  cadastrar regra via SQL direto. Não bloqueia criação nem decisão.
+- `/despesas/novo`: formulário reescrito com os campos novos —
+  categoria vem de `expense_categories` (não mais do enum fixo
+  diretamente, embora o texto legado continue sendo gravado, derivado do
+  `code` da categoria escolhida), autorizador com alternância "pessoa do
+  sistema" (select) / "não identificado" (nome + motivo em texto livre,
+  ambos obrigatórios nesse caso), canal de autorização. `/despesas` (lista)
+  ganhou colunas de protocolo (abaixo do nome da pessoa) e autorizador.
+- **Verificado** (testes funcionais diretos, em transação com `rollback`,
+  sem dado residual): os dois caminhos de autorizador gravam
+  corretamente (snapshot de nome/telefone/papel quando é pessoa do
+  sistema; nome/telefone/motivo em texto livre quando não identificado);
+  informar os dois caminhos ao mesmo tempo é rejeitado; `category_id`,
+  fornecedor, forma de pagamento, comprador e protocolo gravam certo.
+- `npm run typecheck`/`lint`/`build` — sem erros nem avisos.
+- **Riscos/pendências**: sem tela de configuração de alçada
+  (`expense_authorization_rules`) — só leitura/checagem futura, sem
+  cadastro de regra pela UI. "Valor autorizado diferente do valor
+  pedido" (`authorized_amount_cents`) não tem fluxo próprio —
+  `amount_cents` continua sendo o único valor de fato pago. Sem teste
+  via navegador (Playwright pausado). Sem um segundo usuário
+  `financeiro` real pra confirmar a leitura de `profiles` na prática
+  (mesma limitação de sempre).
+
+Com a Etapa 7, todos os pontos da especificação original
+(`docs/IMPLEMENTACAO_CADASTRO_IMPORTACAO_DESPESAS.md`) têm implementação
+funcional — autocadastro, cadeia de coordenação, validação em duas
+instâncias, importação em lote e despesas com autorizador de registro.
+Pendências que restam são refinamentos documentados etapa a etapa acima
+(revisão campo a campo, reversão de importação, configuração de alçada
+pela UI), não pontos inteiros da spec sem nenhuma implementação.
 
 ## Stack
 

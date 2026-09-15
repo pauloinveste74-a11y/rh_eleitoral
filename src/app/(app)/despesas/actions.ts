@@ -21,10 +21,20 @@ export async function createExpense(
 ): Promise<ExpenseActionState> {
   const parsed = expenseSchema.safeParse({
     personId: String(formData.get("personId") ?? ""),
-    category: String(formData.get("category") ?? ""),
+    categoryId: String(formData.get("categoryId") ?? ""),
     amountReais: String(formData.get("amountReais") ?? ""),
-    description: String(formData.get("description") ?? ""),
+    purpose: String(formData.get("purpose") ?? ""),
     expenseDate: String(formData.get("expenseDate") ?? ""),
+    vendorName: String(formData.get("vendorName") ?? ""),
+    vendorDocument: String(formData.get("vendorDocument") ?? ""),
+    paymentMethod: String(formData.get("paymentMethod") ?? ""),
+    purchaserPersonId: String(formData.get("purchaserPersonId") ?? ""),
+    authorizerType: String(formData.get("authorizerType") ?? ""),
+    authorizedByProfileId: String(formData.get("authorizedByProfileId") ?? ""),
+    unidentifiedAuthorizerName: String(formData.get("unidentifiedAuthorizerName") ?? ""),
+    unidentifiedAuthorizerPhone: String(formData.get("unidentifiedAuthorizerPhone") ?? ""),
+    unidentifiedAuthorizerReason: String(formData.get("unidentifiedAuthorizerReason") ?? ""),
+    authorizationChannel: String(formData.get("authorizationChannel") ?? ""),
   });
   if (!parsed.success) {
     return {
@@ -65,6 +75,18 @@ export async function createExpense(
     return { status: "error", errors: { personId: ["Pessoa não encontrada."] } };
   }
 
+  // O texto legado de `expenses.category` (checagem fixa em 6 valores) vem
+  // do `code` da categoria estruturada escolhida — a tela só mostra a lista
+  // de expense_categories, nunca o enum antigo diretamente.
+  const { data: category, error: categoryError } = await supabase
+    .from("expense_categories")
+    .select("code")
+    .eq("id", parsed.data.categoryId)
+    .maybeSingle();
+  if (categoryError || !category) {
+    return { status: "error", errors: { categoryId: ["Categoria não encontrada."] } };
+  }
+
   const storagePath = `${person.campaign_id}/${person.id}/${randomUUID()}-${sanitizeFileName(receipt.name)}`;
 
   const { error: uploadError } = await supabase.storage
@@ -76,11 +98,32 @@ export async function createExpense(
 
   const { data: expenseId, error } = await supabase.rpc("create_expense", {
     p_person_id: parsed.data.personId,
-    p_category: parsed.data.category,
+    p_category: category.code,
     p_amount_cents: parsed.data.amountReais,
-    p_description: parsed.data.description,
+    p_description: parsed.data.purpose,
     p_expense_date: parsed.data.expenseDate,
     p_receipt_storage_path: storagePath,
+    p_category_id: parsed.data.categoryId,
+    p_purpose: parsed.data.purpose,
+    p_vendor_name: parsed.data.vendorName || null,
+    p_vendor_document: parsed.data.vendorDocument || null,
+    p_payment_method: parsed.data.paymentMethod,
+    p_purchaser_person_id: parsed.data.purchaserPersonId || null,
+    p_authorized_by_profile_id:
+      parsed.data.authorizerType === "sistema" ? parsed.data.authorizedByProfileId || null : null,
+    p_unidentified_authorizer_name:
+      parsed.data.authorizerType === "nao_identificado"
+        ? parsed.data.unidentifiedAuthorizerName || null
+        : null,
+    p_unidentified_authorizer_phone:
+      parsed.data.authorizerType === "nao_identificado"
+        ? parsed.data.unidentifiedAuthorizerPhone || null
+        : null,
+    p_unidentified_authorizer_reason:
+      parsed.data.authorizerType === "nao_identificado"
+        ? parsed.data.unidentifiedAuthorizerReason || null
+        : null,
+    p_authorization_channel: parsed.data.authorizationChannel,
   });
 
   if (error || !expenseId) {

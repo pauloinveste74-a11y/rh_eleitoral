@@ -19,6 +19,9 @@ export type ExpenseRow = {
   expenseDate: string;
   status: "pendente" | "pago" | "rejeitado" | "cancelado";
   receiptUrl: string | null;
+  protocol: string | null;
+  authorizerName: string | null;
+  unidentifiedAuthorizer: boolean;
 };
 
 export function ExpenseList({
@@ -44,6 +47,7 @@ export function ExpenseList({
         <TableRow>
           <TableHead>Pessoa</TableHead>
           <TableHead>Categoria</TableHead>
+          <TableHead>Autorizador</TableHead>
           <TableHead>Valor</TableHead>
           <TableHead>Data</TableHead>
           <TableHead>Comprovante</TableHead>
@@ -56,8 +60,23 @@ export function ExpenseList({
           <TableRow key={row.id}>
             <TableCell className="font-medium text-slate-900 dark:text-slate-50">
               {row.personName}
+              {row.protocol && (
+                <span className="block text-xs font-normal text-slate-400">
+                  {row.protocol}
+                </span>
+              )}
             </TableCell>
             <TableCell>{expenseCategoryLabels[row.category]}</TableCell>
+            <TableCell>
+              {row.authorizerName ?? (
+                <span className="text-slate-400">—</span>
+              )}
+              {row.unidentifiedAuthorizer && (
+                <span className="block text-xs font-normal text-amber-600">
+                  não identificado no sistema
+                </span>
+              )}
+            </TableCell>
             <TableCell>{formatCentsAsBRL(row.amountCents)}</TableCell>
             <TableCell>
               {new Date(row.expenseDate).toLocaleDateString("pt-BR", { timeZone: "UTC" })}
