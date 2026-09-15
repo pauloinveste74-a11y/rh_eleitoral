@@ -97,7 +97,7 @@ export default async function AlcadasPage() {
                   <TableRow>
                     <TableHead>Papel</TableHead>
                     <TableHead>Escopo</TableHead>
-                    <TableHead>Teto</TableHead>
+                    <TableHead className="text-right">Teto</TableHead>
                     <TableHead />
                   </TableRow>
                 </TableHeader>
@@ -118,7 +118,7 @@ export default async function AlcadasPage() {
                             ? `Cidade: ${cityNameById.get(rule.city_id) ?? "—"}`
                             : "Toda a campanha"}
                       </TableCell>
-                      <TableCell>{formatCentsAsBRL(rule.max_amount_cents)}</TableCell>
+                      <TableCell className="text-right">{formatCentsAsBRL(rule.max_amount_cents)}</TableCell>
                       <TableCell className="text-right">
                         <DeleteAlcadaRuleButton ruleId={rule.id} />
                       </TableCell>

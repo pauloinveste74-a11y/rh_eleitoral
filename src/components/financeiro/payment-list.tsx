@@ -42,7 +42,7 @@ export function PaymentList({
       <TableHeader>
         <TableRow>
           <TableHead>Pessoa</TableHead>
-          <TableHead>Valor</TableHead>
+          <TableHead className="text-right">Valor</TableHead>
           <TableHead>Descrição</TableHead>
           <TableHead>Lote</TableHead>
           <TableHead>Status</TableHead>
@@ -56,7 +56,7 @@ export function PaymentList({
             <TableCell className="font-medium text-brand-navy dark:text-slate-50">
               {row.personName}
             </TableCell>
-            <TableCell>{formatCentsAsBRL(row.amountCents)}</TableCell>
+            <TableCell className="text-right">{formatCentsAsBRL(row.amountCents)}</TableCell>
             <TableCell>{row.description}</TableCell>
             <TableCell>{row.batchPeriod ?? "—"}</TableCell>
             <TableCell>

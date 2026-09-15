@@ -29,19 +29,19 @@ export function Topbar({
         </span>
         <Button type="button" variant="outline" size="sm" asChild>
           <Link href="/meu-cadastro">
-            <IdCard className="h-4 w-4" aria-hidden="true" />
+            <IdCard className="h-5 w-5" aria-hidden="true" />
             <span className="hidden sm:inline">Meu cadastro</span>
           </Link>
         </Button>
         <Button type="button" variant="outline" size="sm" asChild>
           <Link href="/conta">
-            <UserCircle className="h-4 w-4" aria-hidden="true" />
+            <UserCircle className="h-5 w-5" aria-hidden="true" />
             <span className="hidden sm:inline">Minha conta</span>
           </Link>
         </Button>
         <form action={logout}>
           <Button type="submit" variant="outline" size="sm">
-            <LogOut className="h-4 w-4" aria-hidden="true" />
+            <LogOut className="h-5 w-5" aria-hidden="true" />
             Sair
           </Button>
         </form>

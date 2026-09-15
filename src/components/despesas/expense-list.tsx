@@ -65,7 +65,7 @@ export function ExpenseList({
           <TableHead>Pessoa</TableHead>
           <TableHead>Categoria</TableHead>
           <TableHead>Autorizador</TableHead>
-          <TableHead>Valor</TableHead>
+          <TableHead className="text-right">Valor</TableHead>
           <TableHead>Data</TableHead>
           <TableHead>Comprovante</TableHead>
           <TableHead>Status</TableHead>
@@ -99,7 +99,7 @@ export function ExpenseList({
                 </Badge>
               )}
             </TableCell>
-            <TableCell>
+            <TableCell className="text-right">
               {formatCentsAsBRL(row.amountCents)}
               {row.authorizedAmountCents !== null &&
                 row.authorizedAmountCents !== row.amountCents && (

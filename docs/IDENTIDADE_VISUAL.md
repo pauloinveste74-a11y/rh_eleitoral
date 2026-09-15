@@ -111,27 +111,74 @@ Mapeamento aplicado (modo claro):
   conferência visual do usuário em `/painel`, `/pessoas`, `/despesas`,
   `/validacoes` e `/contratos` depois do deploy.
 
-## Fase 3 — pendente (fora de escopo até aqui)
+## Fase 3 — sidebar recolhida, ícones e números tabulares (aplicada nesta etapa)
+
+- **Sidebar recolhida (72px)**: os dois estados que o manual prevê
+  (seção 6.1) agora existem — botão de recolher/expandir no rodapé da
+  barra lateral, ícone `PanelLeftClose`/`PanelLeftOpen` (Lucide). Modo
+  recolhido: só os ícones (20px, centralizados), rótulo vira tooltip
+  nativo (`title`) + texto continua acessível a leitor de tela
+  (`sr-only`) em vez de sumir de vez. Preferência salva em
+  `localStorage` (é conveniência de dispositivo, não dado do usuário no
+  banco) via `useSyncExternalStore` — evita o mismatch de hidratação e
+  a cascata de re-render que o `set-state-in-effect` do lint do projeto
+  rejeitaria com `useState`+`useEffect` comuns.
+  `src/components/layout/sidebar-collapse-store.ts` (novo),
+  `app-shell.tsx`/`sidebar-nav.tsx`/`nav-link.tsx` atualizados.
+- **Ícones**: auditoria mostrou que a maior parte já batia com a regra
+  de tamanho por contexto do manual (seção 9.1 — 16px campo/20px
+  navegação/24px ação destacada) só de ter seguido o mesmo critério
+  nos componentes de layout da Fase 1. Ajuste real: os três ícones de
+  ação do topo (`Meu cadastro`/`Minha conta`/`Sair`, `topbar.tsx`)
+  estavam em 16px, subiram pra 20px — são navegação primária, mesmo
+  peso visual do menu lateral.
+- **Números tabulares** (seção 5.2): `font-variant-numeric:
+  tabular-nums` aplicado centralizadamente no componente `Table` (afeta
+  toda tabela do sistema de uma vez, sem risco — só muda a largura dos
+  dígitos, inofensivo em célula só com texto). Colunas de valor
+  monetário (`despesas`, `despesas/alcadas`, `financeiro`,
+  `relatorios/financeiro`) alinhadas à direita (seção 7.2, "alinhar
+  valores à direita").
+- **Verificado**: `npm run typecheck`/`lint`/`build` sem erros nem
+  avisos (inclusive corrigindo de cara um erro real do lint
+  `react-hooks/set-state-in-effect` na primeira versão da sidebar
+  recolhida). Não foi possível screenshot de tela autenticada de novo
+  (mesma limitação de credencial das fases anteriores) — a sidebar
+  recolhida em particular só dá pra conferir de verdade logado; peço
+  que você teste o botão de recolher em `/painel` depois do deploy.
+
+## Checklist de aprovação visual (seção 13 do manual) — status honesto
+
+| Item do checklist | Status |
+| --- | --- |
+| Marca aplicada na versão correta e com área de proteção | 🔴 Não aplicável ainda — não existe logo vetorial (ver Fase 4) |
+| Somente cores previstas neste manual | 🟢 Modo claro, sim (Fases 1–2). Modo escuro segue com a paleta slate anterior, de propósito |
+| Títulos e corpo seguem a hierarquia tipográfica | 🟢 Manrope/Inter, `PageHeader` em 28px |
+| A ação principal está evidente e não há competição entre botões | 🟡 O componente `Button` distingue primário/secundário/destrutivo; não auditei tela a tela se cada formulário usa só uma ação primária |
+| Status tem rótulo, ícone e cor acessível | 🟡 Rótulo+cor sim (paleta funcional); a maioria dos badges de status não tem ícone, só texto — o manual pede os três |
+| Campos possuem rótulos, ajuda, erro e foco visível | 🟡 Rótulo/erro/foco sim; nem todo campo tem texto de ajuda |
+| Tabelas mantêm alinhamento numérico, filtros e leitura em telas menores | 🟢 Números tabulares + valores à direita (Fase 3); tabelas já eram roláveis horizontalmente |
+| Dados pessoais aparecem mascarados conforme o contexto | ⚪ Não auditado nesta rodada — é comportamento de dado, não só visual |
+| A interface funciona por teclado e com zoom de 200% | ⚪ Não testado formalmente |
+| Login, dashboard, pessoa, despesas, relatórios revisados | 🟢 Revisados nas Fases 1–3 ("Central de IA" do manual não existe no sistema, é feature futura fora de escopo) |
+
+## Fase 4 — pendente (fora de escopo até aqui)
 
 - **Logo vetorial**: o próprio manual diz que "a arte conceitual
   aprovada deve ser redesenhada em vetor antes do uso definitivo"
   (seção 14) — a imagem embutida no `.docx` é um mockup, não um SVG
   final. Não tentei vetorizar o brasão (risco alto de sair errado sem
   um designer); favicon/logo continuam como estão até existir o SVG.
-- **Sidebar recolhida (72px)**: o manual prevê os dois estados; só o
-  estado aberto (240px) foi implementado — recolher exigiria estado
-  (toggle) novo, é feature de interação, não só visual.
 - **Modo escuro de marca**: propositalmente adiado (instrução do
   próprio manual).
-- **Ícones**: manual pede biblioteca única Lucide com traço 1,75–2px —
-  o projeto já usa só Lucide, então já atende; não há padronização de
-  espessura/tamanho (16/20/24px por contexto) feita tela a tela ainda.
-- **Gráficos**: paleta de série (`#0A2947`, `#2E6DA4`, `#B7943E`,
-  `#19795A`, `#7B8794`) — o sistema hoje não tem nenhum gráfico
-  implementado (dashboard usa só KPIs numéricos), então não há onde
-  aplicar ainda.
+- **Ícone em todo badge de status**: o manual pede rótulo+ícone+cor
+  sempre; hoje é só rótulo+cor na maioria das telas — precisaria mapear
+  um ícone por status em cada tela (`decide_registration_submission`,
+  contrato, documento etc.), volume parecido com a Fase 2.
+- **Gráficos**: paleta de série já documentada (seção 9.2), mas o
+  sistema não tem nenhum gráfico implementado ainda — nada a aplicar.
 - **Relatórios/documentos** (seção 11): capa com brasão, cabeçalho
   preto, rodapé institucional — os exports atuais são CSV puro, sem
   layout visual a aplicar.
-- **Checklist de aprovação visual** (seção 13) — vale revisar com o
-  usuário depois que a Fase 3 avançar.
+- **Teclado/zoom 200%/mascaramento de dado pessoal**: testes formais
+  ainda não feitos.

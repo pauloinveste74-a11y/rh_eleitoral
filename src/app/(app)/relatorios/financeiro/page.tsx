@@ -197,7 +197,7 @@ export default async function RelatorioFinanceiroPage({
                     <TableHead>Pessoa</TableHead>
                     <TableHead>Descrição</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Valor</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -222,7 +222,7 @@ export default async function RelatorioFinanceiroPage({
                           {STATUS_LABEL[r.status] ?? r.status}
                         </Badge>
                       </TableCell>
-                      <TableCell>{formatCentsAsBRL(r.amountCents)}</TableCell>
+                      <TableCell className="text-right">{formatCentsAsBRL(r.amountCents)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

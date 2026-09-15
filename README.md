@@ -904,14 +904,14 @@ PIX/TED, spec 14). A decidir com o usuário.
 
 Manual de identidade visual entregue por Agilize Tecnologia Ltda.
 (`docs/MANUAL_IDENTIDADE_VISUAL_RH_ELEITORAL_FINAL.docx`) — Fase 1
-(fundação: tokens de marca em `src/app/globals.css`, tipografia Manrope
-+ Inter, os 7 componentes de `src/components/ui/*`, navegação e login)
-e Fase 2 (as ~44 telas de conteúdo que ainda usavam `slate-*` solto,
-trocadas por script sem tocar nas variantes `dark:`) aplicadas — toda a
-paleta azul-marinho/dourado/grafite e a paleta funcional de status do
-manual já está em uso no sistema inteiro em modo claro. Ver
-`docs/IDENTIDADE_VISUAL.md` pro detalhe completo e o que ainda falta
-(logo vetorial, sidebar recolhida, modo escuro de marca, gráficos).
+(fundação: tokens de marca, tipografia Manrope + Inter, os 7
+componentes de `src/components/ui/*`, navegação e login), Fase 2 (as
+~44 telas de conteúdo que ainda usavam `slate-*` solto) e Fase 3
+(sidebar recolhível 240px/72px, tamanho de ícone por contexto, números
+tabulares e valores alinhados à direita nas tabelas financeiras)
+aplicadas. Ver `docs/IDENTIDADE_VISUAL.md` pro checklist de aprovação
+visual (seção 13 do manual) e o que ainda falta (logo vetorial, modo
+escuro de marca, ícone em todo badge de status, gráficos).
 
 ## Stack
 

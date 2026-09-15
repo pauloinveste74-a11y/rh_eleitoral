@@ -5,7 +5,11 @@ import { cn } from "@/lib/utils";
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div className="w-full overflow-x-auto">
-      <table className={cn("w-full text-sm", className)} {...props} />
+      {/* Números tabulares em toda tabela — manual de identidade visual,
+          seção 5.2 ("valores, CPF parcial, datas e tabelas financeiras
+          devem usar font-variant-numeric: tabular-nums"). Só afeta a
+          largura dos dígitos, inofensivo em células só com texto. */}
+      <table className={cn("w-full text-sm tabular-nums", className)} {...props} />
     </div>
   );
 }
