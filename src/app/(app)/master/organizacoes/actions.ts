@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -338,4 +340,36 @@ export async function updateOrganizationStatus(
   revalidatePath(`/master/organizacoes/${campaignId}`);
   revalidatePath("/master/organizacoes");
   return { status: "success" };
+}
+
+const ACTIVE_CAMPAIGN_COOKIE = "active_campaign_id";
+
+/**
+ * "Modo de suporte" (spec original, seção 6.3) — o master passa a ver as
+ * telas normais (`/painel`, `/pessoas`, etc.) com os dados desta
+ * organização, sem alterar `profiles.campaign_id` (reversível, basta
+ * `exitSupportMode()`). O cookie é lido em `src/lib/supabase/server.ts`
+ * e vira o header que `current_campaign_id()` (migração `0036`) usa pra
+ * quem é `is_platform_admin()`.
+ */
+export async function enterOrganization(campaignId: string) {
+  const supabase = await createClient();
+  const guard = await requirePlatformAdmin(supabase);
+  if (!guard.ok) return { status: "error", message: guard.message } as OrganizationActionState;
+
+  const cookieStore = await cookies();
+  cookieStore.set(ACTIVE_CAMPAIGN_COOKIE, campaignId, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+  });
+
+  redirect("/painel");
+}
+
+export async function exitSupportMode() {
+  const cookieStore = await cookies();
+  cookieStore.delete(ACTIVE_CAMPAIGN_COOKIE);
+  redirect("/master/organizacoes");
 }

@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/layout/app-shell";
+import { formatCnpj } from "@/lib/validations/cnpj";
 
 // Todo o painel autenticado depende da sessão do usuário na requisição
 // (cookies) e nunca deve ser pré-renderizado estaticamente ou cacheado
@@ -33,8 +35,33 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const userLabel =
     profile?.full_name ?? profile?.email ?? user.email ?? "Usuário";
 
+  // Modo de suporte (Multi-tenant, Etapa 2): se o master "entrou" numa
+  // organização (cookie setado por `enterOrganization()`), as telas
+  // mostram os dados dela em vez da campanha "casa" do próprio profile.
+  const cookieStore = await cookies();
+  const activeCampaignId = profile?.is_platform_admin
+    ? cookieStore.get("active_campaign_id")?.value
+    : undefined;
+
   let campaignName: string | undefined;
-  if (profile?.campaign_id) {
+  let supportMode: { organizationName: string; documentNumberFormatted: string | null } | undefined;
+
+  if (activeCampaignId) {
+    const { data: activeCampaign } = await supabase
+      .from("campaigns")
+      .select("name, document_number")
+      .eq("id", activeCampaignId)
+      .maybeSingle();
+    if (activeCampaign) {
+      campaignName = activeCampaign.name;
+      supportMode = {
+        organizationName: activeCampaign.name,
+        documentNumberFormatted: activeCampaign.document_number
+          ? formatCnpj(activeCampaign.document_number)
+          : null,
+      };
+    }
+  } else if (profile?.campaign_id) {
     const { data: campaign } = await supabase
       .from("campaigns")
       .select("name")
@@ -45,7 +72,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   const campaignLabel = profile?.is_platform_admin
     ? campaignName
-      ? `${campaignName} · Super admin`
+      ? supportMode
+        ? campaignName
+        : `${campaignName} · Super admin`
       : "Super admin (todas as campanhas)"
     : campaignName;
 
@@ -54,6 +83,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       userLabel={userLabel}
       campaignLabel={campaignLabel}
       isPlatformAdmin={profile?.is_platform_admin ?? false}
+      supportMode={supportMode}
     >
       {children}
     </AppShell>

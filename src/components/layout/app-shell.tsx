@@ -5,6 +5,7 @@ import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 import { SidebarNav } from "./sidebar-nav";
 import { Topbar } from "./topbar";
+import { SupportModeBanner } from "./support-mode-banner";
 import {
   getSidebarCollapsedServerSnapshot,
   getSidebarCollapsedSnapshot,
@@ -17,11 +18,13 @@ export function AppShell({
   userLabel,
   campaignLabel,
   isPlatformAdmin = false,
+  supportMode,
 }: {
   children: ReactNode;
   userLabel: string;
   campaignLabel?: string;
   isPlatformAdmin?: boolean;
+  supportMode?: { organizationName: string; documentNumberFormatted: string | null };
 }) {
   const collapsed = useSyncExternalStore(
     subscribeSidebarCollapsed,
@@ -31,6 +34,12 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen flex-col">
+      {supportMode && (
+        <SupportModeBanner
+          organizationName={supportMode.organizationName}
+          documentNumberFormatted={supportMode.documentNumberFormatted}
+        />
+      )}
       <Topbar userLabel={userLabel} campaignLabel={campaignLabel} isPlatformAdmin={isPlatformAdmin} />
       <div className="flex flex-1">
         {/* Barra lateral azul-marinho — 240px aberta / 72px recolhida,

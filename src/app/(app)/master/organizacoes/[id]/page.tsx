@@ -15,7 +15,11 @@ import {
 } from "@/components/ui/table";
 import { formatCnpj } from "@/lib/validations/cnpj";
 import { AddOrganizationAdminForm } from "@/components/master/add-organization-admin-form";
-import { LinkSelfButton, OrganizationStatusActions } from "@/components/master/organization-actions";
+import {
+  EnterOrganizationButton,
+  LinkSelfButton,
+  OrganizationStatusActions,
+} from "@/components/master/organization-actions";
 
 export const metadata: Metadata = { title: "Organização" };
 
@@ -130,10 +134,13 @@ export default async function OrganizacaoDetalhePage({
                 </Badge>
               </div>
             </div>
-            <OrganizationStatusActions
-              campaignId={campaign.id}
-              status={campaign.status as "ativa" | "encerrada" | "arquivada"}
-            />
+            <div className="flex flex-wrap items-start gap-3">
+              <EnterOrganizationButton campaignId={campaign.id} />
+              <OrganizationStatusActions
+                campaignId={campaign.id}
+                status={campaign.status as "ativa" | "encerrada" | "arquivada"}
+              />
+            </div>
           </CardContent>
         </Card>
 

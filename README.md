@@ -1290,6 +1290,66 @@ usuários entram com CNPJ + e-mail + senha"):
   advisors de segurança sem achado novo (migração só adiciona
   coluna/índice, nenhuma função nova).
 
+### Etapa 2 — modo de suporte (master "entra" numa organização) + login aterrissa em `/master/organizacoes` (concluída)
+
+Depois de testar a Etapa 1 em produção, o usuário pediu explicitamente
+o que a Etapa 1 tinha deixado de fora por decisão deliberada: poder
+**"entrar"** numa organização específica e trocar entre elas — o modo
+de suporte da spec original (seção 6.3) — e que o login do master caia
+direto na tela de organizações, não no painel comum.
+
+- **Migração `0036_multi_tenant_current_campaign_override.sql`**:
+  `current_campaign_id()` passou a aceitar um override — quando o
+  chamador é `is_platform_admin()` **e** o header
+  `x-active-campaign-id` vem preenchido com um UUID válido (checado por
+  regex antes do `::uuid`, pra um cookie adulterado não quebrar a
+  query), devolve esse valor; senão, comportamento de sempre
+  (`profiles.campaign_id`). Reaproveita `request_headers()` (já
+  existia desde a `0033`, mesma técnica do IP/user-agent da auditoria).
+  **Nenhuma das ~40 policies que já usam `campaign_id =
+  current_campaign_id()` mudou** — só o que essa função devolve muda,
+  e só pra quem é master. Testado ao vivo simulando os três casos (sem
+  header → cai no perfil; com header válido → devolve o override; com
+  header malformado → cai no perfil sem erro), com `set local role
+  authenticated`/`request.jwt.claims`, dentro de transações com
+  `rollback`.
+- **Cookie `active_campaign_id`** (`httpOnly`, `secure` em produção,
+  `sameSite: lax`): `src/lib/supabase/server.ts` lê o cookie e repassa
+  como header em toda query do cliente de servidor — único ponto de
+  mudança, todas as páginas/RPCs que já dependem de
+  `current_campaign_id()` passam a respeitar o modo de suporte de
+  graça. `enterOrganization(campaignId)` (nova ação, em
+  `master/organizacoes/actions.ts`) seta o cookie e redireciona pro
+  `/painel`; `exitSupportMode()` apaga o cookie e volta pro
+  `/master/organizacoes`; `logout()` também limpa o cookie, pra não
+  vazar modo de suporte pra uma sessão futura.
+- **Faixa "Você está administrando..."**
+  (`src/components/layout/support-mode-banner.tsx`): aparece em toda
+  tela enquanto o cookie estiver ativo, com nome da organização + CNPJ
+  formatado + botão "Voltar ao painel master". `(app)/layout.tsx` passa
+  a resolver o nome/CNPJ exibidos a partir da organização ativa (não
+  mais só da campanha "casa" do profile) quando o modo de suporte está
+  ligado.
+- **Botão "Entrar nesta organização"** em
+  `/master/organizacoes/[id]` (`EnterOrganizationButton`, mesmo padrão
+  de `useTransition` dos outros botões do arquivo) — clicar no nome na
+  listagem continua só abrindo o detalhe, não troca de contexto sozinho
+  com um clique acidental na tabela.
+- **Login** (`login-form.tsx`): quando não há `redirectTo` explícito na
+  URL, `is_platform_admin` vai pra `/master/organizacoes` em vez de
+  `/painel` — qualquer outro usuário continua indo pro painel comum,
+  sem mudança.
+- **Pergunta feita ao usuário**: ele tinha pedido senha = últimos 4
+  dígitos do celular; expliquei que o Supabase Auth deste projeto exige
+  mínimo 6 caracteres por padrão (por isso o código já usava 6, não 4
+  — mudar pra 4 faria a criação de usuário falhar) e que eu não tenho
+  acesso programático a essa configuração pelas ferramentas MCP
+  disponíveis aqui. Ele confirmou **manter 6 dígitos** — nenhuma
+  mudança de senha nesta etapa.
+- **Verificado**: `npm run typecheck`/`lint`/`build` sem erros nem
+  avisos; advisors de segurança sem achado novo (só a função
+  `current_campaign_id()` mudou, sem policy nova).
+
 ## Aprovações
 
 Núcleo do fluxo de validação territorial de uma pessoa, cobrindo só os

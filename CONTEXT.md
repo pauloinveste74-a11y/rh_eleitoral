@@ -49,7 +49,7 @@ partir da raiz do projeto — isso já está reforçado em `AGENTS.md`.
 | Auditoria (trilha de eventos) | `/auditoria` | 7 |
 | Relatórios (financeiro/pessoas/aprovações, filtro + CSV) | `/relatorios` | 8 |
 | Usuários (criar acesso, papéis, trocar senha) | `/usuarios`, `/conta` | 9 |
-| Organizações — painel do master, CNPJ, login por CNPJ (Multi-tenant, Etapa 1) | `/master/organizacoes` | — |
+| Organizações — painel do master, CNPJ, login por CNPJ, modo de suporte (Multi-tenant, Etapas 1/2) | `/master/organizacoes` | — |
 
 **Ainda placeholder** (nunca implementados): **Ponto** (`/ponto`) e
 **Operações** (`/operacoes`) — são os dois únicos itens do menu sem
@@ -280,6 +280,16 @@ esse valor no chat** — é uma credencial que ignora RLS por completo.
   `campaign_id = current_campaign_id()`, com bypass para
   `is_platform_admin()`. `roles` é o único catálogo global sem
   `campaign_id`.
+- **Modo de suporte do master** (Multi-tenant, Etapa 2, migração
+  `0036`): `current_campaign_id()` devolve o valor do header
+  `x-active-campaign-id` em vez de `profiles.campaign_id`, mas só
+  quando o chamador é `is_platform_admin()` — o header vem do cookie
+  `active_campaign_id` (setado por `enterOrganization()` em
+  `master/organizacoes/actions.ts`, repassado em
+  `src/lib/supabase/server.ts`). Nenhuma policy precisou mudar pra
+  isso funcionar; só a função. Ao mexer em `current_campaign_id()` de
+  novo, lembrar que ela agora é `plpgsql` (não `sql`), por causa do
+  `if`.
 - **RLS é a autorização real**, nunca só a UI. Toda tabela sensível não
   tem política de `INSERT`/`UPDATE` para o cliente — só funções
   `SECURITY DEFINER` (`create_payment()`, `decide_approval()`, etc.)

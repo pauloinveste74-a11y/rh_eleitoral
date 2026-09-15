@@ -15,6 +15,14 @@ export async function createClient() {
   const { url, anonKey } = getSupabaseEnv();
   const cookieStore = await cookies();
 
+  // Modo de suporte (Multi-tenant, Etapa 2): quando um master "entra"
+  // numa organização (`enterOrganization()`), o cookie abaixo carrega o
+  // id dela — repassado como header pro Postgres ler via
+  // `current_setting('request.headers')` (mesma técnica já usada pra
+  // IP/user-agent da auditoria) e sobrescrever `current_campaign_id()`
+  // só pra quem é `is_platform_admin()`. Não afeta usuário comum.
+  const activeCampaignId = cookieStore.get("active_campaign_id")?.value;
+
   return createServerClient<Database>(url, anonKey, {
     cookies: {
       getAll() {
@@ -32,5 +40,8 @@ export async function createClient() {
         }
       },
     },
+    global: activeCampaignId
+      ? { headers: { "x-active-campaign-id": activeCampaignId } }
+      : undefined,
   });
 }

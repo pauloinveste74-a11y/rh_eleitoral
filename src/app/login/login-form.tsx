@@ -78,7 +78,10 @@ export function LoginForm() {
       }
     }
 
-    const redirectTo = searchParams.get("redirectTo") ?? "/painel";
+    // Master aterrissa no painel de organizações (Multi-tenant, Etapa 2)
+    // — quem não é platform admin continua indo pro painel de sempre.
+    const defaultRedirect = profile?.is_platform_admin ? "/master/organizacoes" : "/painel";
+    const redirectTo = searchParams.get("redirectTo") ?? defaultRedirect;
     router.push(redirectTo);
     router.refresh();
   }

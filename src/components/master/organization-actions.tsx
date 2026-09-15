@@ -3,8 +3,46 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-import { linkSelfAsAdmin, updateOrganizationStatus } from "@/app/(app)/master/organizacoes/actions";
+import {
+  linkSelfAsAdmin,
+  updateOrganizationStatus,
+  enterOrganization,
+} from "@/app/(app)/master/organizacoes/actions";
 import { Button } from "@/components/ui/button";
+
+/**
+ * "Entrar" (modo de suporte) — `enterOrganization()` redireciona pro
+ * `/painel` em caso de sucesso (o Next.js já trata o `redirect()` lançado
+ * de dentro de uma Server Action chamada pelo cliente); só precisa
+ * tratar o retorno quando dá erro (guarda de `is_platform_admin()`).
+ */
+export function EnterOrganizationButton({ campaignId }: { campaignId: string }) {
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function handleClick() {
+    setError(null);
+    startTransition(async () => {
+      const result = await enterOrganization(campaignId);
+      if (result && result.status === "error") {
+        setError(result.message ?? "Não foi possível entrar nesta organização.");
+      }
+    });
+  }
+
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <Button type="button" disabled={isPending} onClick={handleClick}>
+        {isPending ? "Entrando..." : "Entrar nesta organização"}
+      </Button>
+      {error && (
+        <p className="text-xs text-red-600" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function LinkSelfButton({ campaignId }: { campaignId: string }) {
   const [isPending, startTransition] = useTransition();
