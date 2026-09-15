@@ -1096,6 +1096,100 @@ export interface Database {
         >;
         Relationships: [];
       };
+      master_field_values: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          person_id: string;
+          field_name: "nome" | "cpf" | "data_nascimento" | "telefone" | "email" | "endereco";
+          value: string | null;
+          status:
+            | "nao_informado"
+            | "informado"
+            | "importado"
+            | "extraido"
+            | "compativel"
+            | "complementar"
+            | "divergente"
+            | "pendente"
+            | "validado"
+            | "rejeitado"
+            | "desatualizado"
+            | "bloqueado";
+          source: "cadastro" | "autocadastro" | "administrativo" | "importacao_excel" | "importacao_pdf" | "documento_ocr";
+          source_document_id: string | null;
+          informed_by: string | null;
+          validated_by: string | null;
+          validated_at: string | null;
+          valid_until: string | null;
+          open_conflict_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id?: string;
+          person_id: string;
+          field_name: "nome" | "cpf" | "data_nascimento" | "telefone" | "email" | "endereco";
+          value?: string | null;
+          status?:
+            | "nao_informado"
+            | "informado"
+            | "importado"
+            | "extraido"
+            | "compativel"
+            | "complementar"
+            | "divergente"
+            | "pendente"
+            | "validado"
+            | "rejeitado"
+            | "desatualizado"
+            | "bloqueado";
+          source?: "cadastro" | "autocadastro" | "administrativo" | "importacao_excel" | "importacao_pdf" | "documento_ocr";
+          source_document_id?: string | null;
+          informed_by?: string | null;
+          validated_by?: string | null;
+          validated_at?: string | null;
+          valid_until?: string | null;
+          open_conflict_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["master_field_values"]["Insert"]>;
+        Relationships: [];
+      };
+      master_field_history: {
+        Row: {
+          id: string;
+          master_field_value_id: string;
+          campaign_id: string;
+          person_id: string;
+          field_name: string;
+          previous_value: string | null;
+          previous_status: string | null;
+          new_value: string | null;
+          new_status: string;
+          changed_by: string | null;
+          change_reason: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          master_field_value_id: string;
+          campaign_id: string;
+          person_id: string;
+          field_name: string;
+          previous_value?: string | null;
+          previous_status?: string | null;
+          new_value?: string | null;
+          new_status: string;
+          changed_by?: string | null;
+          change_reason?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["master_field_history"]["Insert"]>;
+        Relationships: [];
+      };
       job_functions: {
         Row: {
           id: string;

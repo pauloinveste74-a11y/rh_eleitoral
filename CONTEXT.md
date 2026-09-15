@@ -55,6 +55,7 @@ partir da raiz do projeto — isso já está reforçado em `AGENTS.md`.
 | Cabeçalho/rodapé do contrato impresso + variáveis `{{organizacao_*}}` no corpo (docs/CENTRAL_INTELIGENCIA_RH_MATRIZ.md) | `/contratos/[id]`, `/master/organizacoes/[id]` | — |
 | Validação documental Etapa 1 — severidade, dupla aprovação (CPF/nome), duplicidade de documento entre pessoas diferentes (docs/VALIDACAO_DOCUMENTAL_MATRIZ.md) | `/divergencias` | — |
 | Biblioteca de contratos — catálogo dos 31 tipos PF/PJ nomeados + texto-base sugerido (docs/VALIDACAO_DOCUMENTAL_MATRIZ.md) | `/contratos/modelos` | — |
+| Registro mestre por campo — valor/situação/fonte/validador/histórico por campo (nome/cpf/nascimento/telefone/email/endereço), só leitura (docs/VALIDACAO_DOCUMENTAL_MATRIZ.md) | `/pessoas/[id]/editar` | — |
 
 **Ainda placeholder** (nunca implementados): **Ponto** (`/ponto`) e
 **Operações** (`/operacoes`) — são os dois únicos itens do menu sem

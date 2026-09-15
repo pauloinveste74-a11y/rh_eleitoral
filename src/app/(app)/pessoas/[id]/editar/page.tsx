@@ -11,6 +11,7 @@ import {
 } from "@/components/pessoas/person-form";
 import { PersonDocumentUpload } from "@/components/pessoas/person-document-upload";
 import { SendForApprovalCard } from "@/components/pessoas/send-for-approval-card";
+import { MasterFieldRecord } from "@/components/pessoas/master-field-record";
 import { documentTypeLabels } from "@/lib/validations/person";
 
 export const metadata: Metadata = { title: "Editar pessoa" };
@@ -30,6 +31,7 @@ export default async function EditarPessoaPage({
     { data: electoral },
     { data: documents },
     { data: cities },
+    { data: canViewMasterRecord },
   ] = await Promise.all([
     supabase.from("people").select("*").eq("id", id).maybeSingle(),
     supabase
@@ -54,10 +56,73 @@ export default async function EditarPessoaPage({
       .eq("status", "ativo")
       .order("created_at", { ascending: false }),
     supabase.from("cities").select("id, name").order("name"),
+    supabase.rpc("has_role", { role_codes: ["administrador", "rh"] }),
   ]);
 
   if (!person) {
     notFound();
+  }
+
+  type MasterFieldRow = {
+    id: string;
+    field_name: string;
+    value: string | null;
+    status: string;
+    source: string;
+    validated_by: string | null;
+    validated_at: string | null;
+    updated_at: string;
+  };
+  type MasterFieldHistoryRow = {
+    id: string;
+    master_field_value_id: string;
+    previous_value: string | null;
+    previous_status: string | null;
+    new_value: string | null;
+    new_status: string;
+    changed_by: string | null;
+    change_reason: string | null;
+    created_at: string;
+  };
+
+  let masterFields: MasterFieldRow[] = [];
+  const historyByFieldValueId = new Map<string, MasterFieldHistoryRow[]>();
+  let actorNameById = new Map<string, string>();
+
+  if (canViewMasterRecord) {
+    const { data: fields } = await supabase
+      .from("master_field_values")
+      .select("id, field_name, value, status, source, validated_by, validated_at, updated_at")
+      .eq("person_id", id);
+    masterFields = fields ?? [];
+
+    const fieldValueIds = masterFields.map((f) => f.id);
+    const { data: history } =
+      fieldValueIds.length > 0
+        ? await supabase
+            .from("master_field_history")
+            .select("id, master_field_value_id, previous_value, previous_status, new_value, new_status, changed_by, change_reason, created_at")
+            .in("master_field_value_id", fieldValueIds)
+            .order("created_at", { ascending: false })
+        : { data: [] };
+
+    for (const h of history ?? []) {
+      const list = historyByFieldValueId.get(h.master_field_value_id) ?? [];
+      list.push(h);
+      historyByFieldValueId.set(h.master_field_value_id, list);
+    }
+
+    const actorIds = [
+      ...new Set([
+        ...masterFields.map((f) => f.validated_by).filter((v): v is string => !!v),
+        ...(history ?? []).map((h) => h.changed_by).filter((v): v is string => !!v),
+      ]),
+    ];
+    const { data: actors } =
+      actorIds.length > 0
+        ? await supabase.from("profiles").select("id, full_name, email").in("id", actorIds)
+        : { data: [] as { id: string; full_name: string; email: string }[] };
+    actorNameById = new Map((actors ?? []).map((a) => [a.id, a.full_name || a.email]));
   }
 
   const defaultValues: Partial<PersonFormValues> = {
@@ -112,6 +177,21 @@ export default async function EditarPessoaPage({
           cities={cities ?? []}
           status={person.status}
         />
+
+        {canViewMasterRecord && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Registro mestre por campo</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <MasterFieldRecord
+                fields={masterFields}
+                historyByFieldValueId={historyByFieldValueId}
+                actorNameById={actorNameById}
+              />
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>

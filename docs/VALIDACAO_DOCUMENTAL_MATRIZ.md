@@ -215,3 +215,68 @@ militância não remunerada como tipo de documento separado, cláusulas
 de app/geolocalização, anexos numerados como entidade própria, os 22
 documentos auxiliares da seção 13, trilha de aprovação contábil e
 estado "arquivado" do modelo.
+
+## Registro mestre por campo — concluída
+
+Última peça pendente das duas matrizes (Caderno B, seção 14), a mais
+cara, deixada por último de propósito. Migração
+`0044_registro_mestre_por_campo.sql`:
+
+- `master_field_values` (uma linha "atual" por campo por pessoa,
+  `unique (person_id, field_name)`) + `master_field_history`
+  (append-only) — só os 6 campos do exemplo do próprio caderno
+  (seção 15): `nome`, `cpf`, `data_nascimento`, `telefone`, `email`,
+  `endereco`. Os 12 estados da seção 14 (`nao_informado` →
+  `informado` → `divergente` → `validado` → `desatualizado`...) viram
+  o `check` de `status`.
+- `set_master_field_value()` — único ponto de escrita (upsert +
+  histórico), mesmo padrão SECURITY DEFINER autoautorizado do resto
+  do projeto.
+- Backfill de toda `people`/`person_addresses` existente
+  (`status: 'informado'`, `source: 'cadastro'`) — todo mundo que já
+  existia entra rastreado desde já.
+- `resolve_data_conflict()` (a correção de nome que a Etapa 1 anterior
+  já aplicava em `people.full_name` após dupla aprovação) passa
+  também a chamar `set_master_field_value()` — `field_name: 'nome'`,
+  `status: 'validado'`, `validated_by` = quem deu a segunda aprovação.
+  Único write-path ligado nesta etapa — `savePerson()`
+  (`src/app/(app)/pessoas/actions.ts`) e os dois uploads de
+  importação continuam gravando só `people`/satélites direto (fora de
+  escopo, ver abaixo).
+- `/pessoas/[id]/editar` ganha o card "Registro mestre por campo"
+  (só leitura, só administrador/rh) — badge de situação por campo,
+  fonte, quem/quando validou, histórico em `<details>`.
+
+Verificado por transação de teste (`begin`/`rollback` explícitos —
+ver nota de processo abaixo): contagem do backfill batendo com quem
+tem cada coluna preenchida; conflito `dado_divergente` com dupla
+aprovação → confirma que a 1ª aprovação não mexe no registro mestre,
+e a 2ª (por pessoa diferente) grava `status: 'validado'`,
+`validated_by` correto e uma linha nova em `master_field_history` com
+o valor anterior certo (`null`, pessoa nova).
+
+**Nota de processo**: durante a verificação desta etapa, dois testes
+anteriores desta mesma sessão (Etapa 1 de validação documental e
+biblioteca de contratos) que não usavam `begin`/`rollback` explícitos
+tinham, na real, **persistido** dados de teste em produção (uma
+suposição errada de que a ferramenta de SQL fazia rollback automático
+sem commit). Encontrado e limpo por completo (pessoas de teste,
+conflitos, modelos/contratos de teste e a empresa de teste
+associados) antes de seguir — nenhum dado real do sistema foi
+afetado, a base de `people` estava vazia além desses dois registros
+de teste. Toda transação de verificação a partir de agora usa
+`begin`/`rollback` explícitos.
+
+**Fora desta etapa, sem mudança**: escrever no registro mestre a
+partir de `savePerson()`/importação (Excel e PDF) — os write-paths
+mais usados no dia a dia; detecção automática de `desatualizado`
+quando `people` muda fora do fluxo de conflito; campos fora dos 6
+escolhidos (bancários, PIX, eleitorais, RG); as outras 17 tabelas da
+seção 39 (pipeline de extração/OCR, qualidade documental, índice de
+identidade, confirmação pelo titular, bloqueio de pagamento);
+visibilidade pro titular.
+
+Com isso, as três frentes da recomendação original (validação
+documental, biblioteca de contratos, registro mestre por campo) estão
+concluídas — só o mascaramento de CPF, explicitamente adiado pelo
+usuário, continua fora do sistema.
