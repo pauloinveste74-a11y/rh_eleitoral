@@ -1,9 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Manrope, Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Tipografia da identidade visual (manual seção 5): Manrope pra títulos,
+// Inter pro corpo. Geist Mono seguiu como fonte monoespaçada (protocolo
+// de despesa, ação de auditoria, CPF mascarado) — o manual não cobre
+// monoespaçada, e trocar sem necessidade só adiciona risco.
+const manrope = Manrope({
+  variable: "--font-manrope",
+  subsets: ["latin"],
+});
+
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
@@ -22,13 +31,19 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
 };
 
+// Cor da barra do navegador/PWA — azul-marinho da marca (manual de
+// identidade visual, seção 3).
+export const viewport = {
+  themeColor: "#0a2947",
+};
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="pt-BR"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${manrope.variable} ${inter.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-slate-50 text-slate-950 dark:bg-slate-900 dark:text-slate-50">
+      <body className="flex min-h-full flex-col bg-surface-page font-sans text-brand-navy dark:bg-slate-900 dark:text-slate-50">
         {children}
       </body>
     </html>

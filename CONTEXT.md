@@ -225,6 +225,15 @@ faz) e **todas** as rotas do app, levantado direto do banco em produção.
 Use esse arquivo pra consulta rápida de "o que existe"; este `CONTEXT.md`
 e o `README.md` continuam sendo a referência de arquitetura/histórico.
 
+## Identidade visual
+
+`docs/IDENTIDADE_VISUAL.md` — acompanhamento da aplicação do manual de
+marca (`docs/MANUAL_IDENTIDADE_VISUAL_RH_ELEITORAL_FINAL.docx`, Agilize
+Tecnologia). Fase 1 (tokens em `globals.css`, tipografia Manrope/Inter,
+os 7 componentes de `src/components/ui/*`, navegação e login) já
+aplicada; Fase 2 (logo vetorial, telas com `slate-*` solto, sidebar
+recolhida, modo escuro de marca) documentada como pendente.
+
 ## O que falta para o sistema funcionar de ponta a ponta
 
 **Bloqueio ativo, único item realmente impeditivo:**

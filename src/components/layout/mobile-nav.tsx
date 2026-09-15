@@ -32,7 +32,7 @@ export function MobileNav() {
           role="dialog"
           aria-modal="true"
           aria-label="Menu de navegação"
-          className="fixed inset-0 top-14 z-40 overflow-y-auto bg-white p-4 dark:bg-slate-950"
+          className="fixed inset-0 top-16 z-40 overflow-y-auto bg-brand-navy p-4 dark:bg-slate-950"
           onKeyDown={(e) => {
             if (e.key === "Escape") setOpen(false);
           }}

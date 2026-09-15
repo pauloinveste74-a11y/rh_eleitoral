@@ -16,10 +16,10 @@ export const metadata: Metadata = {
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 dark:bg-slate-900">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-brand-navy px-4 dark:bg-slate-900">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold text-slate-900 dark:text-slate-50">
+          <CardTitle className="font-heading text-xl font-bold text-brand-navy dark:text-slate-50">
             RH Eleitoral
           </CardTitle>
           <CardDescription>
@@ -32,6 +32,12 @@ export default function LoginPage() {
           </Suspense>
         </CardContent>
       </Card>
+      {/* Assinatura institucional — manual de identidade visual, seções 8 e 11.1. */}
+      <p className="text-center text-xs text-white/60">
+        Agilize Tecnologia Ltda. · Desenvolvimento de Sistemas
+        <br />
+        @agilizetecnologia
+      </p>
     </div>
   );
 }

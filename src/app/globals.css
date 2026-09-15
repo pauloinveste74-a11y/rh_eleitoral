@@ -1,14 +1,71 @@
 @import "tailwindcss";
 
+/*
+ * Tokens de marca — Manual de identidade visual do RH Eleitoral
+ * (Agilize Tecnologia Ltda., v1.0). Nomes e valores batem exatamente com
+ * a seção 12 ("Tokens para implementação") do manual — esta é a fonte
+ * técnica de verdade citada lá, centralizada aqui em vez de espalhada
+ * como valor solto nos componentes (seção 12.1).
+ *
+ * Modo escuro: o manual pede pra só ser desenhado depois do modo claro
+ * homologado (seção 12.1) — os componentes de src/components/ui/* e
+ * layout continuam usando as classes dark: que já existiam (paleta
+ * slate), só o modo claro ganhou a marca. Os tokens abaixo estão
+ * disponíveis pra quando o modo escuro de marca for desenhado.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --brand-navy: #0a2947;
+  --brand-gold: #b7943e;
+  --brand-graphite: #4b5158;
+  --surface-page: #f7f6f1;
+  --surface-card: #ffffff;
+  --border-default: #d8dde3;
+  --state-info: #2e6da4;
+  --state-info-soft: #eaf2f8;
+  --state-success: #19795a;
+  --state-success-soft: #e8f5ef;
+  --state-warning: #b56816;
+  --state-warning-soft: #fff3e2;
+  --state-danger: #b93b45;
+  --state-danger-soft: #fcecef;
+  --state-neutral: #5f6872;
+  --state-neutral-soft: #f0f2f4;
+  --radius-field: 8px;
+  --radius-card: 12px;
+  --shadow-card: 0 2px 10px rgba(10, 41, 71, 0.06);
+  --focus-ring: 0 0 0 3px rgba(46, 109, 164, 0.28);
+
+  --background: var(--surface-page);
+  --foreground: var(--brand-navy);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-gold: var(--brand-gold);
+  --color-brand-graphite: var(--brand-graphite);
+  --color-surface-page: var(--surface-page);
+  --color-surface-card: var(--surface-card);
+  --color-border-default: var(--border-default);
+  --color-state-info: var(--state-info);
+  --color-state-info-soft: var(--state-info-soft);
+  --color-state-success: var(--state-success);
+  --color-state-success-soft: var(--state-success-soft);
+  --color-state-warning: var(--state-warning);
+  --color-state-warning-soft: var(--state-warning-soft);
+  --color-state-danger: var(--state-danger);
+  --color-state-danger-soft: var(--state-danger-soft);
+  --color-state-neutral: var(--state-neutral);
+  --color-state-neutral-soft: var(--state-neutral-soft);
+
+  --radius-field: var(--radius-field);
+  --radius-card: var(--radius-card);
+  --shadow-card: var(--shadow-card);
+
+  --font-sans: var(--font-inter);
+  --font-heading: var(--font-manrope);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -22,5 +79,4 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }

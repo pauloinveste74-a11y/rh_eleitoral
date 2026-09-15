@@ -4,7 +4,7 @@
   "description": "Sistema de gestão de pessoas, operações e pagamentos para campanha eleitoral.",
   "start_url": "/painel",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#0f172a",
+  "background_color": "#f7f6f1",
+  "theme_color": "#0a2947",
   "icons": []
 }

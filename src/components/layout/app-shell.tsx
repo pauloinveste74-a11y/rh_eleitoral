@@ -16,10 +16,13 @@ export function AppShell({
     <div className="flex min-h-screen flex-col">
       <Topbar userLabel={userLabel} campaignLabel={campaignLabel} />
       <div className="flex flex-1">
-        <aside className="hidden w-60 shrink-0 border-r border-slate-200 p-4 md:block dark:border-slate-800">
+        {/* Barra lateral azul-marinho, 240 px — manual de identidade visual, seção 6.1. */}
+        <aside className="hidden w-60 shrink-0 bg-brand-navy p-4 md:block dark:border-r dark:border-slate-800 dark:bg-transparent">
           <SidebarNav />
         </aside>
-        <main className="min-w-0 flex-1 p-4 sm:p-6">{children}</main>
+        <main className="min-w-0 flex-1 bg-surface-page p-4 sm:p-6 dark:bg-transparent">
+          {children}
+        </main>
       </div>
     </div>
   );

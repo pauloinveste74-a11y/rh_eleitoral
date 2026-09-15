@@ -24,13 +24,13 @@ export function NavLink({
       onClick={onNavigate}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+        "flex items-center gap-3 rounded-field border-l-2 px-3 py-2 text-sm font-medium transition-colors",
         isActive
-          ? "bg-slate-900 text-slate-50 dark:bg-slate-50 dark:text-slate-900"
-          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-50",
+          ? "border-brand-gold bg-white/10 text-white dark:border-slate-50 dark:bg-slate-800 dark:text-slate-50"
+          : "border-transparent text-white/70 hover:bg-white/5 hover:text-white dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-50",
       )}
     >
-      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+      <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
       {item.label}
     </Link>
   );

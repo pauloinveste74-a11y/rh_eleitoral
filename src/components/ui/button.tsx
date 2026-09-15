@@ -5,21 +5,23 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-slate-950 dark:focus-visible:ring-slate-300",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-field text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-state-info/28 dark:focus-visible:ring-slate-300",
   {
     variants: {
+      // Botão primário/secundário/destrutivo conforme manual de
+      // identidade visual seção 7 — uma ação primária por contexto.
       variant: {
         default:
-          "bg-slate-900 text-slate-50 hover:bg-slate-900/90 dark:bg-slate-50 dark:text-slate-900 dark:hover:bg-slate-50/90",
+          "bg-brand-navy text-white hover:bg-brand-navy/90 dark:bg-slate-50 dark:text-slate-900 dark:hover:bg-slate-50/90",
         outline:
-          "border border-slate-200 bg-white hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-950 dark:hover:bg-slate-800",
-        ghost: "hover:bg-slate-100 dark:hover:bg-slate-800",
-        destructive: "bg-red-600 text-white hover:bg-red-600/90",
+          "border border-brand-navy bg-white text-brand-navy hover:bg-state-info-soft dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50 dark:hover:bg-slate-800",
+        ghost: "text-brand-graphite hover:bg-state-neutral-soft dark:text-slate-300 dark:hover:bg-slate-800",
+        destructive: "bg-state-danger text-white hover:bg-state-danger/90",
       },
       size: {
         default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
+        sm: "h-9 rounded-field px-3",
+        lg: "h-11 rounded-field px-8",
       },
     },
     defaultVariants: {

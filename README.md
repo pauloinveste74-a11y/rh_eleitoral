@@ -900,6 +900,17 @@ peça nova e ainda maior que contratos, com `data_conflicts` esperando
 desde a migração `0018` — ou pagamentos com modelo rico (conciliação,
 PIX/TED, spec 14). A decidir com o usuário.
 
+## Identidade visual (docs/IDENTIDADE_VISUAL.md)
+
+Manual de identidade visual entregue por Agilize Tecnologia Ltda.
+(`docs/MANUAL_IDENTIDADE_VISUAL_RH_ELEITORAL_FINAL.docx`) — Fase 1
+aplicada: tokens de marca (`src/app/globals.css`), tipografia Manrope +
+Inter, os 7 componentes de `src/components/ui/*` e a navegação/login
+reskinados com a paleta azul-marinho/dourado/grafite e a paleta
+funcional de status do manual. Ver `docs/IDENTIDADE_VISUAL.md` pro
+detalhe completo e o que ainda falta (logo vetorial, telas com
+`slate-*` solto, sidebar recolhida, modo escuro de marca).
+
 ## Stack
 
 - [Next.js 16](https://nextjs.org) (App Router, Turbopack) + TypeScript estrito

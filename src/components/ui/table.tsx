@@ -14,7 +14,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       className={cn(
-        "border-b border-slate-200 text-left text-xs font-medium text-slate-500 uppercase dark:border-slate-800 dark:text-slate-400",
+        "border-b border-border-default bg-state-info-soft text-left text-xs font-medium text-brand-navy uppercase dark:border-slate-800 dark:bg-transparent dark:text-slate-400",
         className,
       )}
       {...props}
@@ -26,7 +26,7 @@ function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
   return (
     <tbody
       className={cn(
-        "divide-y divide-slate-100 dark:divide-slate-800",
+        "divide-y divide-border-default dark:divide-slate-800",
         className,
       )}
       {...props}
@@ -37,20 +37,20 @@ function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
 function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   return (
     <tr
-      className={cn("hover:bg-slate-50 dark:hover:bg-slate-900", className)}
+      className={cn("hover:bg-state-neutral-soft dark:hover:bg-slate-900", className)}
       {...props}
     />
   );
 }
 
 function TableHead({ className, ...props }: React.ComponentProps<"th">) {
-  return <th className={cn("px-4 py-3 font-medium", className)} {...props} />;
+  return <th className={cn("h-12 px-4 py-3 font-medium", className)} {...props} />;
 }
 
 function TableCell({ className, ...props }: React.ComponentProps<"td">) {
   return (
     <td
-      className={cn("px-4 py-3 text-slate-700 dark:text-slate-300", className)}
+      className={cn("px-4 py-3 text-brand-graphite dark:text-slate-300", className)}
       {...props}
     />
   );
