@@ -77,7 +77,7 @@ README, seção "Modelo de dados"):
 - `0011`: `rh` ganha leitura/edição de outros `profiles` (pra tela de
   Usuários).
 - `0012`: `profiles.phone`.
-- `0013`–`0025`: **camada de banco de uma iniciativa nova e separada**
+- `0013`–`0026`: **camada de banco de uma iniciativa nova e separada**
   (spec `docs/IMPLEMENTACAO_CADASTRO_IMPORTACAO_DESPESAS.md` — autocadastro
   por convite, cadeia de coordenação, importação por Excel, despesas com
   autorizador/alçada). Aplicadas e verificadas (advisors + testes
@@ -105,7 +105,10 @@ README, seção "Modelo de dados"):
   `create or replace` (Postgres identifica função por assinatura
   completa; só crescer a lista teria criado uma sobrecarga em vez de
   substituir). Também soma `financeiro` a `profiles_select` (mesmo
-  padrão aditivo de `0010`/`0011`).
+  padrão aditivo de `0010`/`0011`). `0026` (Etapa 8) só soma a policy de
+  `delete` que faltava em `expense_authorization_rules` (tinha
+  select/insert/update desde a `0020`, mas nunca delete) — necessária
+  pra `/despesas/alcadas` poder remover uma regra.
 
 ## Etapas 3 a 6 — páginas de aplicação (autocadastro, validações e importação)
 

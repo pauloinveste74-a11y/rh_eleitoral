@@ -8,8 +8,22 @@ import {
 } from "@/components/ui/table";
 import { formatCentsAsBRL } from "@/lib/validations/payment";
 import { expenseCategoryLabels } from "@/lib/validations/expense";
+import type { AlcadaStatus } from "@/lib/expenses/alcada";
+import { Badge } from "@/components/ui/badge";
 import { ExpenseStatusBadge } from "./expense-status-badge";
 import { ExpenseDecisionForm } from "./expense-decision-form";
+
+const ALCADA_LABEL: Record<AlcadaStatus, string> = {
+  dentro: "Dentro da alçada",
+  fora: "Fora da alçada",
+  sem_regra: "Sem regra definida",
+};
+
+const ALCADA_VARIANT: Record<AlcadaStatus, "success" | "destructive" | "secondary"> = {
+  dentro: "success",
+  fora: "destructive",
+  sem_regra: "secondary",
+};
 
 export type ExpenseRow = {
   id: string;
@@ -22,6 +36,7 @@ export type ExpenseRow = {
   protocol: string | null;
   authorizerName: string | null;
   unidentifiedAuthorizer: boolean;
+  alcadaStatus: AlcadaStatus | null;
 };
 
 export function ExpenseList({
@@ -75,6 +90,11 @@ export function ExpenseList({
                 <span className="block text-xs font-normal text-amber-600">
                   não identificado no sistema
                 </span>
+              )}
+              {row.alcadaStatus && (
+                <Badge variant={ALCADA_VARIANT[row.alcadaStatus]} className="mt-1">
+                  {ALCADA_LABEL[row.alcadaStatus]}
+                </Badge>
               )}
             </TableCell>
             <TableCell>{formatCentsAsBRL(row.amountCents)}</TableCell>

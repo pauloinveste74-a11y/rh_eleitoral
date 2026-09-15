@@ -121,3 +121,23 @@ export const expenseSchema = z
     }
   });
 export type ExpenseInput = z.infer<typeof expenseSchema>;
+
+/**
+ * Etapa 8 — regra de alçada (expense_authorization_rules, criada na
+ * Etapa 1). Só por papel nesta etapa (não por pessoa específica) — a
+ * coluna `profile_id` fica pronta no banco pra uma regra futura mais fina,
+ * mas a tela só cria regra por papel, caso de uso mais comum.
+ */
+export const alcadaRuleSchema = z.object({
+  roleId: z.uuid({ error: "Selecione o papel." }),
+  maxAmountReais: z
+    .string()
+    .trim()
+    .refine((v) => v !== "" && !Number.isNaN(Number(v)) && Number(v) > 0, {
+      error: "Informe um valor válido, maior que zero.",
+    })
+    .transform((v) => Math.round(Number(v) * 100)),
+  axisId: z.string().optional().or(z.literal("")),
+  cityId: z.string().optional().or(z.literal("")),
+});
+export type AlcadaRuleInput = z.infer<typeof alcadaRuleSchema>;

@@ -24,12 +24,12 @@ Sistema de gestão de pessoas, operações e pagamentos para campanha eleitoral.
 > por convite, cadeia de coordenação, importação em lote por Excel e uma
 > reformulação de Despesas com autorizador/alçada — ver
 > [MVP — Cadastro, Convite, Coordenação, Importação e Despesas](#mvp--cadastro-convite-coordenação-importação-e-despesas)
-> logo abaixo. As Etapas 1 a 7 estão implementadas — banco (migrações
-> `0013`–`0025`) aplicado e verificado em produção; app
+> logo abaixo. As Etapas 1 a 8 estão implementadas — banco (migrações
+> `0013`–`0026`) aplicado e verificado em produção; app
 > (`/meu-cadastro`, `/minha-equipe`, `/cadastro/[token]`, `/validacoes`,
-> `/importacoes` e o `/despesas` com autorizador de registro) passando em
-> `typecheck`/`lint`/`build`. Todos os pontos da spec original têm
-> implementação funcional agora.
+> `/importacoes`, `/despesas` com autorizador de registro e
+> `/despesas/alcadas`) passando em `typecheck`/`lint`/`build`. Todos os
+> pontos da spec original têm implementação funcional agora.
 
 ## MVP — Cadastro, Convite, Coordenação, Importação e Despesas
 
@@ -417,13 +417,44 @@ existe):**
   `financeiro` real pra confirmar a leitura de `profiles` na prática
   (mesma limitação de sempre).
 
-Com a Etapa 7, todos os pontos da especificação original
-(`docs/IMPLEMENTACAO_CADASTRO_IMPORTACAO_DESPESAS.md`) têm implementação
-funcional — autocadastro, cadeia de coordenação, validação em duas
-instâncias, importação em lote e despesas com autorizador de registro.
-Pendências que restam são refinamentos documentados etapa a etapa acima
-(revisão campo a campo, reversão de importação, configuração de alçada
-pela UI), não pontos inteiros da spec sem nenhuma implementação.
+**Etapa 8 — configuração de alçada pela UI (concluída):**
+
+- Migração `0026_etapa8_alcada_delete_policy.sql`: único ajuste de
+  banco — `expense_authorization_rules` (criada na Etapa 1) tinha
+  `select`/`insert`/`update` para `administrador`, mas nenhuma policy
+  de `delete` (RLS bloqueia por padrão sem uma policy explícita); sem
+  ela, a tela de configuração não conseguiria remover uma regra criada
+  por engano. Resto desta etapa é só app — mesmo espírito de
+  `/importacoes` (Etapa 6), sem função `SECURITY DEFINER` nova.
+- `/despesas/alcadas` (só `administrador`, via `is_admin()` — não
+  `administrador`/`rh` como o resto de Despesas): cria regra de alçada
+  por papel (com teto em R$, escopo opcional de eixo ou cidade) e lista/
+  remove regras existentes. Regra por pessoa específica
+  (`expense_authorization_rules.profile_id`) fica pronta no banco, sem
+  UI ainda — só a mais comum (por papel) tem tela.
+- `/despesas` (lista) ganhou um selo "Dentro da alçada" / "Fora da
+  alçada" / "Sem regra definida" por despesa com autorizador identificado
+  no sistema — calculado comparando o valor pedido contra o maior teto
+  entre as regras que batem com QUALQUER papel vigente do autorizador
+  (`src/lib/expenses/alcada.ts`). **Simplificação deliberada**: a
+  checagem não considera o escopo de eixo/cidade da regra, só o papel —
+  a regra pode ser cadastrada com escopo, mas o indicador ainda não
+  filtra por ele. Continua **só informativo**: não bloqueia criação nem
+  decisão de despesa.
+- **Verificado**: criar e remover uma regra testado direto no banco em
+  transação com `rollback`, sem dado residual.
+- `npm run typecheck`/`lint`/`build` — sem erros nem avisos;
+  `/despesas/alcadas` aparece no build.
+- **Riscos/pendências**: indicador de alçada não considera escopo de
+  eixo/cidade (só papel); sem regra por pessoa específica na UI; sem
+  teste via navegador (Playwright pausado).
+
+Com a Etapa 8, a única lacuna que restava explicitamente citada no nome
+da spec ("despesas com autorizador **e alçada**") tem UI própria. As
+pendências que sobram em toda a iniciativa são refinamentos pontuais já
+documentados etapa a etapa acima (revisão campo a campo, reversão de
+importação, escopo fino do indicador de alçada, regra de alçada por
+pessoa) — não pontos inteiros da spec sem nenhuma implementação.
 
 ## Stack
 

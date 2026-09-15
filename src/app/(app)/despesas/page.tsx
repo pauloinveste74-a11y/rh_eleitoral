@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ExpenseList, type ExpenseRow } from "@/components/despesas/expense-list";
+import { computeAlcadaStatus } from "@/lib/expenses/alcada";
 
 export const metadata: Metadata = { title: "Despesas" };
 
@@ -21,7 +22,7 @@ export default async function DespesasPage() {
       supabase
         .from("expenses")
         .select(
-          "id, person_id, category, amount_cents, expense_date, receipt_storage_path, status, protocol, authorizer_name_snapshot, unidentified_authorizer, unidentified_authorizer_name",
+          "id, person_id, category, amount_cents, requested_amount_cents, expense_date, receipt_storage_path, status, protocol, authorizer_name_snapshot, unidentified_authorizer, unidentified_authorizer_name, authorized_by_profile_id",
         )
         .order("expense_date", { ascending: false }),
     ]);
@@ -36,6 +37,32 @@ export default async function DespesasPage() {
     (people ?? []).map((p) => [p.id, p.social_name || p.full_name]),
   );
 
+  // Indicador de alçada (Etapa 8, só informativo): papéis vigentes de cada
+  // autorizador (pessoa do sistema) + regras da campanha, pra comparar
+  // contra o valor pedido — ver src/lib/expenses/alcada.ts.
+  const authorizerIds = Array.from(
+    new Set(
+      (expenses ?? [])
+        .map((e) => e.authorized_by_profile_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  );
+  const [{ data: authorizerRoles }, { data: rules }] = await Promise.all([
+    authorizerIds.length > 0
+      ? supabase
+          .from("profile_roles")
+          .select("profile_id, role_id")
+          .in("profile_id", authorizerIds)
+      : Promise.resolve({ data: [] as { profile_id: string; role_id: string }[] }),
+    supabase.from("expense_authorization_rules").select("role_id, max_amount_cents"),
+  ]);
+  const roleIdsByProfile = new Map<string, string[]>();
+  for (const pr of authorizerRoles ?? []) {
+    const list = roleIdsByProfile.get(pr.profile_id) ?? [];
+    list.push(pr.role_id);
+    roleIdsByProfile.set(pr.profile_id, list);
+  }
+
   const rows: ExpenseRow[] = await Promise.all(
     (expenses ?? []).map(async (e) => ({
       id: e.id,
@@ -48,6 +75,13 @@ export default async function DespesasPage() {
       protocol: e.protocol,
       authorizerName: e.authorizer_name_snapshot ?? e.unidentified_authorizer_name,
       unidentifiedAuthorizer: e.unidentified_authorizer,
+      alcadaStatus: e.authorized_by_profile_id
+        ? computeAlcadaStatus(
+            e.requested_amount_cents ?? e.amount_cents,
+            roleIdsByProfile.get(e.authorized_by_profile_id) ?? [],
+            rules ?? [],
+          )
+        : null,
     })),
   );
 
@@ -59,15 +93,20 @@ export default async function DespesasPage() {
     <>
       <PageHeader
         title="Despesas"
-        description="Reembolso de gastos de pessoas da equipe, com comprovante."
+        description="Reembolso de gastos de pessoas da equipe, com comprovante e autorizador de registro."
       />
-      {canCreate && (
-        <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex justify-end gap-2">
+        {isAdmin && (
+          <Button variant="outline" asChild>
+            <Link href="/despesas/alcadas">Configurar alçadas</Link>
+          </Button>
+        )}
+        {canCreate && (
           <Button asChild>
             <Link href="/despesas/novo">Nova despesa</Link>
           </Button>
-        </div>
-      )}
+        )}
+      </div>
       <Card>
         <CardContent className="p-6">
           <ExpenseList rows={rows} canCancel={canCancel} canDecide={canDecide} />
