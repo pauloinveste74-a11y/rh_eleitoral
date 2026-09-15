@@ -62,3 +62,7 @@ Thumbs.db
 
 .vercel
 .env*
+
+# config local do Claude Code — settings.local.json já teve senha real
+# de teste em texto puro numa allowlist de permissão; nunca versionar
+.claude/
