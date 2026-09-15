@@ -159,6 +159,30 @@ export async function uploadImportBatch(
     .eq("campaign_id", campaignId);
   const axisIdByName = new Map((axesRows ?? []).map((a) => [normalizeHeader(a.name), a.id]));
 
+  // teams não tem campaign_id direto (só city_id) — passa pelas cidades da
+  // campanha. Nome de equipe só é único POR CIDADE (unique (city_id, name)),
+  // então um nome repetido em cidades diferentes fica ambíguo de propósito:
+  // não entra no mapa, a linha cai no mesmo tratamento de "não encontrado".
+  const { data: campaignCities } = await supabase
+    .from("cities")
+    .select("id")
+    .eq("campaign_id", campaignId);
+  const cityIds = (campaignCities ?? []).map((c) => c.id);
+  const { data: teamRows } =
+    cityIds.length > 0
+      ? await supabase.from("teams").select("id, name").in("city_id", cityIds)
+      : { data: [] as { id: string; name: string }[] };
+  const teamNameCounts = new Map<string, number>();
+  for (const t of teamRows ?? []) {
+    const key = normalizeHeader(t.name);
+    teamNameCounts.set(key, (teamNameCounts.get(key) ?? 0) + 1);
+  }
+  const teamIdByName = new Map(
+    (teamRows ?? [])
+      .map((t) => [normalizeHeader(t.name), t.id] as const)
+      .filter(([key]) => teamNameCounts.get(key) === 1),
+  );
+
   const { data: jobFunctionRows } = await supabase
     .from("job_functions")
     .select("id, name")
@@ -196,7 +220,12 @@ export async function uploadImportBatch(
     }
   }
 
-  const refs: ImportReferenceMaps = { axisIdByName, jobFunctionIdByName, activePeopleByName };
+  const refs: ImportReferenceMaps = {
+    axisIdByName,
+    teamIdByName,
+    jobFunctionIdByName,
+    activePeopleByName,
+  };
 
   const cpfsSeenInFile = new Set<string>();
   const classified = mergedRows.map((row, i) =>
@@ -590,7 +619,9 @@ export async function confirmImportBatch(
       bank?: Record<string, string>;
       electoral?: Record<string, string>;
       vehicle?: Record<string, string>;
+      engagement?: Record<string, string>;
       axisId?: string;
+      teamId?: string;
       jobFunctionId?: string;
       coordinatorPersonId?: string;
     } | null;
@@ -642,12 +673,13 @@ export async function confirmImportBatch(
       await supabase.from("person_addresses").insert({
         person_id: personId,
         zip_code: a.zipCode,
-        street: a.street,
+        street: a.street || null,
         number: a.number || null,
         complement: a.complement || null,
-        neighborhood: a.neighborhood,
-        city: a.city,
-        state: a.state?.toUpperCase(),
+        neighborhood: a.neighborhood || null,
+        city: a.city || null,
+        state: a.state ? a.state.toUpperCase() : null,
+        full_address: a.fullAddress || null,
         created_by: user.id,
         updated_by: user.id,
       });
@@ -695,11 +727,24 @@ export async function confirmImportBatch(
         updated_by: user.id,
       });
     }
-    if (data?.axisId) {
+    if (data?.engagement) {
+      const eng = data.engagement;
+      await supabase.from("person_engagement_data").insert({
+        person_id: personId,
+        campaign_id: batchRow.campaign_id,
+        leadership_note: eng.leadershipNote || null,
+        referral_name: eng.referralName || null,
+        contracting_type_note: eng.contractingTypeNote || null,
+        created_by: user.id,
+        updated_by: user.id,
+      });
+    }
+    if (data?.axisId || data?.teamId) {
       await supabase.from("organizational_assignments").insert({
         person_id: personId,
         campaign_id: batchRow.campaign_id,
-        axis_id: data.axisId,
+        axis_id: data.axisId || null,
+        team_id: data.teamId || null,
         status: "vigente",
         created_by: user.id,
       });

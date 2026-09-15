@@ -10,6 +10,7 @@ export {
   bankAccountSchema,
   electoralDataSchema,
   vehicleSchema,
+  engagementSchema,
   documentTypes,
   documentTypeLabels,
   isSectionEmpty,
@@ -20,4 +21,5 @@ export type {
   BankAccountInput,
   ElectoralDataInput,
   VehicleInput,
+  EngagementInput,
 } from "./person";

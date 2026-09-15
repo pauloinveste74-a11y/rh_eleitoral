@@ -6,6 +6,7 @@ import { classifyRow, type ClassifiedRow, type ImportReferenceMaps } from "./per
 /** PDF não extrai eixo/coordenador/função por regex — mapas sempre vazios, então essa resolução nunca dispara. */
 const EMPTY_REFERENCE_MAPS: ImportReferenceMaps = {
   axisIdByName: new Map(),
+  teamIdByName: new Map(),
   jobFunctionIdByName: new Map(),
   activePeopleByName: new Map(),
 };

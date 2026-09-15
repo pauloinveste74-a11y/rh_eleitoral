@@ -346,12 +346,15 @@ export interface Database {
           person_id: string;
           campaign_id: string;
           zip_code: string;
-          street: string;
+          street: string | null;
           number: string | null;
           complement: string | null;
-          neighborhood: string;
-          city: string;
-          state: string;
+          neighborhood: string | null;
+          city: string | null;
+          state: string | null;
+          // Migração 0047 — endereço em texto único, quando a fonte não
+          // separa rua/bairro/cidade/UF (planilha de importação real).
+          full_address: string | null;
           created_by: string | null;
           updated_by: string | null;
         } & Timestamps;
@@ -360,12 +363,13 @@ export interface Database {
           person_id: string;
           campaign_id?: string;
           zip_code: string;
-          street: string;
+          street?: string | null;
           number?: string | null;
           complement?: string | null;
-          neighborhood: string;
-          city: string;
-          state: string;
+          neighborhood?: string | null;
+          city?: string | null;
+          state?: string | null;
+          full_address?: string | null;
           created_by?: string | null;
           updated_by?: string | null;
         };
@@ -466,6 +470,30 @@ export interface Database {
           updated_by?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["person_vehicles"]["Insert"]>;
+        Relationships: [];
+      };
+      person_engagement_data: {
+        Row: {
+          id: string;
+          person_id: string;
+          campaign_id: string;
+          leadership_note: string | null;
+          referral_name: string | null;
+          contracting_type_note: string | null;
+          created_by: string | null;
+          updated_by: string | null;
+        } & Timestamps;
+        Insert: Partial<Timestamps> & {
+          id?: string;
+          person_id: string;
+          campaign_id?: string;
+          leadership_note?: string | null;
+          referral_name?: string | null;
+          contracting_type_note?: string | null;
+          created_by?: string | null;
+          updated_by?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["person_engagement_data"]["Insert"]>;
         Relationships: [];
       };
       payments: {

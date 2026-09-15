@@ -30,18 +30,35 @@ export const personSchema = z.object({
 });
 export type PersonInput = z.infer<typeof personSchema>;
 
-export const addressSchema = z.object({
-  zipCode: z
-    .string()
-    .transform((v) => v.replace(/\D/g, ""))
-    .refine((v) => v.length === 8, { error: "CEP deve conter 8 dígitos." }),
-  street: z.string().trim().min(1, { error: "Informe o logradouro." }),
-  number: z.string().trim().max(20).optional().or(z.literal("")),
-  complement: z.string().trim().max(100).optional().or(z.literal("")),
-  neighborhood: z.string().trim().min(1, { error: "Informe o bairro." }),
-  city: z.string().trim().min(1, { error: "Informe a cidade." }),
-  state: z.string().length(2, { error: "UF deve ter 2 letras." }),
-});
+/**
+ * Endereço: aceita o conjunto separado de sempre (rua/bairro/cidade/UF) OU,
+ * quando a fonte não separa isso (planilha real de importação com uma única
+ * coluna "Endereço Completo"), o texto inteiro em `fullAddress` — nunca os
+ * dois vazios ao mesmo tempo. `person_addresses` no banco não exige mais os
+ * campos separados como NOT NULL (migração 0047); a obrigatoriedade de "um
+ * conjunto ou o outro" vive só aqui.
+ */
+export const addressSchema = z
+  .object({
+    zipCode: z
+      .string()
+      .transform((v) => v.replace(/\D/g, ""))
+      .refine((v) => v.length === 8, { error: "CEP deve conter 8 dígitos." }),
+    street: z.string().trim().max(200).optional().or(z.literal("")),
+    number: z.string().trim().max(20).optional().or(z.literal("")),
+    complement: z.string().trim().max(100).optional().or(z.literal("")),
+    neighborhood: z.string().trim().max(120).optional().or(z.literal("")),
+    city: z.string().trim().max(120).optional().or(z.literal("")),
+    state: z.string().length(2, { error: "UF deve ter 2 letras." }).optional().or(z.literal("")),
+    fullAddress: z.string().trim().max(300).optional().or(z.literal("")),
+  })
+  .refine(
+    (v) => (v.street && v.neighborhood && v.city && v.state) || v.fullAddress,
+    {
+      error: "Informe rua, bairro, cidade e UF completos, ou o endereço completo num único campo.",
+      path: ["street"],
+    },
+  );
 export type AddressInput = z.infer<typeof addressSchema>;
 
 export const bankAccountSchema = z.object({
@@ -101,6 +118,20 @@ export const vehicleSchema = z.object({
     .refine((v) => v.length >= 9 && v.length <= 11, { error: "Renavam deve ter entre 9 e 11 dígitos." }),
 });
 export type VehicleInput = z.infer<typeof vehicleSchema>;
+
+/**
+ * Liderança comunitária / indicação / tipo de contratação — texto livre, sem
+ * campo obrigatório (a seção inteira é opcional; `isSectionEmpty` decide se
+ * grava). Mesmo nível de acesso das demais satélites (person_engagement_data,
+ * migração 0047) — decisão explícita do usuário, sem camada extra de
+ * restrição apesar de "liderança"/"indicação" revelarem atuação política.
+ */
+export const engagementSchema = z.object({
+  leadershipNote: z.string().trim().max(300).optional().or(z.literal("")),
+  referralName: z.string().trim().max(200).optional().or(z.literal("")),
+  contractingTypeNote: z.string().trim().max(100).optional().or(z.literal("")),
+});
+export type EngagementInput = z.infer<typeof engagementSchema>;
 
 export const documentTypes = [
   "rg",

@@ -7,6 +7,7 @@ import {
   bankAccountSchema,
   electoralDataSchema,
   vehicleSchema,
+  engagementSchema,
   isSectionEmpty,
 } from "@/lib/validations/registration";
 import { sanitizeCpf } from "@/lib/validations/cpf";
@@ -29,6 +30,7 @@ const ADDRESS_KEYS = [
   "neighborhood",
   "city",
   "state",
+  "fullAddress",
 ];
 const BANK_KEYS = [
   "bankCode",
@@ -49,6 +51,7 @@ const ELECTORAL_KEYS = [
   "voterState",
 ];
 const VEHICLE_KEYS = ["vehicleBrand", "vehicleModel", "vehiclePlate", "vehicleRenavam"];
+const ENGAGEMENT_KEYS = ["leadershipNote", "referralName", "contractingTypeNote"];
 
 export type ImportRowResult =
   | "pronta"
@@ -73,6 +76,7 @@ export type ClassifiedRow = {
 /** Mapas de referência (por campanha) usados para resolver eixo/coordenador/função por nome. */
 export type ImportReferenceMaps = {
   axisIdByName: Map<string, string>;
+  teamIdByName: Map<string, string>;
   jobFunctionIdByName: Map<string, string>;
   /** Nome normalizado -> lista de IDs de pessoas ativas com esse nome (mais de um = ambíguo). */
   activePeopleByName: Map<string, string[]>;
@@ -189,6 +193,31 @@ export function classifyRow(
 ): ClassifiedRow {
   const errors: ImportRowError[] = [];
 
+  // A coluna de identificação pode trazer CNPJ (pessoa jurídica) em vez de
+  // CPF quando a planilha mistura PF e PJ na mesma aba (ex.: "CPF/CNPJ*").
+  // Este import é só de pessoa física por enquanto — decisão confirmada com
+  // o usuário, tratamento de PJ (legal_entities) fica pra uma etapa própria.
+  // Detecta pelo tamanho do valor normalizado (14 dígitos = CNPJ) em vez de
+  // depender de uma coluna "Tipo" separada, que nem toda planilha tem.
+  const rawIdentifier = rawData.cpf?.replace(/\D/g, "") ?? "";
+  if (rawIdentifier.length === 14) {
+    return {
+      rowNumber,
+      rawData,
+      normalizedData: null,
+      result: "invalida",
+      cpf: null,
+      fullName: rawData.fullName?.trim() || null,
+      errors: [
+        {
+          field: "cpf",
+          message: "Pessoa jurídica (CNPJ) — esta importação só aceita pessoa física por enquanto.",
+        },
+      ],
+      warnings: mergeWarnings,
+    };
+  }
+
   const personParsed = personSchema.safeParse(fieldsOf(rawData, PERSON_KEYS));
   if (!personParsed.success) {
     for (const [field, messages] of Object.entries(personParsed.error.flatten().fieldErrors)) {
@@ -240,6 +269,12 @@ export function classifyRow(
     }
   }
 
+  const engagementRaw = fieldsOf(rawData, ENGAGEMENT_KEYS);
+  const engagementPresent = !isSectionEmpty(engagementRaw);
+  // Sempre válido (nenhum campo obrigatório) — a seção só existe pra decidir
+  // se grava, não pra rejeitar a linha.
+  const engagementParsed = engagementPresent ? engagementSchema.safeParse(engagementRaw) : null;
+
   let axisId: string | null = null;
   const axisName = rawData.axisName?.trim();
   if (axisName) {
@@ -251,6 +286,20 @@ export function classifyRow(
       });
     } else {
       axisId = found;
+    }
+  }
+
+  let teamId: string | null = null;
+  const teamName = rawData.teamName?.trim();
+  if (teamName) {
+    const found = refs.teamIdByName.get(normalizeHeader(teamName));
+    if (!found) {
+      errors.push({
+        field: "teamName",
+        message: `Equipe não encontrada ou nome ambíguo (existe em mais de uma cidade): "${teamName}".`,
+      });
+    } else {
+      teamId = found;
     }
   }
 
@@ -336,7 +385,9 @@ export function classifyRow(
   if (bankPresent && bankParsed?.success) normalizedData.bank = bankParsed.data;
   if (electoralPresent && electoralParsed?.success) normalizedData.electoral = electoralParsed.data;
   if (vehiclePresent && vehicleParsed?.success) normalizedData.vehicle = vehicleParsed.data;
+  if (engagementPresent && engagementParsed?.success) normalizedData.engagement = engagementParsed.data;
   if (axisId) normalizedData.axisId = axisId;
+  if (teamId) normalizedData.teamId = teamId;
   if (jobFunctionId) normalizedData.jobFunctionId = jobFunctionId;
   if (coordinatorPersonId) normalizedData.coordinatorPersonId = coordinatorPersonId;
 
