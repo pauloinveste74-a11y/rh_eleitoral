@@ -24,11 +24,11 @@ Sistema de gestão de pessoas, operações e pagamentos para campanha eleitoral.
 > por convite, cadeia de coordenação, importação em lote por Excel e uma
 > reformulação de Despesas com autorizador/alçada — ver
 > [MVP — Cadastro, Convite, Coordenação, Importação e Despesas](#mvp--cadastro-convite-coordenação-importação-e-despesas)
-> logo abaixo. As Etapas 1 a 9 estão implementadas — banco (migrações
-> `0013`–`0026`) aplicado e verificado em produção; app
+> logo abaixo. As Etapas 1 a 10 estão implementadas — banco (migrações
+> `0013`–`0027`) aplicado e verificado em produção; app
 > (`/meu-cadastro`, `/minha-equipe`, `/cadastro/[token]`, `/validacoes`,
-> `/importacoes`, `/despesas` com autorizador de registro e
-> `/despesas/alcadas` com escopo de eixo/cidade) passando em
+> `/importacoes` (com reversão), `/despesas` com autorizador de registro
+> e `/despesas/alcadas` com escopo de eixo/cidade) passando em
 > `typecheck`/`lint`/`build`. Todos os pontos da spec original têm
 > implementação funcional agora.
 
@@ -469,10 +469,40 @@ existe):**
   sempre).
 
 Com as Etapas 8 e 9, a lacuna citada no próprio nome da spec ("despesas
-com autorizador **e alçada**") tem UI própria e considera escopo. As
-pendências que sobram em toda a iniciativa são refinamentos pontuais já
-documentados etapa a etapa acima (revisão campo a campo, reversão de
-importação) — não pontos inteiros da spec sem nenhuma implementação.
+com autorizador **e alçada**") tem UI própria e considera escopo.
+
+**Etapa 10 — reversão de importação confirmada (concluída):**
+
+- Migração `0027_etapa10_reverter_importacao.sql`: `revert_import_batch(p_batch_id)`
+  — só funciona sobre um lote `confirmado`; **tudo ou nada**: se
+  QUALQUER pessoa criada pelo lote já tiver `status` além de `rascunho`,
+  ou qualquer vínculo posterior (pagamento, despesa, vínculo
+  organizacional, cadeia de coordenação, submissão de cadastro, ou até
+  um login vinculado via `profiles.person_id`), a função inteira falha
+  sem apagar nada. Se passar na checagem, apaga as pessoas do lote (e
+  satélites), desvincula `import_staging_records.person_id` (volta pra
+  `result = 'pronta'`) e marca o lote como `revertido`.
+- **Bug real encontrado e corrigido durante o teste**: a primeira versão
+  apagava `people` antes de desvincular `import_staging_records.person_id`
+  — como essa FK é `RESTRICT` (não `CASCADE`), o Postgres rejeitava o
+  `delete` com violação de chave estrangeira. Corrigido invertendo a
+  ordem (desvincula primeiro, apaga depois).
+- `/importacoes/[id]`: botão "Reverter importação" quando o lote está
+  `confirmado`; mensagem própria quando já está `revertido`.
+- **Verificado** (testes funcionais diretos, em transação com
+  `rollback`, sem dado residual): reversão bem-sucedida remove a pessoa
+  e reseta o `staging record`/lote corretamente; pessoa com vínculo
+  posterior (testado com `organizational_assignments`) bloqueia a
+  reversão inteira e não apaga nada; reverter um lote que não está
+  `confirmado` é rejeitado; chamador sem papel `administrador`/`rh` é
+  rejeitado.
+- `npm run typecheck`/`lint`/`build` — sem erros nem avisos.
+- **Riscos/pendências**: sem teste via navegador (Playwright pausado).
+
+Com a Etapa 10, as pendências que sobram em toda a iniciativa são só a
+revisão campo a campo da correção de cadastro (reabre o cadastro
+inteiro, não só os campos apontados) — não pontos inteiros da spec sem
+nenhuma implementação.
 
 ## Stack
 

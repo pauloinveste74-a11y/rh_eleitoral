@@ -1101,6 +1101,10 @@ export interface Database {
         };
         Returns: undefined;
       };
+      revert_import_batch: {
+        Args: { p_batch_id: string };
+        Returns: undefined;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

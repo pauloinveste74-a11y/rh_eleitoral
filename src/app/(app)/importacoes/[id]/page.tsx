@@ -16,6 +16,7 @@ import {
 import {
   ConfirmImportBatchButton,
   CancelImportBatchButton,
+  RevertImportBatchButton,
 } from "@/components/importacoes/import-batch-actions";
 import { formatCpf } from "@/lib/validations/cpf";
 
@@ -115,22 +116,34 @@ export default async function ImportacaoDetalhePage({
               </div>
             )}
             {batch.status === "confirmado" && (
-              <p className="text-sm text-emerald-600" role="status">
-                Importação confirmada em{" "}
-                {batch.confirmed_at
-                  ? new Date(batch.confirmed_at).toLocaleString("pt-BR")
-                  : "—"}
-                . As pessoas importadas entram como rascunho — complete o
-                cadastro em{" "}
-                <a href="/pessoas" className="underline underline-offset-4">
-                  Pessoas
-                </a>
-                .
-              </p>
+              <div className="flex flex-col gap-3">
+                <p className="text-sm text-emerald-600" role="status">
+                  Importação confirmada em{" "}
+                  {batch.confirmed_at
+                    ? new Date(batch.confirmed_at).toLocaleString("pt-BR")
+                    : "—"}
+                  . As pessoas importadas entram como rascunho — complete o
+                  cadastro em{" "}
+                  <a href="/pessoas" className="underline underline-offset-4">
+                    Pessoas
+                  </a>
+                  .
+                </p>
+                <RevertImportBatchButton batchId={batch.id} />
+              </div>
             )}
             {batch.status === "cancelado" && (
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 Esta importação foi cancelada — nenhuma pessoa foi criada.
+              </p>
+            )}
+            {batch.status === "revertido" && (
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Esta importação foi revertida em{" "}
+                {batch.reverted_at
+                  ? new Date(batch.reverted_at).toLocaleString("pt-BR")
+                  : "—"}{" "}
+                — as pessoas criadas por ela foram removidas.
               </p>
             )}
           </CardContent>

@@ -413,3 +413,29 @@ export async function cancelImportBatch(
   revalidatePath("/importacoes");
   return { status: "success" };
 }
+
+/**
+ * Etapa 10 — reverte um lote já confirmado via revert_import_batch()
+ * (migração 0027): só funciona se nenhuma pessoa do lote tiver vínculo
+ * posterior (a própria função checa e rejeita, tudo ou nada).
+ */
+export async function revertImportBatch(
+  batchId: string,
+): Promise<ImportBatchActionState> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("revert_import_batch", {
+    p_batch_id: batchId,
+  });
+
+  if (error) {
+    return {
+      status: "error",
+      message: error.message || "Não foi possível reverter a importação.",
+    };
+  }
+
+  revalidatePath(`/importacoes/${batchId}`);
+  revalidatePath("/importacoes");
+  revalidatePath("/pessoas");
+  return { status: "success" };
+}

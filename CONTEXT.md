@@ -77,7 +77,7 @@ README, seção "Modelo de dados"):
 - `0011`: `rh` ganha leitura/edição de outros `profiles` (pra tela de
   Usuários).
 - `0012`: `profiles.phone`.
-- `0013`–`0026`: **camada de banco de uma iniciativa nova e separada**
+- `0013`–`0027`: **camada de banco de uma iniciativa nova e separada**
   (spec `docs/IMPLEMENTACAO_CADASTRO_IMPORTACAO_DESPESAS.md` — autocadastro
   por convite, cadeia de coordenação, importação por Excel, despesas com
   autorizador/alçada). Aplicadas e verificadas (advisors + testes
@@ -110,7 +110,12 @@ README, seção "Modelo de dados"):
   select/insert/update desde a `0020`, mas nunca delete) — necessária
   pra `/despesas/alcadas` poder remover uma regra. Etapa 9 (indicador de
   alçada com escopo + alçada por pessoa específica) não precisou de
-  migração — só refino de app sobre o que já existia.
+  migração — só refino de app sobre o que já existia. `0027` (Etapa 10)
+  implementa `revert_import_batch()` — durante o teste encontrei e
+  corrigi um bug real (não de autorização desta vez): a função apagava
+  `people` antes de desvincular `import_staging_records.person_id`,
+  violando a FK (que é `RESTRICT`, não `CASCADE`) — corrigido invertendo
+  a ordem.
 
 ## Etapas 3 a 6 — páginas de aplicação (autocadastro, validações e importação)
 
