@@ -50,7 +50,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     : campaignName;
 
   return (
-    <AppShell userLabel={userLabel} campaignLabel={campaignLabel}>
+    <AppShell
+      userLabel={userLabel}
+      campaignLabel={campaignLabel}
+      isPlatformAdmin={profile?.is_platform_admin ?? false}
+    >
       {children}
     </AppShell>
   );

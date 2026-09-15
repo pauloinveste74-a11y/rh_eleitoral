@@ -49,6 +49,7 @@ partir da raiz do projeto — isso já está reforçado em `AGENTS.md`.
 | Auditoria (trilha de eventos) | `/auditoria` | 7 |
 | Relatórios (financeiro/pessoas/aprovações, filtro + CSV) | `/relatorios` | 8 |
 | Usuários (criar acesso, papéis, trocar senha) | `/usuarios`, `/conta` | 9 |
+| Organizações — painel do master, CNPJ, login por CNPJ (Multi-tenant, Etapa 1) | `/master/organizacoes` | — |
 
 **Ainda placeholder** (nunca implementados): **Ponto** (`/ponto`) e
 **Operações** (`/operacoes`) — são os dois únicos itens do menu sem
@@ -260,7 +261,12 @@ relatórios com layout em PDF.
 (nem `.env.local`, nem Vercel). Sem ela, `/usuarios` não consegue criar
 usuário nem resetar senha (usa `auth.admin.createUser()`/
 `updateUserById()`, que exigem essa chave). O restante do sistema
-funciona normalmente sem ela.
+funciona normalmente sem ela. **Mesmo bloqueio agora também afeta
+`/master/organizacoes`** (Multi-tenant, Etapa 1) — criar a primeira
+organização inclui criar o usuário administrador dela, mesmo
+`createAdminClient()`; sem a chave, a organização é criada mas a
+criação do administrador falha com uma mensagem apontando pra
+completar depois em `/master/organizacoes/[id]`.
 
 Como resolver: painel do Supabase → Settings → API → `service_role`
 secret → colar em `.env.local` (variável `SUPABASE_SERVICE_ROLE_KEY`) e

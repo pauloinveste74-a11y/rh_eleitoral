@@ -1,6 +1,12 @@
 import { z } from "zod";
 
+import { sanitizeCnpj } from "./cnpj";
+
 export const loginSchema = z.object({
+  documentNumber: z
+    .string()
+    .transform(sanitizeCnpj)
+    .refine((v) => v.length === 14, { error: "Informe o CNPJ da sua organização (14 dígitos)." }),
   email: z.email({ error: "Informe um e-mail válido." }),
   password: z.string().min(1, "Informe a senha."),
 });

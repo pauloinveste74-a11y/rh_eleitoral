@@ -1205,8 +1205,9 @@ multi-campanha por login.
   `/pessoas` — não há hoje uma visão "uma campanha de cada vez, à minha
   escolha" para esse papel.
 - **Criar uma nova campanha** (provisionar um tenant) é exclusivo do super
-  admin (`campaigns_insert` exige `is_platform_admin()`) e continua sendo
-  um processo manual de SQL — não existe tela de onboarding de campanha.
+  admin (`campaigns_insert` exige `is_platform_admin()`). Até a Etapa 1 da
+  transformação multi-tenant (abaixo) era um processo manual de SQL — hoje
+  tem tela própria em `/master/organizacoes`.
 - **Novo usuário sem campanha**: o trigger que cria `profiles` ao
   registrar um `auth.users` não atribui `campaign_id` (fica `null` até um
   `UPDATE` manual) — por isso a coluna é nullable, ao contrário da maioria
@@ -1218,6 +1219,76 @@ multi-campanha por login.
   uma campanha.
 
 Detalhes completos em `supabase/migrations/0005_multi_tenant_campaign_scoping.sql`.
+
+### Etapa 1 — identidade da organização (CNPJ), painel do master, login por CNPJ (concluída)
+
+Especificação-fonte:
+`docs/ESPECIFICACAO_MULTI_TENANT_RH_ELEITORAL_CLAUDE.md` (677 linhas,
+pedido do usuário pra transformar o produto numa plataforma SaaS
+completa). Escopo desta primeira etapa, decidido a partir do pedido
+concreto do usuário ("master cadastra CNPJs/campanhas/administradores;
+usuários entram com CNPJ + e-mail + senha"):
+
+- **Achado antes de codificar**: o banco já era multi-tenant no nível
+  de schema/RLS desde a `0005` (seção acima) — `campaigns_insert`,
+  `profiles_update` e `profile_roles_insert` já permitiam
+  `is_platform_admin()` sem restrição adicional (conferido ao vivo em
+  `pg_policies`). Por isso esta etapa **não** recriou
+  `tenants`/`tenant_memberships`/`permissions` do zero como a
+  especificação original sugere — reaproveitou `campaigns`/`profiles`/
+  `profile_roles`/`is_platform_admin()` como já existiam. Nenhuma
+  policy nova ou alterada.
+- **Migração `0035_multi_tenant_organizacoes.sql`**: `campaigns` ganhou
+  `document_number` (CNPJ, só dígitos), `legal_name`, `trade_name` —
+  índice único parcial em `document_number` (nullable: a campanha
+  "Bia Kicis - Senadora", único tenant existente antes desta etapa,
+  não ganhou CNPJ, e continua sem conseguir logar por CNPJ até alguém
+  preencher — sem problema, não tinha usuário vinculado a ela).
+- **`/master/organizacoes`** (novo, só visível a
+  `profiles.is_platform_admin`, item de navegação próprio): lista
+  organizações com contagem de usuários e formulário de criação (nome,
+  CNPJ, razão social/nome fantasia opcionais + dados do primeiro
+  administrador). `/master/organizacoes/[id]`: dados da organização,
+  lista de administradores/membros, adicionar administrador, mudar
+  status (`ativa`/`encerrada`/`arquivada`).
+- **Criação de organização + primeiro administrador**
+  (`src/app/(app)/master/organizacoes/actions.ts`): reaproveita o
+  padrão exato de `usuarios/actions.ts#inviteUser()` — cria o usuário
+  direto com senha derivada do telefone (`derivePasswordFromPhone()`),
+  sem link de convite — só que com `campaign_id` explícito (a
+  organização escolhida pelo master) em vez de `current_campaign_id()`.
+  `ShareCredentials` (já usada em `/usuarios`) ganhou uma prop opcional
+  `documentNumber` pra somar o CNPJ na mensagem de WhatsApp/e-mail
+  compartilhada com o novo administrador.
+- **Bootstrap do master resolvido com `linkSelfAsAdmin()`**: depois de
+  criar a primeira organização (o pedido concreto foi a Agilize
+  Tecnologia, CNPJ `01.596.311/0001-28`), o master usa o botão
+  "Vincular meu usuário a esta organização" pra passar a fazer parte
+  dela — sem isso, ele nunca teria uma organização com CNPJ pra usar no
+  próprio login.
+- **Login por CNPJ** (`src/app/login/login-form.tsx`): campo novo,
+  obrigatório. Depois do `signInWithPassword` ter sucesso, compara
+  `campaigns.document_number` da campanha do perfil com o CNPJ
+  digitado; divergente, nulo, ou perfil sem campanha → `signOut()` +
+  mensagem genérica ("CNPJ, e-mail ou senha inválidos" — não revela
+  qual campo errou, mesmo padrão de segurança já usado antes do CNPJ
+  existir). **Exceção deliberada**: `is_platform_admin` pula essa
+  checagem — resolve o ovo-e-a-galinha (o master precisa conseguir
+  entrar ANTES de existir qualquer organização com CNPJ cadastrado,
+  pra poder criar a primeira). Desvio consciente da especificação
+  original (que descreve CNPJ como atalho opcional, seção 9.2): o
+  usuário pediu explicitamente que seja obrigatório pra todo mundo.
+- **Fora de escopo desta etapa**, documentado em `docs/MULTI_TENANT.md`:
+  modo de suporte (master "entrar" temporariamente nas telas normais de
+  uma organização — exigiria alterar `current_campaign_id()`, usada por
+  ~40 policies), usuário com vínculo em mais de uma organização,
+  catálogo granular de permissões, convite por token/e-mail expirável,
+  assistente de implantação, estados adicionais de organização.
+- **Verificado**: transação de teste (`begin`/`rollback`) confirmando
+  que o índice único em `document_number` rejeita duplicata e aceita
+  `null`; `npm run typecheck`/`lint`/`build` sem erros nem avisos;
+  advisors de segurança sem achado novo (migração só adiciona
+  coluna/índice, nenhuma função nova).
 
 ## Aprovações
 

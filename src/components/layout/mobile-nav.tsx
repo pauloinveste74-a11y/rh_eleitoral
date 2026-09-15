@@ -6,7 +6,7 @@ import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SidebarNav } from "./sidebar-nav";
 
-export function MobileNav() {
+export function MobileNav({ isPlatformAdmin = false }: { isPlatformAdmin?: boolean }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -37,7 +37,7 @@ export function MobileNav() {
             if (e.key === "Escape") setOpen(false);
           }}
         >
-          <SidebarNav onNavigate={() => setOpen(false)} />
+          <SidebarNav onNavigate={() => setOpen(false)} isPlatformAdmin={isPlatformAdmin} />
         </div>
       )}
     </div>

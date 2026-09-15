@@ -9,16 +9,20 @@ export function ShareCredentials({
   email,
   password,
   phone,
+  documentNumber,
 }: {
   email: string;
   password: string;
   phone?: string | null;
+  /** CNPJ da organização, já formatado — soma uma linha no acesso compartilhado quando o login também exige CNPJ (painel do master). */
+  documentNumber?: string | null;
 }) {
   const [copied, setCopied] = useState(false);
 
   const message =
     `Seu acesso ao RH Eleitoral:\n` +
     `Site: https://rh-eleitoral.vercel.app/login\n` +
+    (documentNumber ? `CNPJ: ${documentNumber}\n` : "") +
     `E-mail: ${email}\n` +
     `Senha: ${password}\n\n` +
     `Assim que entrar, recomendamos trocar a senha em "Minha conta".`;

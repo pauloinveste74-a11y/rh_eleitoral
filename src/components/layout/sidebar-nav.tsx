@@ -6,13 +6,16 @@ import { NavLink } from "./nav-link";
 export function SidebarNav({
   onNavigate,
   collapsed = false,
+  isPlatformAdmin = false,
 }: {
   onNavigate?: () => void;
   collapsed?: boolean;
+  isPlatformAdmin?: boolean;
 }) {
+  const items = NAV_ITEMS.filter((item) => !item.requiresPlatformAdmin || isPlatformAdmin);
   return (
     <nav aria-label="Navegação principal" className="flex flex-col gap-1">
-      {NAV_ITEMS.map((item) => (
+      {items.map((item) => (
         <NavLink
           key={item.href}
           item={item}

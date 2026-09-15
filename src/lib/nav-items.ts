@@ -16,12 +16,15 @@ import {
   Settings,
   Building2,
   FileText,
+  Landmark,
 } from "lucide-react";
 
 export interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
+  /** Só aparece pra quem tem `profiles.is_platform_admin = true` (master da plataforma) — ver Multi-tenant, Etapa 1. */
+  requiresPlatformAdmin?: boolean;
 }
 
 /** Navegação principal do sistema (seção 22, item 15 do briefing). */
@@ -41,5 +44,11 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Auditoria", href: "/auditoria", icon: ShieldCheck },
   { label: "Relatórios", href: "/relatorios", icon: BarChart3 },
   { label: "Usuários", href: "/usuarios", icon: UserCog },
+  {
+    label: "Organizações",
+    href: "/master/organizacoes",
+    icon: Landmark,
+    requiresPlatformAdmin: true,
+  },
   { label: "Configurações", href: "/configuracoes", icon: Settings },
 ];

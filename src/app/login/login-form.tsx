@@ -11,6 +11,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+/**
+ * Mensagem genérica — usada tanto pra credencial inválida quanto pra CNPJ
+ * que não bate com a organização do usuário, de propósito: não revela qual
+ * dos três campos errou (mesmo raciocínio de segurança de "E-mail ou senha
+ * inválidos" já usado antes do CNPJ existir).
+ */
+const GENERIC_ERROR = "CNPJ, e-mail ou senha inválidos.";
+
 /** Mapeia mensagens de erro do Supabase Auth para português, sem vazar detalhes internos. */
 function translateAuthError(message: string) {
   if (message.toLowerCase().includes("invalid login credentials")) {
@@ -30,17 +38,44 @@ export function LoginForm() {
     formState: { errors, isSubmitting },
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { documentNumber: "", email: "", password: "" },
   });
 
   async function onSubmit(values: LoginInput) {
     setFormError(null);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword(values);
+    const { data: authData, error } = await supabase.auth.signInWithPassword(values);
 
     if (error) {
       setFormError(translateAuthError(error.message));
       return;
+    }
+
+    // O master (platform admin) pula a checagem de CNPJ — precisa
+    // conseguir entrar antes de existir qualquer organização cadastrada,
+    // pra criar a primeira (ver docs/MULTI_TENANT.md, "bootstrap").
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("campaign_id, is_platform_admin")
+      .eq("id", authData.user.id)
+      .maybeSingle();
+
+    if (!profile?.is_platform_admin) {
+      const campaign = profile?.campaign_id
+        ? (
+            await supabase
+              .from("campaigns")
+              .select("document_number")
+              .eq("id", profile.campaign_id)
+              .maybeSingle()
+          ).data
+        : null;
+
+      if (!campaign?.document_number || campaign.document_number !== values.documentNumber) {
+        await supabase.auth.signOut();
+        setFormError(GENERIC_ERROR);
+        return;
+      }
     }
 
     const redirectTo = searchParams.get("redirectTo") ?? "/painel";
@@ -54,6 +89,25 @@ export function LoginForm() {
       noValidate
       className="flex flex-col gap-4"
     >
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="documentNumber">CNPJ da organização</Label>
+        <Input
+          id="documentNumber"
+          type="text"
+          inputMode="numeric"
+          placeholder="00.000.000/0000-00"
+          autoComplete="off"
+          aria-invalid={errors.documentNumber ? "true" : undefined}
+          aria-describedby={errors.documentNumber ? "documentNumber-error" : undefined}
+          {...register("documentNumber")}
+        />
+        {errors.documentNumber && (
+          <p id="documentNumber-error" className="text-sm text-red-600" role="alert">
+            {errors.documentNumber.message}
+          </p>
+        )}
+      </div>
+
       <div className="flex flex-col gap-2">
         <Label htmlFor="email">E-mail</Label>
         <Input

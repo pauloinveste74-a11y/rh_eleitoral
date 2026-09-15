@@ -16,10 +16,12 @@ export function AppShell({
   children,
   userLabel,
   campaignLabel,
+  isPlatformAdmin = false,
 }: {
   children: ReactNode;
   userLabel: string;
   campaignLabel?: string;
+  isPlatformAdmin?: boolean;
 }) {
   const collapsed = useSyncExternalStore(
     subscribeSidebarCollapsed,
@@ -29,7 +31,7 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Topbar userLabel={userLabel} campaignLabel={campaignLabel} />
+      <Topbar userLabel={userLabel} campaignLabel={campaignLabel} isPlatformAdmin={isPlatformAdmin} />
       <div className="flex flex-1">
         {/* Barra lateral azul-marinho — 240px aberta / 72px recolhida,
             manual de identidade visual, seção 6.1. */}
@@ -39,7 +41,7 @@ export function AppShell({
           }`}
         >
           <div className="flex-1">
-            <SidebarNav collapsed={collapsed} />
+            <SidebarNav collapsed={collapsed} isPlatformAdmin={isPlatformAdmin} />
           </div>
           <button
             type="button"
