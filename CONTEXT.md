@@ -108,7 +108,9 @@ README, seção "Modelo de dados"):
   padrão aditivo de `0010`/`0011`). `0026` (Etapa 8) só soma a policy de
   `delete` que faltava em `expense_authorization_rules` (tinha
   select/insert/update desde a `0020`, mas nunca delete) — necessária
-  pra `/despesas/alcadas` poder remover uma regra.
+  pra `/despesas/alcadas` poder remover uma regra. Etapa 9 (indicador de
+  alçada com escopo + alçada por pessoa específica) não precisou de
+  migração — só refino de app sobre o que já existia.
 
 ## Etapas 3 a 6 — páginas de aplicação (autocadastro, validações e importação)
 

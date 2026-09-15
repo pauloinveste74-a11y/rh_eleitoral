@@ -128,16 +128,27 @@ export type ExpenseInput = z.infer<typeof expenseSchema>;
  * coluna `profile_id` fica pronta no banco pra uma regra futura mais fina,
  * mas a tela só cria regra por papel, caso de uso mais comum.
  */
-export const alcadaRuleSchema = z.object({
-  roleId: z.uuid({ error: "Selecione o papel." }),
-  maxAmountReais: z
-    .string()
-    .trim()
-    .refine((v) => v !== "" && !Number.isNaN(Number(v)) && Number(v) > 0, {
-      error: "Informe um valor válido, maior que zero.",
-    })
-    .transform((v) => Math.round(Number(v) * 100)),
-  axisId: z.string().optional().or(z.literal("")),
-  cityId: z.string().optional().or(z.literal("")),
-});
+export const alcadaRuleSchema = z
+  .object({
+    scopeType: z.enum(["papel", "pessoa"], { error: "Selecione o tipo de regra." }),
+    roleId: z.string().optional().or(z.literal("")),
+    profileId: z.string().optional().or(z.literal("")),
+    maxAmountReais: z
+      .string()
+      .trim()
+      .refine((v) => v !== "" && !Number.isNaN(Number(v)) && Number(v) > 0, {
+        error: "Informe um valor válido, maior que zero.",
+      })
+      .transform((v) => Math.round(Number(v) * 100)),
+    axisId: z.string().optional().or(z.literal("")),
+    cityId: z.string().optional().or(z.literal("")),
+  })
+  .superRefine((data, ctx) => {
+    if (data.scopeType === "papel" && !data.roleId) {
+      ctx.addIssue({ code: "custom", path: ["roleId"], message: "Selecione o papel." });
+    }
+    if (data.scopeType === "pessoa" && !data.profileId) {
+      ctx.addIssue({ code: "custom", path: ["profileId"], message: "Selecione a pessoa." });
+    }
+  });
 export type AlcadaRuleInput = z.infer<typeof alcadaRuleSchema>;

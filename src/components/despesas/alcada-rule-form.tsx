@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useActionState } from "react";
+import { startTransition, useActionState, useState } from "react";
 
 import { createAlcadaRule } from "@/app/(app)/despesas/alcadas/actions";
 import { initialAlcadaActionState } from "@/app/(app)/despesas/alcadas/action-state";
@@ -11,10 +11,12 @@ import { Select } from "@/components/ui/select";
 
 export function AlcadaRuleForm({
   roles,
+  profiles,
   axes,
   cities,
 }: {
   roles: { id: string; name: string }[];
+  profiles: { id: string; name: string }[];
   axes: { id: string; name: string }[];
   cities: { id: string; name: string }[];
 }) {
@@ -22,6 +24,7 @@ export function AlcadaRuleForm({
     createAlcadaRule,
     initialAlcadaActionState,
   );
+  const [scopeType, setScopeType] = useState<"papel" | "pessoa">("papel");
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -35,25 +38,69 @@ export function AlcadaRuleForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <div className="flex gap-4">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="radio"
+            name="scopeType"
+            value="papel"
+            checked={scopeType === "papel"}
+            onChange={() => setScopeType("papel")}
+          />
+          Por papel
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="radio"
+            name="scopeType"
+            value="pessoa"
+            checked={scopeType === "pessoa"}
+            onChange={() => setScopeType("pessoa")}
+          />
+          Por pessoa específica
+        </label>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="roleId">Papel</Label>
-          <Select id="roleId" name="roleId" defaultValue="">
-            <option value="" disabled>
-              Selecione
-            </option>
-            {roles.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
+        {scopeType === "papel" ? (
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="roleId">Papel</Label>
+            <Select id="roleId" name="roleId" defaultValue="">
+              <option value="" disabled>
+                Selecione
               </option>
-            ))}
-          </Select>
-          {state.errors?.roleId && (
-            <p className="text-sm text-red-600" role="alert">
-              {state.errors.roleId[0]}
-            </p>
-          )}
-        </div>
+              {roles.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </Select>
+            {state.errors?.roleId && (
+              <p className="text-sm text-red-600" role="alert">
+                {state.errors.roleId[0]}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="profileId">Pessoa</Label>
+            <Select id="profileId" name="profileId" defaultValue="">
+              <option value="" disabled>
+                Selecione
+              </option>
+              {profiles.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </Select>
+            {state.errors?.profileId && (
+              <p className="text-sm text-red-600" role="alert">
+                {state.errors.profileId[0]}
+              </p>
+            )}
+          </div>
+        )}
         <div className="flex flex-col gap-2">
           <Label htmlFor="maxAmountReais">Teto de valor (R$)</Label>
           <Input

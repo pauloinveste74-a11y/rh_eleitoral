@@ -24,12 +24,13 @@ Sistema de gestão de pessoas, operações e pagamentos para campanha eleitoral.
 > por convite, cadeia de coordenação, importação em lote por Excel e uma
 > reformulação de Despesas com autorizador/alçada — ver
 > [MVP — Cadastro, Convite, Coordenação, Importação e Despesas](#mvp--cadastro-convite-coordenação-importação-e-despesas)
-> logo abaixo. As Etapas 1 a 8 estão implementadas — banco (migrações
+> logo abaixo. As Etapas 1 a 9 estão implementadas — banco (migrações
 > `0013`–`0026`) aplicado e verificado em produção; app
 > (`/meu-cadastro`, `/minha-equipe`, `/cadastro/[token]`, `/validacoes`,
 > `/importacoes`, `/despesas` com autorizador de registro e
-> `/despesas/alcadas`) passando em `typecheck`/`lint`/`build`. Todos os
-> pontos da spec original têm implementação funcional agora.
+> `/despesas/alcadas` com escopo de eixo/cidade) passando em
+> `typecheck`/`lint`/`build`. Todos os pontos da spec original têm
+> implementação funcional agora.
 
 ## MVP — Cadastro, Convite, Coordenação, Importação e Despesas
 
@@ -429,32 +430,49 @@ existe):**
 - `/despesas/alcadas` (só `administrador`, via `is_admin()` — não
   `administrador`/`rh` como o resto de Despesas): cria regra de alçada
   por papel (com teto em R$, escopo opcional de eixo ou cidade) e lista/
-  remove regras existentes. Regra por pessoa específica
-  (`expense_authorization_rules.profile_id`) fica pronta no banco, sem
-  UI ainda — só a mais comum (por papel) tem tela.
+  remove regras existentes.
 - `/despesas` (lista) ganhou um selo "Dentro da alçada" / "Fora da
   alçada" / "Sem regra definida" por despesa com autorizador identificado
-  no sistema — calculado comparando o valor pedido contra o maior teto
-  entre as regras que batem com QUALQUER papel vigente do autorizador
-  (`src/lib/expenses/alcada.ts`). **Simplificação deliberada**: a
-  checagem não considera o escopo de eixo/cidade da regra, só o papel —
-  a regra pode ser cadastrada com escopo, mas o indicador ainda não
-  filtra por ele. Continua **só informativo**: não bloqueia criação nem
-  decisão de despesa.
+  no sistema (`src/lib/expenses/alcada.ts`). Continua **só
+  informativo**: não bloqueia criação nem decisão de despesa.
 - **Verificado**: criar e remover uma regra testado direto no banco em
   transação com `rollback`, sem dado residual.
 - `npm run typecheck`/`lint`/`build` — sem erros nem avisos;
   `/despesas/alcadas` aparece no build.
-- **Riscos/pendências**: indicador de alçada não considera escopo de
-  eixo/cidade (só papel); sem regra por pessoa específica na UI; sem
-  teste via navegador (Playwright pausado).
 
-Com a Etapa 8, a única lacuna que restava explicitamente citada no nome
-da spec ("despesas com autorizador **e alçada**") tem UI própria. As
+**Etapa 9 — indicador de alçada com escopo, e alçada por pessoa específica
+(concluída, sem migração nova):**
+
+- `/despesas/alcadas`: a regra passa a poder ser "por papel" ou "por
+  pessoa específica" (alternância no formulário) — a segunda opção usa
+  `expense_authorization_rules.profile_id`, coluna que já existia no
+  banco desde a Etapa 1 mas não tinha UI. A listagem resolve o nome da
+  pessoa quando a regra é desse tipo.
+- `src/lib/expenses/alcada.ts` (`computeAlcadaStatus`) refeito pra
+  considerar o **escopo de eixo/cidade** da regra, que a Etapa 8 tinha
+  deixado de fora: uma regra por papel com `axis_id`/`city_id`
+  preenchido só bate se o autorizador tiver esse papel **nesse mesmo**
+  eixo/cidade (via `profile_roles.axis_id`/`city_id`) — não em qualquer
+  lugar da campanha. Regra por pessoa específica continua batendo
+  direto, sem olhar papel ou escopo.
+- **Verificado**: criação de regra por pessoa específica testada direto
+  no banco em transação com `rollback` (sem dado residual); a lógica de
+  `computeAlcadaStatus` testada isoladamente (`npx tsx`, sem Next.js)
+  com 6 casos — papel dentro/fora do teto, papel com escopo batendo,
+  papel com escopo **não** batendo (autorizador de outro lugar — deve
+  cair pra "sem regra", não pra um teto de outro lugar), pessoa
+  específica, e nenhuma regra aplicável.
+- `npm run typecheck`/`lint`/`build` — sem erros nem avisos.
+- **Riscos/pendências**: sem teste via navegador (Playwright pausado);
+  sem um segundo usuário real com papel territorial pra confirmar o
+  cruzamento de escopo com uma sessão de verdade (mesma limitação de
+  sempre).
+
+Com as Etapas 8 e 9, a lacuna citada no próprio nome da spec ("despesas
+com autorizador **e alçada**") tem UI própria e considera escopo. As
 pendências que sobram em toda a iniciativa são refinamentos pontuais já
 documentados etapa a etapa acima (revisão campo a campo, reversão de
-importação, escopo fino do indicador de alçada, regra de alçada por
-pessoa) — não pontos inteiros da spec sem nenhuma implementação.
+importação) — não pontos inteiros da spec sem nenhuma implementação.
 
 ## Stack
 

@@ -16,7 +16,9 @@ export async function createAlcadaRule(
   formData: FormData,
 ): Promise<AlcadaActionState> {
   const parsed = alcadaRuleSchema.safeParse({
+    scopeType: String(formData.get("scopeType") ?? ""),
     roleId: String(formData.get("roleId") ?? ""),
+    profileId: String(formData.get("profileId") ?? ""),
     maxAmountReais: String(formData.get("maxAmountReais") ?? ""),
     axisId: String(formData.get("axisId") ?? ""),
     cityId: String(formData.get("cityId") ?? ""),
@@ -55,7 +57,8 @@ export async function createAlcadaRule(
 
   const { error } = await supabase.from("expense_authorization_rules").insert({
     campaign_id: campaignId,
-    role_id: parsed.data.roleId,
+    role_id: parsed.data.scopeType === "papel" ? parsed.data.roleId || null : null,
+    profile_id: parsed.data.scopeType === "pessoa" ? parsed.data.profileId || null : null,
     axis_id: parsed.data.axisId || null,
     city_id: parsed.data.cityId || null,
     max_amount_cents: parsed.data.maxAmountReais,
@@ -74,7 +77,8 @@ export async function createAlcadaRule(
     p_entity_table: "expense_authorization_rules",
     p_entity_id: null,
     p_after_data: {
-      role_id: parsed.data.roleId,
+      role_id: parsed.data.roleId || null,
+      profile_id: parsed.data.profileId || null,
       max_amount_cents: parsed.data.maxAmountReais,
     },
   });

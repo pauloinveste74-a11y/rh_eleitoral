@@ -37,9 +37,11 @@ export default async function DespesasPage() {
     (people ?? []).map((p) => [p.id, p.social_name || p.full_name]),
   );
 
-  // Indicador de alçada (Etapa 8, só informativo): papéis vigentes de cada
-  // autorizador (pessoa do sistema) + regras da campanha, pra comparar
-  // contra o valor pedido — ver src/lib/expenses/alcada.ts.
+  // Indicador de alçada (Etapa 8/9, só informativo): vínculos de papel
+  // vigentes de cada autorizador (com o escopo de eixo/cidade de cada
+  // vínculo) + regras da campanha (por papel+escopo ou por pessoa
+  // específica), pra comparar contra o valor pedido — ver
+  // src/lib/expenses/alcada.ts.
   const authorizerIds = Array.from(
     new Set(
       (expenses ?? [])
@@ -51,16 +53,28 @@ export default async function DespesasPage() {
     authorizerIds.length > 0
       ? supabase
           .from("profile_roles")
-          .select("profile_id, role_id")
+          .select("profile_id, role_id, axis_id, city_id")
           .in("profile_id", authorizerIds)
-      : Promise.resolve({ data: [] as { profile_id: string; role_id: string }[] }),
-    supabase.from("expense_authorization_rules").select("role_id, max_amount_cents"),
+      : Promise.resolve({
+          data: [] as {
+            profile_id: string;
+            role_id: string;
+            axis_id: string | null;
+            city_id: string | null;
+          }[],
+        }),
+    supabase
+      .from("expense_authorization_rules")
+      .select("role_id, profile_id, axis_id, city_id, max_amount_cents"),
   ]);
-  const roleIdsByProfile = new Map<string, string[]>();
+  const assignmentsByProfile = new Map<
+    string,
+    { role_id: string; axis_id: string | null; city_id: string | null }[]
+  >();
   for (const pr of authorizerRoles ?? []) {
-    const list = roleIdsByProfile.get(pr.profile_id) ?? [];
-    list.push(pr.role_id);
-    roleIdsByProfile.set(pr.profile_id, list);
+    const list = assignmentsByProfile.get(pr.profile_id) ?? [];
+    list.push({ role_id: pr.role_id, axis_id: pr.axis_id, city_id: pr.city_id });
+    assignmentsByProfile.set(pr.profile_id, list);
   }
 
   const rows: ExpenseRow[] = await Promise.all(
@@ -78,7 +92,8 @@ export default async function DespesasPage() {
       alcadaStatus: e.authorized_by_profile_id
         ? computeAlcadaStatus(
             e.requested_amount_cents ?? e.amount_cents,
-            roleIdsByProfile.get(e.authorized_by_profile_id) ?? [],
+            e.authorized_by_profile_id,
+            assignmentsByProfile.get(e.authorized_by_profile_id) ?? [],
             rules ?? [],
           )
         : null,
