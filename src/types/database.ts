@@ -826,6 +826,14 @@ export interface Database {
         };
         Returns: undefined;
       };
+      decide_rh_validation: {
+        Args: {
+          p_submission_id: string;
+          p_decision: string;
+          p_reason?: string | null;
+        };
+        Returns: undefined;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

@@ -2,44 +2,37 @@ import type { Metadata } from "next";
 
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ValidationQueue,
   type ValidationQueueRow,
 } from "@/components/validacoes/validation-queue";
+import { decideRegistrationSubmission, decideRhValidation } from "./actions";
+import type { RegistrationSubmissionStatus } from "@/types/database";
 
 export const metadata: Metadata = { title: "Validações" };
 
-export default async function ValidacoesPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+type SubmissionRow = {
+  id: string;
+  person_id: string;
+  origin: "autocadastro" | "administrativo" | "importacao_excel";
+  submitted_at: string | null;
+  validated_at: string | null;
+};
 
-  if (!user) {
-    return null;
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("person_id")
-    .eq("id", user.id)
-    .maybeSingle();
-  const ownPersonId = profile?.person_id ?? null;
-
-  // RLS (registration_submissions_select) já restringe o que volta aqui a
-  // administrador/rh (toda a campanha), à própria pessoa (person_id) e ao
-  // gestor dela (manager_person_id) — filtra fora só a própria submissão:
-  // esta tela é pra decidir sobre a equipe, não sobre o próprio cadastro
-  // (isso é /meu-cadastro).
+async function loadQueue(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  status: RegistrationSubmissionStatus,
+  excludePersonId: string | null,
+): Promise<ValidationQueueRow[]> {
   const { data: submissions } = await supabase
     .from("registration_submissions")
-    .select("id, person_id, origin, submitted_at")
-    .eq("status", "aguardando_validacao_gestor")
+    .select("id, person_id, origin, submitted_at, validated_at")
+    .eq("status", status)
     .order("submitted_at", { ascending: true });
 
-  const pending = (submissions ?? []).filter(
-    (s) => !ownPersonId || s.person_id !== ownPersonId,
+  const pending = ((submissions ?? []) as SubmissionRow[]).filter(
+    (s) => !excludePersonId || s.person_id !== excludePersonId,
   );
 
   const personIds = pending.map((s) => s.person_id);
@@ -52,25 +45,89 @@ export default async function ValidacoesPage() {
       : { data: [] as { id: string; full_name: string; cpf: string }[] };
   const personById = new Map((people ?? []).map((p) => [p.id, p]));
 
-  const rows: ValidationQueueRow[] = pending.map((s) => ({
+  return pending.map((s) => ({
     id: s.id,
     fullName: personById.get(s.person_id)?.full_name ?? "—",
     cpf: personById.get(s.person_id)?.cpf ?? "",
     origin: s.origin,
-    submittedAt: s.submitted_at,
+    date: status === "aprovado_gestor" ? s.validated_at : s.submitted_at,
   }));
+}
+
+export default async function ValidacoesPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return null;
+  }
+
+  const [{ data: profile }, { data: isManager }] = await Promise.all([
+    supabase.from("profiles").select("person_id").eq("id", user.id).maybeSingle(),
+    supabase.rpc("has_role", { role_codes: ["administrador", "rh"] }),
+  ]);
+  const ownPersonId = profile?.person_id ?? null;
+
+  // RLS (registration_submissions_select) já restringe o que volta aqui —
+  // administrador/rh vê toda a campanha, coordenador só o que é
+  // manager_person_id dele. Exclui a própria submissão da lista: esta tela
+  // é pra decidir sobre a equipe/organização, não sobre o próprio cadastro
+  // (isso é /meu-cadastro).
+  const gestorRows = await loadQueue(
+    supabase,
+    "aguardando_validacao_gestor",
+    ownPersonId,
+  );
+
+  // Fila do RH só é consultada (e só aparece) pra quem tem o papel — evita
+  // uma query e uma seção vazias pro coordenador comum.
+  const rhRows = isManager
+    ? await loadQueue(supabase, "aprovado_gestor", ownPersonId)
+    : [];
 
   return (
     <>
       <PageHeader
         title="Validações"
-        description="Cadastros enviados pela sua equipe, aguardando sua decisão — aprove, rejeite ou solicite correção."
+        description="Cadastros enviados pela sua equipe ou já aprovados pelo gestor, aguardando decisão."
       />
-      <Card>
-        <CardContent className="p-6">
-          <ValidationQueue rows={rows} />
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Minha equipe</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <ValidationQueue
+              rows={gestorRows}
+              emptyMessage="Nenhum cadastro da sua equipe aguardando validação."
+              dateLabel="Enviado em"
+              decisionAction={(id) => decideRegistrationSubmission.bind(null, id)}
+              primaryLabel="Aprovar"
+              primaryValue="aprovar"
+            />
+          </CardContent>
+        </Card>
+
+        {isManager && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Validação do RH</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <ValidationQueue
+                rows={rhRows}
+                emptyMessage="Nenhum cadastro aguardando validação do RH."
+                dateLabel="Aprovado pelo gestor em"
+                decisionAction={(id) => decideRhValidation.bind(null, id)}
+                primaryLabel="Validar"
+                primaryValue="validar"
+              />
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </>
   );
 }

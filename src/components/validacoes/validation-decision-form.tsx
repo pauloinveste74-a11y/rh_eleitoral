@@ -2,18 +2,30 @@
 
 import { startTransition, useActionState } from "react";
 
-import { decideRegistrationSubmission } from "@/app/(app)/validacoes/actions";
 import { initialValidationActionState } from "@/app/(app)/validacoes/action-state";
+import type { ValidationActionState } from "@/app/(app)/validacoes/action-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-/** Mesmo padrão de ApprovalDecisionForm (/aprovacoes), com um terceiro botão. */
+/**
+ * Formulário de decisão genérico — usado tanto pela fila do gestor
+ * (decide_registration_submission, "Aprovar") quanto pela fila do RH
+ * (decide_rh_validation, "Validar"). `action` já vem vinculada ao id da
+ * submissão pelo chamador (`.bind(null, submissionId)`), mesmo padrão de
+ * ApprovalDecisionForm (/aprovacoes).
+ */
 export function ValidationDecisionForm({
-  submissionId,
+  action,
+  primaryLabel = "Aprovar",
+  primaryValue = "aprovar",
 }: {
-  submissionId: string;
+  action: (
+    prevState: ValidationActionState,
+    formData: FormData,
+  ) => Promise<ValidationActionState>;
+  primaryLabel?: string;
+  primaryValue?: string;
 }) {
-  const action = decideRegistrationSubmission.bind(null, submissionId);
   const [state, dispatch, isPending] = useActionState(
     action,
     initialValidationActionState,
@@ -45,11 +57,11 @@ export function ValidationDecisionForm({
         <Button
           type="submit"
           name="decision"
-          value="aprovar"
+          value={primaryValue}
           size="sm"
           disabled={isPending}
         >
-          Aprovar
+          {primaryLabel}
         </Button>
         <Button
           type="submit"

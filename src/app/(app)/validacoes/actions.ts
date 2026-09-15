@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { ValidationActionState } from "./action-state";
 
-const VALID_DECISIONS = ["aprovar", "rejeitar", "solicitar_correcao"];
+const GESTOR_DECISIONS = ["aprovar", "rejeitar", "solicitar_correcao"];
+const RH_DECISIONS = ["validar", "rejeitar", "solicitar_correcao"];
 
 /**
  * Decisão do gestor (coordenador dono de manager_person_id, ou
@@ -21,7 +22,7 @@ export async function decideRegistrationSubmission(
   const decision = String(formData.get("decision") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
 
-  if (!VALID_DECISIONS.includes(decision)) {
+  if (!GESTOR_DECISIONS.includes(decision)) {
     return { status: "error", message: "Decisão inválida." };
   }
   if (decision === "solicitar_correcao" && !reason) {
@@ -47,5 +48,45 @@ export async function decideRegistrationSubmission(
 
   revalidatePath("/validacoes");
   revalidatePath("/minha-equipe");
+  return { status: "success" };
+}
+
+/**
+ * Decisão do RH (só administrador/rh) sobre uma registration_submissions
+ * já aprovada pelo gestor — via decide_rh_validation() (migração 0024).
+ */
+export async function decideRhValidation(
+  submissionId: string,
+  _prevState: ValidationActionState,
+  formData: FormData,
+): Promise<ValidationActionState> {
+  const decision = String(formData.get("decision") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim();
+
+  if (!RH_DECISIONS.includes(decision)) {
+    return { status: "error", message: "Decisão inválida." };
+  }
+  if (decision === "solicitar_correcao" && !reason) {
+    return {
+      status: "error",
+      message: "Informe o motivo da correção solicitada.",
+    };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("decide_rh_validation", {
+    p_submission_id: submissionId,
+    p_decision: decision,
+    p_reason: reason || null,
+  });
+
+  if (error) {
+    return {
+      status: "error",
+      message: error.message || "Não foi possível registrar a decisão.",
+    };
+  }
+
+  revalidatePath("/validacoes");
   return { status: "success" };
 }

@@ -7,6 +7,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCpf } from "@/lib/validations/cpf";
+import type { ValidationActionState } from "@/app/(app)/validacoes/action-state";
 import { ValidationDecisionForm } from "./validation-decision-form";
 
 export type ValidationQueueRow = {
@@ -14,7 +15,8 @@ export type ValidationQueueRow = {
   fullName: string;
   cpf: string;
   origin: "autocadastro" | "administrativo" | "importacao_excel";
-  submittedAt: string | null;
+  /** Data de referência da linha (enviado em / aprovado pelo gestor em, conforme `dateLabel`). */
+  date: string | null;
 };
 
 const ORIGIN_LABEL: Record<ValidationQueueRow["origin"], string> = {
@@ -23,11 +25,30 @@ const ORIGIN_LABEL: Record<ValidationQueueRow["origin"], string> = {
   importacao_excel: "Importação em lote",
 };
 
-export function ValidationQueue({ rows }: { rows: ValidationQueueRow[] }) {
+export function ValidationQueue({
+  rows,
+  emptyMessage,
+  dateLabel,
+  decisionAction,
+  primaryLabel,
+  primaryValue,
+}: {
+  rows: ValidationQueueRow[];
+  emptyMessage: string;
+  dateLabel: string;
+  decisionAction: (
+    submissionId: string,
+  ) => (
+    prevState: ValidationActionState,
+    formData: FormData,
+  ) => Promise<ValidationActionState>;
+  primaryLabel: string;
+  primaryValue: string;
+}) {
   if (rows.length === 0) {
     return (
       <p className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">
-        Nenhum cadastro aguardando sua validação.
+        {emptyMessage}
       </p>
     );
   }
@@ -39,7 +60,7 @@ export function ValidationQueue({ rows }: { rows: ValidationQueueRow[] }) {
           <TableHead>Nome</TableHead>
           <TableHead>CPF</TableHead>
           <TableHead>Origem</TableHead>
-          <TableHead>Enviado em</TableHead>
+          <TableHead>{dateLabel}</TableHead>
           <TableHead>Decisão</TableHead>
         </TableRow>
       </TableHeader>
@@ -52,12 +73,14 @@ export function ValidationQueue({ rows }: { rows: ValidationQueueRow[] }) {
             <TableCell>{row.cpf ? formatCpf(row.cpf) : "—"}</TableCell>
             <TableCell>{ORIGIN_LABEL[row.origin]}</TableCell>
             <TableCell>
-              {row.submittedAt
-                ? new Date(row.submittedAt).toLocaleDateString("pt-BR")
-                : "—"}
+              {row.date ? new Date(row.date).toLocaleDateString("pt-BR") : "—"}
             </TableCell>
             <TableCell>
-              <ValidationDecisionForm submissionId={row.id} />
+              <ValidationDecisionForm
+                action={decisionAction(row.id)}
+                primaryLabel={primaryLabel}
+                primaryValue={primaryValue}
+              />
             </TableCell>
           </TableRow>
         ))}

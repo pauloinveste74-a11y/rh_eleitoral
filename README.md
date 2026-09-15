@@ -24,11 +24,11 @@ Sistema de gestão de pessoas, operações e pagamentos para campanha eleitoral.
 > por convite, cadeia de coordenação, importação em lote por Excel e uma
 > reformulação de Despesas com autorizador/alçada — ver
 > [MVP — Cadastro, Convite, Coordenação, Importação e Despesas](#mvp--cadastro-convite-coordenação-importação-e-despesas)
-> logo abaixo. As Etapas 1, 2 e 4 (camada de banco, migrações
-> `0013`–`0023`) estão aplicadas e verificadas em produção, e as Etapas 3
-> e 4 (páginas `/meu-cadastro`, `/minha-equipe`, `/cadastro/[token]` e
-> `/validacoes`) já estão implementadas e passando em
-> `typecheck`/`lint`/`build`.
+> logo abaixo. As Etapas 1, 2, 4 e 5 (camada de banco, migrações
+> `0013`–`0024`) estão aplicadas e verificadas em produção, e as Etapas 3,
+> 4 e 5 (páginas `/meu-cadastro`, `/minha-equipe`, `/cadastro/[token]` e
+> `/validacoes`, esta última com fila do gestor e do RH) já estão
+> implementadas e passando em `typecheck`/`lint`/`build`.
 
 ## MVP — Cadastro, Convite, Coordenação, Importação e Despesas
 
@@ -261,10 +261,53 @@ existe):**
   pedidos) e a etapa de validação do RH (`aprovado_gestor` →
   `aguardando_rh` → `validado`) ficam para a etapa seguinte.
 
-**Próxima etapa (5 — não iniciada)**: validação do RH sobre cadastros já
-aprovados pelo gestor (`aprovado_gestor` → `aguardando_rh` → `validado`),
-e/ou a importação em lote por Excel (banco já pronto desde a Etapa 1, sem
-UI ainda).
+**Etapa 5 — validação do RH (concluída):**
+
+- Migração `0024_etapa5_validacao_rh.sql`: função
+  `decide_rh_validation(p_submission_id, p_decision, p_reason)`
+  (`validar`/`rejeitar`/`solicitar_correcao`), mesmo idioma de
+  `decide_registration_submission()` (0023) — `SECURITY DEFINER`, mas
+  autorização **só** `administrador`/`rh` (não existe "gestor pessoa
+  física" nesta etapa). Atua sobre submissões em `aprovado_gestor`;
+  `validar` → `validado`, `rejeitar` → `rejeitado`, `solicitar_correcao`
+  → `correcao_solicitada` (mesmo efeito colateral de criar
+  `correction_requests` e cair de volta em `/meu-cadastro` para reenvio).
+  Como só administrador/rh chama esta função, ela audita via
+  `log_audit_event()` direto (não precisa do insert manual em
+  `audit_logs` que `decide_registration_submission()` usa para o
+  coordenador comum).
+- **Simplificação deliberada**: trata `aprovado_gestor` como o próprio
+  estado "aguardando RH" — não introduz uma transição para o valor
+  `aguardando_rh` do enum (reservado desde a `0013`) porque não existe
+  nenhum processo real entre gestor e RH ainda (ex.: checagem automática
+  de documento). Fica pronto para uma etapa futura inserir esse passo
+  sem precisar de migração de dado.
+- `/validacoes` ganhou uma segunda seção, "Validação do RH" — só visível
+  para quem tem o papel `administrador`/`rh` (checagem via `has_role()`
+  no Server Component, mesma tela nunca faz uma query a mais pra quem
+  não precisa dela). O componente de fila (`ValidationQueue`) e o
+  formulário de decisão (`ValidationDecisionForm`) foram generalizados
+  nesta etapa para servir as duas filas (gestor e RH), recebendo a
+  Server Action e os rótulos como prop — mesmo espírito da generalização
+  de `PersonForm` na Etapa 3.
+- **Verificado** (testes funcionais diretos, em transação com `rollback`,
+  sem dado residual): as 3 decisões fazem a transição de status correta;
+  `solicitar_correcao` cria `correction_requests`; redecidir a mesma
+  submissão é rejeitado; chamador sem papel `administrador`/`rh` (mesmo
+  com `profiles.person_id` preenchido) é rejeitado — confirmando que esta
+  função, ao contrário da Etapa 4, não aceita o caminho
+  `manager_person_id`.
+- `npm run typecheck`/`lint`/`build` — sem erros nem avisos.
+- **Riscos/pendências**: revisão campo a campo
+  (`registration_field_reviews`) continua sem UI — hoje uma correção
+  solicitada reabre o cadastro inteiro em `/meu-cadastro`, não só os
+  campos específicos. Importação em lote por Excel (banco pronto desde a
+  Etapa 1) segue sem UI.
+
+**Próxima etapa (6 — não iniciada)**: importação em lote por Excel
+(`import_batches`/`import_staging_records`/`import_row_errors`, banco
+pronto desde a Etapa 1) — única peça grande da spec original ainda sem
+nenhuma UI.
 
 ## Stack
 

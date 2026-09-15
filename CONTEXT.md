@@ -77,7 +77,7 @@ README, seção "Modelo de dados"):
 - `0011`: `rh` ganha leitura/edição de outros `profiles` (pra tela de
   Usuários).
 - `0012`: `profiles.phone`.
-- `0013`–`0023`: **camada de banco de uma iniciativa nova e separada**
+- `0013`–`0024`: **camada de banco de uma iniciativa nova e separada**
   (spec `docs/IMPLEMENTACAO_CADASTRO_IMPORTACAO_DESPESAS.md` — autocadastro
   por convite, cadeia de coordenação, importação por Excel, despesas com
   autorizador/alçada). Aplicadas e verificadas (advisors + testes
@@ -93,16 +93,18 @@ README, seção "Modelo de dados"):
   encontrei e corrigi um bug real de autorização (NULL propagando por
   AND/OR deixava `if not v_authorized` não disparar pra um chamador sem
   vínculo nenhum); as outras 4 funções de decisão do projeto já eram
-  imunes a esse padrão, conferido depois. Falta só a validação do RH
-  (Etapa 5).
+  imunes a esse padrão, conferido depois. `0024` (Etapa 5) fecha o
+  segundo: RH valida/rejeita/pede correção sobre o que o gestor já
+  aprovou (`decide_rh_validation()`, só `administrador`/`rh`). Falta só
+  a importação em lote por Excel (Etapa 6).
 
-## Etapas 3 e 4 — páginas de aplicação do autocadastro e da fila de validação
+## Etapas 3, 4 e 5 — páginas de aplicação do autocadastro e das duas filas de validação
 
 `/meu-cadastro`, `/minha-equipe`, `/cadastro/[token]` (Etapa 3) e
-`/validacoes` (Etapa 4, fila do gestor: aprovar/rejeitar/solicitar
-correção) — todas implementadas, publicadas em produção. Detalhe completo
-na seção "MVP — Cadastro, Convite, Coordenação, Importação e Despesas" do
-`README.md`. Dois pontos que valem saber antes de mexer:
+`/validacoes` (Etapa 4 — fila do gestor; Etapa 5 — segunda seção, fila do
+RH, só visível a administrador/rh) — todas implementadas. Detalhe
+completo na seção "MVP — Cadastro, Convite, Coordenação, Importação e
+Despesas" do `README.md`. Dois pontos que valem saber antes de mexer:
 
 - `PersonForm` (usado por `/pessoas`) ganhou props opcionais
   (`action`/`submitLabel`/`showSocialName`/`onSuccess`) pra ser
