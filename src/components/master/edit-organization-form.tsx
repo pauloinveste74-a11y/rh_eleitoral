@@ -21,6 +21,15 @@ export function EditOrganizationForm({
     tradeName: string | null;
     phone: string | null;
     email: string | null;
+    zipCode: string | null;
+    street: string | null;
+    number: string | null;
+    complement: string | null;
+    neighborhood: string | null;
+    city: string | null;
+    state: string | null;
+    representativeName: string | null;
+    representativeCpf: string | null;
   };
 }) {
   const action = updateOrganization.bind(null, campaignId);
@@ -82,6 +91,78 @@ export function EditOrganizationForm({
           )}
         </div>
       </div>
+
+      <p className="text-sm font-medium text-brand-navy dark:text-slate-50">
+        Endereço do escritório (cabeçalho/rodapé do contrato impresso)
+      </p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="zipCode">CEP (opcional)</Label>
+          <Input
+            id="zipCode"
+            name="zipCode"
+            placeholder="00000-000"
+            defaultValue={defaultValues.zipCode ?? ""}
+          />
+          {state.errors?.zipCode && (
+            <p className="text-sm text-red-600" role="alert">{state.errors.zipCode[0]}</p>
+          )}
+        </div>
+        <div className="flex flex-col gap-2 sm:col-span-2">
+          <Label htmlFor="street">Logradouro (opcional)</Label>
+          <Input id="street" name="street" defaultValue={defaultValues.street ?? ""} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="number">Número (opcional)</Label>
+          <Input id="number" name="number" defaultValue={defaultValues.number ?? ""} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="complement">Complemento (opcional)</Label>
+          <Input id="complement" name="complement" defaultValue={defaultValues.complement ?? ""} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="neighborhood">Bairro (opcional)</Label>
+          <Input id="neighborhood" name="neighborhood" defaultValue={defaultValues.neighborhood ?? ""} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="city">Cidade (opcional)</Label>
+          <Input id="city" name="city" defaultValue={defaultValues.city ?? ""} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="state">UF (opcional)</Label>
+          <Input id="state" name="state" maxLength={2} defaultValue={defaultValues.state ?? ""} />
+          {state.errors?.state && (
+            <p className="text-sm text-red-600" role="alert">{state.errors.state[0]}</p>
+          )}
+        </div>
+      </div>
+
+      <p className="text-sm font-medium text-brand-navy dark:text-slate-50">
+        Representante legal (qualificação do contrato)
+      </p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="representativeName">Nome (opcional)</Label>
+          <Input
+            id="representativeName"
+            name="representativeName"
+            defaultValue={defaultValues.representativeName ?? ""}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="representativeCpf">CPF (opcional)</Label>
+          <Input
+            id="representativeCpf"
+            name="representativeCpf"
+            placeholder="000.000.000-00"
+            defaultValue={defaultValues.representativeCpf ?? ""}
+          />
+          {state.errors?.representativeCpf && (
+            <p className="text-sm text-red-600" role="alert">{state.errors.representativeCpf[0]}</p>
+          )}
+        </div>
+      </div>
+
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={isPending}>
           {isPending ? "Salvando..." : "Salvar alterações"}

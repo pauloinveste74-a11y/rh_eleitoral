@@ -219,6 +219,15 @@ export async function updateOrganization(
     tradeName: String(formData.get("tradeName") ?? ""),
     phone: String(formData.get("phone") ?? ""),
     email: String(formData.get("email") ?? ""),
+    zipCode: String(formData.get("zipCode") ?? ""),
+    street: String(formData.get("street") ?? ""),
+    number: String(formData.get("number") ?? ""),
+    complement: String(formData.get("complement") ?? ""),
+    neighborhood: String(formData.get("neighborhood") ?? ""),
+    city: String(formData.get("city") ?? ""),
+    state: String(formData.get("state") ?? ""),
+    representativeName: String(formData.get("representativeName") ?? ""),
+    representativeCpf: String(formData.get("representativeCpf") ?? ""),
   });
   if (!parsed.success) {
     return {
@@ -241,6 +250,15 @@ export async function updateOrganization(
       trade_name: parsed.data.tradeName || null,
       phone: parsed.data.phone || null,
       email: parsed.data.email || null,
+      zip_code: parsed.data.zipCode || null,
+      street: parsed.data.street || null,
+      number: parsed.data.number || null,
+      complement: parsed.data.complement || null,
+      neighborhood: parsed.data.neighborhood || null,
+      city: parsed.data.city || null,
+      state: parsed.data.state || null,
+      representative_name: parsed.data.representativeName || null,
+      representative_cpf: parsed.data.representativeCpf || null,
     })
     .eq("id", campaignId);
 

@@ -41,6 +41,15 @@ export interface Database {
           trade_name: string | null;
           phone: string | null;
           email: string | null;
+          zip_code: string | null;
+          street: string | null;
+          number: string | null;
+          complement: string | null;
+          neighborhood: string | null;
+          city: string | null;
+          state: string | null;
+          representative_name: string | null;
+          representative_cpf: string | null;
         } & Timestamps;
         Insert: Partial<Timestamps> & {
           id?: string;
@@ -52,6 +61,15 @@ export interface Database {
           trade_name?: string | null;
           phone?: string | null;
           email?: string | null;
+          zip_code?: string | null;
+          street?: string | null;
+          number?: string | null;
+          complement?: string | null;
+          neighborhood?: string | null;
+          city?: string | null;
+          state?: string | null;
+          representative_name?: string | null;
+          representative_cpf?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["campaigns"]["Insert"]>;
         Relationships: [];

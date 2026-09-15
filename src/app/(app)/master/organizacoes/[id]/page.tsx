@@ -57,7 +57,9 @@ export default async function OrganizacaoDetalhePage({
 
   const { data: campaign } = await supabase
     .from("campaigns")
-    .select("id, name, slug, document_number, legal_name, trade_name, phone, email, status")
+    .select(
+      "id, name, slug, document_number, legal_name, trade_name, phone, email, zip_code, street, number, complement, neighborhood, city, state, representative_name, representative_cpf, status",
+    )
     .eq("id", id)
     .maybeSingle();
 
@@ -132,6 +134,15 @@ export default async function OrganizacaoDetalhePage({
                 tradeName: campaign.trade_name,
                 phone: campaign.phone,
                 email: campaign.email,
+                zipCode: campaign.zip_code,
+                street: campaign.street,
+                number: campaign.number,
+                complement: campaign.complement,
+                neighborhood: campaign.neighborhood,
+                city: campaign.city,
+                state: campaign.state,
+                representativeName: campaign.representative_name,
+                representativeCpf: campaign.representative_cpf,
               }}
             />
             <div className="flex flex-wrap items-start gap-3 border-t border-border-default pt-4 dark:border-slate-800">

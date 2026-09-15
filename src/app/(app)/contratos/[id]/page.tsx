@@ -81,6 +81,14 @@ export default async function ContratoDetalhePage({
     targetName = entity?.company_name ?? "—";
   }
 
+  const { data: campaign } = await supabase
+    .from("campaigns")
+    .select(
+      "name, legal_name, document_number, email, phone, representative_name, representative_cpf, zip_code, street, number, complement, neighborhood, city, state",
+    )
+    .eq("id", contract.campaign_id)
+    .maybeSingle();
+
   const docsWithUrl = await Promise.all(
     (signedDocs ?? []).map(async (d) => ({
       ...d,
@@ -121,7 +129,30 @@ export default async function ContratoDetalhePage({
           </Badge>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <ContractPrintView contractId={contract.id} body={contract.generated_body} />
+          <ContractPrintView
+            contractId={contract.id}
+            body={contract.generated_body}
+            organization={
+              campaign
+                ? {
+                    name: campaign.name,
+                    legalName: campaign.legal_name,
+                    documentNumber: campaign.document_number,
+                    email: campaign.email,
+                    phone: campaign.phone,
+                    representativeName: campaign.representative_name,
+                    representativeCpf: campaign.representative_cpf,
+                    zipCode: campaign.zip_code,
+                    street: campaign.street,
+                    number: campaign.number,
+                    complement: campaign.complement,
+                    neighborhood: campaign.neighborhood,
+                    city: campaign.city,
+                    state: campaign.state,
+                  }
+                : null
+            }
+          />
           {(isManager || isCoordinatorOfTarget) && <SendContractAccess contractId={contract.id} />}
         </CardContent>
       </Card>

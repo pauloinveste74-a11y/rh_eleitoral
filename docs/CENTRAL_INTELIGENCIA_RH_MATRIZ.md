@@ -146,6 +146,56 @@ sistema e assinar por lá.
   ("assinar no sistema" aqui continua sendo ver o contrato logado +
   subir o PDF assinado, fluxo que já existia).
 
+## Cabeçalho/rodapé do contrato impresso + dados da organização no corpo (concluído)
+
+Pedido do usuário: CNPJ, e-mail, telefone e endereço do escritório
+prontos como cabeçalho/rodapé do contrato, "no corpo dos contratos",
+pra impressão sair completa. No meio do trabalho, o usuário trouxe um
+documento novo — `docs/CADERNO_DOCUMENTAL_JURIDICO_CONTRATOS_RH_ELEITORAL.md`
+— cujas seções 8/9/15 definem exatamente essa exigência com mais
+precisão (cabeçalho/rodapé obrigatório em toda página, qualificação do
+CONTRATANTE com representante legal) — o trabalho foi ajustado pra
+seguir essa referência mais precisa antes de terminar.
+
+- **Migração `0040`**: `campaigns` ganhou endereço (`zip_code`/
+  `street`/`number`/`complement`/`neighborhood`/`city`/`state`,
+  mesma convenção de `legal_entities`) e representante legal
+  (`representative_name`/`representative_cpf`) — editável em
+  `/master/organizacoes/[id]` (`EditOrganizationForm`), junto do
+  CNPJ/e-mail/telefone que já existiam desde a Multi-tenant Etapa 1/3.
+- **`ContractPrintView`** (`src/components/contratos/contract-print-view.tsx`):
+  ganhou cabeçalho (nome/razão social + CNPJ da organização) e rodapé
+  (CNPJ + e-mail + telefone + endereço + código do contrato) — dados
+  buscados **ao vivo** da campanha no momento de ver/imprimir, não
+  fazem parte do snapshot imutável do contrato (endereço do escritório
+  não é cláusula contratual — se o escritório mudar de endereço, faz
+  sentido que TODOS os contratos, mesmo os antigos, mostrem o endereço
+  atual na hora de imprimir; diferente de valor/prazo/função, que
+  continuam congelados pra sempre em `generated_body`).
+- **Migração `0041`**: `generate_contract()` (existia desde a `0032`)
+  nunca populava nenhuma variável da organização — só do contratado.
+  Passou a somar `{{organizacao_nome}}`, `{{organizacao_cnpj}}`,
+  `{{organizacao_endereco}}`, `{{organizacao_telefone}}`,
+  `{{organizacao_email}}`, `{{organizacao_representante_nome}}`,
+  `{{organizacao_representante_cpf}}` ao mesmo mecanismo de
+  `replace()` já usado pras demais variáveis — quem editar o texto do
+  modelo agora pode escrever a qualificação do CONTRATANTE (seção 15
+  do caderno jurídico) usando esses marcadores. Nomeação flat
+  (`organizacao_cnpj`), não o estilo com ponto do caderno
+  (`{{organizacao.cnpj}}`), porque o mecanismo de substituição deste
+  projeto não suporta chave aninhada.
+- **Verificado**: transação de teste (`rollback`) — modelo com os 4
+  marcadores novos, `generate_contract()` chamado de verdade,
+  conferido que `generated_body` e `variables_used` saíram com os
+  valores certos da organização. `npm run typecheck`/`lint`/`build`
+  sem erros. Advisors sem achado novo.
+- **Fora de escopo desta etapa**: o resto do caderno jurídico é uma
+  biblioteca completa de contratos (14 tipos PF + 17 tipos PJ, texto
+  de cláusula pronto pra LGPD/TSE, estados de aprovação
+  draft→legal_review→accounting_review→approved, dossiê documental,
+  aditivos, recibos) — não analisado ainda seção a seção; fica pra uma
+  matriz própria, como esta, quando o usuário quiser avançar nisso.
+
 ## Recomendação
 
 Não dá pra tratar isso como uma etapa só — é maior que qualquer
