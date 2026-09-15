@@ -36,7 +36,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Contratos", href: "/contratos", icon: FileText },
   { label: "Minha Equipe", href: "/minha-equipe", icon: UserPlus },
   { label: "Validações", href: "/validacoes", icon: ClipboardCheck },
-  { label: "Importar pessoas", href: "/importacoes", icon: FileSpreadsheet },
+  { label: "Importar dados", href: "/importacoes", icon: FileSpreadsheet },
   { label: "Divergências", href: "/divergencias", icon: AlertTriangle },
   { label: "Aprovações", href: "/aprovacoes", icon: CheckSquare },
   { label: "Ponto", href: "/ponto", icon: Clock },

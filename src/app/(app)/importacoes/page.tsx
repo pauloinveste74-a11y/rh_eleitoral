@@ -16,7 +16,7 @@ import {
 import { ImportUploadForm } from "@/components/importacoes/import-upload-form";
 import { PdfUploadForm } from "@/components/importacoes/pdf-upload-form";
 
-export const metadata: Metadata = { title: "Importação de pessoas" };
+export const metadata: Metadata = { title: "Importar dados" };
 
 const STATUS_LABEL: Record<string, string> = {
   staging: "Processando",
@@ -45,7 +45,7 @@ export default async function ImportacoesPage() {
     return (
       <>
         <PageHeader
-          title="Importação de pessoas"
+          title="Importar dados"
           description="Importação em lote por planilha Excel."
         />
         <Card>
@@ -68,7 +68,7 @@ export default async function ImportacoesPage() {
   return (
     <>
       <PageHeader
-        title="Importação de pessoas"
+        title="Importar dados"
         description="Cadastre várias pessoas de uma vez a partir de uma planilha Excel ou de um PDF — nada vira cadastro oficial antes de você revisar e confirmar a prévia."
       />
 

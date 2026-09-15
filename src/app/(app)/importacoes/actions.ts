@@ -28,6 +28,19 @@ function sanitizeFileName(name: string): string {
 const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024;
 const XLSX_MIME =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+// Formatos de planilha aceitos além do .xlsx moderno — .xls (Excel 97-2003,
+// binário) e .xlsm (com macro) são comuns em exportações de sistemas mais
+// antigos; a biblioteca `xlsx` (SheetJS) já lê todos eles nativamente, então
+// a única mudança necessária é não travar o upload na validação de
+// extensão/MIME. Navegadores enviam MIME variado (às vezes genérico) pra
+// .xls/.xlsm — por isso a checagem por extensão é a que manda.
+const ACCEPTED_EXTENSIONS = [".xlsx", ".xls", ".xlsm"];
+const ACCEPTED_MIME_TYPES = [
+  XLSX_MIME,
+  "application/vnd.ms-excel", // .xls
+  "application/vnd.ms-excel.sheet.macroEnabled.12", // .xlsm
+  "application/octet-stream", // alguns navegadores/SO não identificam o MIME certo
+];
 
 async function requireManager(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -57,13 +70,18 @@ export async function uploadImportBatch(
 ): Promise<ImportBatchActionState> {
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
-    return { status: "error", message: "Selecione um arquivo .xlsx." };
+    return { status: "error", message: "Selecione uma planilha (.xlsx, .xls ou .xlsm)." };
   }
   if (file.size > MAX_FILE_SIZE_BYTES) {
     return { status: "error", message: "Arquivo maior que 15 MB." };
   }
-  if (file.type !== XLSX_MIME && !file.name.toLowerCase().endsWith(".xlsx")) {
-    return { status: "error", message: "Envie um arquivo .xlsx (Excel)." };
+  const fileNameLower = file.name.toLowerCase();
+  const hasAcceptedExtension = ACCEPTED_EXTENSIONS.some((ext) => fileNameLower.endsWith(ext));
+  if (!hasAcceptedExtension && !ACCEPTED_MIME_TYPES.includes(file.type)) {
+    return {
+      status: "error",
+      message: "Envie uma planilha Excel (.xlsx, .xls ou .xlsm).",
+    };
   }
 
   const supabase = await createClient();
@@ -112,7 +130,7 @@ export async function uploadImportBatch(
 
   const { error: uploadError } = await supabase.storage
     .from("pessoas-importacoes")
-    .upload(storagePath, file, { contentType: XLSX_MIME });
+    .upload(storagePath, file, { contentType: file.type || XLSX_MIME });
   if (uploadError) {
     return { status: "error", message: "Não foi possível enviar o arquivo." };
   }

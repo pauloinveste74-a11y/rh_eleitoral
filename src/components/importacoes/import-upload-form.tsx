@@ -29,12 +29,12 @@ export function ImportUploadForm() {
         className="flex flex-col gap-4 sm:flex-row sm:items-end"
       >
         <div className="flex flex-col gap-2">
-          <Label htmlFor="file">Planilha (.xlsx, até 15 MB)</Label>
+          <Label htmlFor="file">Planilha (.xlsx, .xls ou .xlsm, até 15 MB)</Label>
           <input
             id="file"
             name="file"
             type="file"
-            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            accept=".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
             className="text-sm"
           />
         </div>
