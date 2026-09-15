@@ -51,7 +51,7 @@ export function InviteUserForm() {
               {state.errors.phone[0]}
             </p>
           ) : (
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-brand-graphite dark:text-slate-400">
               Vira a senha inicial (últimos 6 dígitos).
             </p>
           )}

@@ -30,7 +30,7 @@ export function ContractPrintView({
           Imprimir / salvar como PDF
         </Button>
       </div>
-      <div className="whitespace-pre-wrap rounded-md border border-slate-200 bg-white p-6 text-sm leading-relaxed text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50">
+      <div className="whitespace-pre-wrap rounded-md border border-border-default bg-white p-6 text-sm leading-relaxed text-brand-navy dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50">
         {body}
       </div>
     </div>

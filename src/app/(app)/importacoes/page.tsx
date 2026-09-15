@@ -49,7 +49,7 @@ export default async function ImportacoesPage() {
         />
         <Card>
           <CardContent className="p-6">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-brand-graphite dark:text-slate-400">
               Você não tem permissão para acessar esta área — restrita a
               administrador e RH.
             </p>
@@ -80,7 +80,7 @@ export default async function ImportacoesPage() {
       <Card>
         <CardContent className="p-6">
           {(batches ?? []).length === 0 ? (
-            <p className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+            <p className="py-12 text-center text-sm text-brand-graphite dark:text-slate-400">
               Nenhuma importação feita ainda.
             </p>
           ) : (
@@ -96,7 +96,7 @@ export default async function ImportacoesPage() {
               <TableBody>
                 {(batches ?? []).map((b) => (
                   <TableRow key={b.id}>
-                    <TableCell className="font-medium text-slate-900 dark:text-slate-50">
+                    <TableCell className="font-medium text-brand-navy dark:text-slate-50">
                       <Link href={`/importacoes/${b.id}`} className="hover:underline">
                         {b.original_file_name}
                       </Link>

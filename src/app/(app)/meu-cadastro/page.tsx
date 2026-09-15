@@ -153,18 +153,18 @@ export default async function MeuCadastroPage() {
               <CardTitle>Seu gestor pediu uma correção</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-slate-600 dark:text-slate-300">
+              <p className="text-sm text-brand-graphite dark:text-slate-300">
                 {correction.reason}
               </p>
               {editableFields && (
-                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                <p className="mt-2 text-xs text-brand-graphite dark:text-slate-400">
                   Só os campos apontados estão liberados para edição abaixo —
                   o resto ficou travado.
                 </p>
               )}
               {correction.previous_values &&
                 Object.keys(correction.previous_values as Record<string, Json>).length > 0 && (
-                  <details className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                  <details className="mt-2 text-xs text-brand-graphite dark:text-slate-400">
                     <summary className="cursor-pointer select-none">
                       Valores no momento da solicitação
                     </summary>
@@ -204,7 +204,7 @@ export default async function MeuCadastroPage() {
               <CardContent className="flex flex-col gap-4">
                 <PersonDocumentUpload personId={personId} />
                 {documentsWithUrl.length === 0 ? (
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                  <p className="text-sm text-brand-graphite dark:text-slate-400">
                     Nenhum documento anexado.
                   </p>
                 ) : (
@@ -212,7 +212,7 @@ export default async function MeuCadastroPage() {
                     {documentsWithUrl.map((doc) => (
                       <li
                         key={doc.id}
-                        className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2 text-sm dark:border-slate-800"
+                        className="flex items-center justify-between rounded-md border border-border-default px-3 py-2 text-sm dark:border-slate-800"
                       >
                         <span>
                           {documentTypeLabels[doc.document_type]} — {doc.file_name}
@@ -222,12 +222,12 @@ export default async function MeuCadastroPage() {
                             href={doc.signedUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="font-medium text-slate-900 underline-offset-4 hover:underline dark:text-slate-50"
+                            className="font-medium text-brand-navy underline-offset-4 hover:underline dark:text-slate-50"
                           >
                             Ver documento
                           </a>
                         ) : (
-                          <span className="text-slate-400">Indisponível</span>
+                          <span className="text-brand-graphite/60">Indisponível</span>
                         )}
                       </li>
                     ))}
@@ -239,7 +239,7 @@ export default async function MeuCadastroPage() {
         )}
 
         {!personId && (
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <p className="text-sm text-brand-graphite dark:text-slate-400">
             Salve seus dados pessoais acima para liberar o envio de
             documentos e a validação do seu gestor.
           </p>

@@ -230,9 +230,11 @@ e o `README.md` continuam sendo a referência de arquitetura/histórico.
 `docs/IDENTIDADE_VISUAL.md` — acompanhamento da aplicação do manual de
 marca (`docs/MANUAL_IDENTIDADE_VISUAL_RH_ELEITORAL_FINAL.docx`, Agilize
 Tecnologia). Fase 1 (tokens em `globals.css`, tipografia Manrope/Inter,
-os 7 componentes de `src/components/ui/*`, navegação e login) já
-aplicada; Fase 2 (logo vetorial, telas com `slate-*` solto, sidebar
-recolhida, modo escuro de marca) documentada como pendente.
+os 7 componentes de `src/components/ui/*`, navegação e login) e Fase 2
+(as ~44 telas que ainda usavam `slate-*` solto, trocadas por script
+respeitando as variantes `dark:`) já aplicadas; Fase 3 (logo vetorial,
+sidebar recolhida, modo escuro de marca, gráficos) documentada como
+pendente.
 
 ## O que falta para o sistema funcionar de ponta a ponta
 

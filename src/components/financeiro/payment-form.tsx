@@ -21,7 +21,7 @@ export function PaymentForm({
 
   if (people.length === 0) {
     return (
-      <p className="text-sm text-slate-500 dark:text-slate-400">
+      <p className="text-sm text-brand-graphite dark:text-slate-400">
         Nenhuma pessoa com status &quot;ativo&quot; encontrada — só pessoas
         ativas podem receber pagamento.
       </p>

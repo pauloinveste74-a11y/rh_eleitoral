@@ -44,7 +44,7 @@ export default async function UsuarioDetailPage({
         <PageHeader title="Usuário" />
         <Card>
           <CardContent className="p-6">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-brand-graphite dark:text-slate-400">
               Você não tem permissão para acessar esta área — restrita a
               administrador e RH.
             </p>
@@ -88,7 +88,7 @@ export default async function UsuarioDetailPage({
       <Card className="mb-6">
         <CardContent className="flex items-center justify-between p-6">
           <div className="flex items-center gap-3">
-            <span className="text-sm text-slate-500 dark:text-slate-400">Status:</span>
+            <span className="text-sm text-brand-graphite dark:text-slate-400">Status:</span>
             <Badge variant={STATUS_VARIANT[profile.status] ?? "secondary"}>
               {profile.status}
             </Badge>
@@ -104,7 +104,7 @@ export default async function UsuarioDetailPage({
         <CardContent className="flex flex-col gap-4">
           <PhoneForm profileId={profile.id} phone={profile.phone} />
           <div>
-            <p className="mb-2 text-sm text-slate-500 dark:text-slate-400">
+            <p className="mb-2 text-sm text-brand-graphite dark:text-slate-400">
               Reseta a senha para os últimos dígitos do telefone cadastrado —
               útil se a pessoa esqueceu a senha atual.
             </p>
@@ -138,7 +138,7 @@ export default async function UsuarioDetailPage({
         </CardHeader>
         <CardContent>
           {(roleAssignments ?? []).length === 0 ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-brand-graphite dark:text-slate-400">
               Nenhum papel atribuído ainda.
             </p>
           ) : (
@@ -167,7 +167,7 @@ export default async function UsuarioDetailPage({
                       .join(" · ") || "—";
                   return (
                     <TableRow key={ra.id}>
-                      <TableCell className="font-medium text-slate-900 dark:text-slate-50">
+                      <TableCell className="font-medium text-brand-navy dark:text-slate-50">
                         {roleNameById.get(ra.role_id) ?? "—"}
                       </TableCell>
                       <TableCell>{scope}</TableCell>

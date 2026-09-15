@@ -49,7 +49,7 @@ export default async function ContratoModelosPage() {
         />
         <Card>
           <CardContent className="p-6">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-brand-graphite dark:text-slate-400">
               Você não tem permissão para acessar esta área — restrita a
               administrador, RH e jurídico.
             </p>
@@ -96,7 +96,7 @@ export default async function ContratoModelosPage() {
       <div className="flex flex-col gap-6">
         {(templates ?? []).length === 0 ? (
           <Card>
-            <CardContent className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+            <CardContent className="py-12 text-center text-sm text-brand-graphite dark:text-slate-400">
               Nenhum modelo cadastrado ainda.
             </CardContent>
           </Card>
@@ -104,9 +104,9 @@ export default async function ContratoModelosPage() {
           (templates ?? []).map((t) => (
             <Card key={t.id}>
               <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-                <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-50">
+                <CardTitle className="text-base font-semibold text-brand-navy dark:text-slate-50">
                   {t.name}{" "}
-                  <span className="text-sm font-normal text-slate-500 dark:text-slate-400">
+                  <span className="text-sm font-normal text-brand-graphite dark:text-slate-400">
                     ({contractTypeLabels[t.contract_type]})
                   </span>
                 </CardTitle>
@@ -121,17 +121,17 @@ export default async function ContratoModelosPage() {
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 {t.legal_approval_note && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className="text-xs text-brand-graphite dark:text-slate-400">
                     Observação jurídica: {t.legal_approval_note}
                   </p>
                 )}
 
                 <div>
-                  <p className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+                  <p className="mb-2 text-xs font-medium text-brand-graphite dark:text-slate-400">
                     Versões
                   </p>
                   {(versionsByTemplate.get(t.id) ?? []).length === 0 ? (
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                    <p className="text-sm text-brand-graphite dark:text-slate-400">
                       Nenhuma versão publicada ainda.
                     </p>
                   ) : (
@@ -142,7 +142,7 @@ export default async function ContratoModelosPage() {
                           <Badge variant={v.status === "ativo" ? "success" : "secondary"}>
                             {v.status === "ativo" ? "Ativa" : v.status === "substituido" ? "Substituída" : "Rascunho"}
                           </Badge>
-                          <span className="text-slate-500 dark:text-slate-400">
+                          <span className="text-brand-graphite dark:text-slate-400">
                             vigente desde {new Date(v.valid_from).toLocaleDateString("pt-BR")}
                             {v.valid_until && ` até ${new Date(v.valid_until).toLocaleDateString("pt-BR")}`}
                           </span>

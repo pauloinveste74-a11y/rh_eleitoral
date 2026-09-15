@@ -116,11 +116,11 @@ export default async function RelatorioPessoasPage({
 
       <Card className="mb-6">
         <CardContent className="p-6">
-          <p className="mb-3 text-sm font-medium text-slate-900 dark:text-slate-50">
+          <p className="mb-3 text-sm font-medium text-brand-navy dark:text-slate-50">
             Funil por status ({total} pessoa{total === 1 ? "" : "s"})
           </p>
           {total === 0 ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-brand-graphite dark:text-slate-400">
               Nenhuma pessoa encontrada para o período/território selecionado.
             </p>
           ) : (
@@ -129,16 +129,16 @@ export default async function RelatorioPessoasPage({
                 .sort(([, a], [, b]) => b - a)
                 .map(([statusKey, count]) => (
                   <div key={statusKey} className="flex items-center gap-3">
-                    <span className="w-56 shrink-0 text-sm text-slate-600 dark:text-slate-300">
+                    <span className="w-56 shrink-0 text-sm text-brand-graphite dark:text-slate-300">
                       {PERSON_STATUS_LABEL[statusKey] ?? statusKey}
                     </span>
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-state-neutral-soft dark:bg-slate-800">
                       <div
-                        className="h-full rounded-full bg-slate-900 dark:bg-slate-50"
+                        className="h-full rounded-full bg-brand-navy dark:bg-slate-50"
                         style={{ width: `${(count / total) * 100}%` }}
                       />
                     </div>
-                    <span className="w-10 shrink-0 text-right text-sm font-medium text-slate-900 dark:text-slate-50">
+                    <span className="w-10 shrink-0 text-right text-sm font-medium text-brand-navy dark:text-slate-50">
                       {count}
                     </span>
                   </div>
@@ -151,7 +151,7 @@ export default async function RelatorioPessoasPage({
       <Card>
         <CardContent className="p-6">
           {rows.length === 0 ? (
-            <p className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+            <p className="py-12 text-center text-sm text-brand-graphite dark:text-slate-400">
               Nenhuma pessoa encontrada para os filtros selecionados.
             </p>
           ) : (
@@ -168,7 +168,7 @@ export default async function RelatorioPessoasPage({
                 <TableBody>
                   {rows.map((p) => (
                     <TableRow key={p.id}>
-                      <TableCell className="font-medium text-slate-900 dark:text-slate-50">
+                      <TableCell className="font-medium text-brand-navy dark:text-slate-50">
                         {p.socialName || p.fullName}
                       </TableCell>
                       <TableCell>{formatCpf(p.cpf)}</TableCell>
@@ -185,7 +185,7 @@ export default async function RelatorioPessoasPage({
                 </TableBody>
               </Table>
               {rows.length === MAX_ROWS && (
-                <p className="pt-4 text-xs text-slate-500 dark:text-slate-400">
+                <p className="pt-4 text-xs text-brand-graphite dark:text-slate-400">
                   Mostrando as {MAX_ROWS} pessoas mais recentes. Use
                   &quot;Exportar CSV&quot; para obter todos os resultados.
                 </p>

@@ -47,7 +47,7 @@ export function ImportUploadForm() {
           {state.message}
         </p>
       )}
-      <details className="text-sm text-slate-500 dark:text-slate-400">
+      <details className="text-sm text-brand-graphite dark:text-slate-400">
         <summary className="cursor-pointer select-none">
           Ver cabeçalhos aceitos na primeira linha da planilha
         </summary>
@@ -59,7 +59,7 @@ export function ImportUploadForm() {
         </p>
         <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
           {IMPORT_COLUMNS.map((c) => (
-            <li key={c.key} className="rounded bg-slate-100 px-2 py-0.5 font-mono text-xs dark:bg-slate-900">
+            <li key={c.key} className="rounded bg-state-neutral-soft px-2 py-0.5 font-mono text-xs dark:bg-slate-900">
               {c.header}
             </li>
           ))}

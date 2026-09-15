@@ -58,12 +58,12 @@ export function SendForApprovalCard({
           </p>
         ) : (
           <>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-brand-graphite dark:text-slate-400">
               Vincule esta pessoa a uma cidade para iniciar o fluxo de validação
               (coordenador de cidade, depois coordenador de eixo).
             </p>
             {cities.length === 0 ? (
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-sm text-brand-graphite dark:text-slate-400">
                 Nenhuma cidade cadastrada ainda — crie uma em Configurações
                 antes de enviar para aprovação.
               </p>

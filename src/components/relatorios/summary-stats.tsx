@@ -8,10 +8,10 @@ export function SummaryStats({
       {stats.map((s) => (
         <div
           key={s.label}
-          className="rounded-lg border border-slate-200 p-4 dark:border-slate-800"
+          className="rounded-lg border border-border-default p-4 dark:border-slate-800"
         >
-          <p className="text-xs text-slate-500 dark:text-slate-400">{s.label}</p>
-          <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-50">
+          <p className="text-xs text-brand-graphite dark:text-slate-400">{s.label}</p>
+          <p className="mt-1 text-lg font-semibold text-brand-navy dark:text-slate-50">
             {s.value}
           </p>
         </div>

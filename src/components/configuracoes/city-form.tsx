@@ -27,7 +27,7 @@ export function CityForm({ axes }: { axes: { id: string; name: string }[] }) {
 
   if (axes.length === 0) {
     return (
-      <p className="text-sm text-slate-500 dark:text-slate-400">
+      <p className="text-sm text-brand-graphite dark:text-slate-400">
         Crie um eixo antes de cadastrar cidades.
       </p>
     );

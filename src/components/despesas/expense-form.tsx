@@ -35,7 +35,7 @@ export function ExpenseForm({
 
   if (people.length === 0) {
     return (
-      <p className="text-sm text-slate-500 dark:text-slate-400">
+      <p className="text-sm text-brand-graphite dark:text-slate-400">
         Nenhuma pessoa com status &quot;ativo&quot; encontrada — só pessoas
         ativas podem receber reembolso.
       </p>
@@ -163,8 +163,8 @@ export function ExpenseForm({
         </div>
       </div>
 
-      <fieldset className="flex flex-col gap-3 rounded-md border border-slate-200 p-4 dark:border-slate-800">
-        <legend className="px-1 text-sm font-medium text-slate-900 dark:text-slate-50">
+      <fieldset className="flex flex-col gap-3 rounded-md border border-border-default p-4 dark:border-slate-800">
+        <legend className="px-1 text-sm font-medium text-brand-navy dark:text-slate-50">
           Quem autorizou este gasto
         </legend>
         <div className="flex gap-4">

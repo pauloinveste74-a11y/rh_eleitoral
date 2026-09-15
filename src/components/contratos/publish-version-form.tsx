@@ -47,8 +47,8 @@ export function PublishVersionForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 rounded-md border border-slate-200 p-4 dark:border-slate-800">
-      <p className="text-xs text-slate-500 dark:text-slate-400">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 rounded-md border border-border-default p-4 dark:border-slate-800">
+      <p className="text-xs text-brand-graphite dark:text-slate-400">
         Placeholders disponíveis: {placeholders.map((p) => `{{${p}}}`).join(", ")}
       </p>
       <div className="flex flex-col gap-2">
@@ -57,7 +57,7 @@ export function PublishVersionForm({
           id="pv-body"
           name="body"
           rows={10}
-          className="rounded-md border border-slate-300 bg-white p-3 text-sm dark:border-slate-700 dark:bg-slate-900"
+          className="rounded-md border border-border-default bg-white p-3 text-sm dark:border-slate-700 dark:bg-slate-900"
           placeholder={`Pelo presente instrumento, {{nome_contratado}}...`}
         />
         {state.errors?.body && (

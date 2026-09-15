@@ -59,7 +59,7 @@ export default async function ConfiguracoesPage() {
           <CardContent className="flex flex-col gap-4">
             {isAdmin && <AxisForm />}
             {axesList.length === 0 ? (
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-sm text-brand-graphite dark:text-slate-400">
                 Nenhum eixo cadastrado.
               </p>
             ) : (
@@ -73,7 +73,7 @@ export default async function ConfiguracoesPage() {
                 <TableBody>
                   {axesList.map((axis) => (
                     <TableRow key={axis.id}>
-                      <TableCell className="font-medium text-slate-900 dark:text-slate-50">
+                      <TableCell className="font-medium text-brand-navy dark:text-slate-50">
                         {axis.name}
                       </TableCell>
                       <TableCell>{axis.code}</TableCell>
@@ -96,7 +96,7 @@ export default async function ConfiguracoesPage() {
               />
             )}
             {citiesList.length === 0 ? (
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-sm text-brand-graphite dark:text-slate-400">
                 Nenhuma cidade cadastrada.
               </p>
             ) : (
@@ -112,7 +112,7 @@ export default async function ConfiguracoesPage() {
                 <TableBody>
                   {citiesList.map((city) => (
                     <TableRow key={city.id}>
-                      <TableCell className="font-medium text-slate-900 dark:text-slate-50">
+                      <TableCell className="font-medium text-brand-navy dark:text-slate-50">
                         {city.name}
                       </TableCell>
                       <TableCell>{city.state}</TableCell>
@@ -139,7 +139,7 @@ export default async function ConfiguracoesPage() {
               />
             )}
             {teamsList.length === 0 ? (
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-sm text-brand-graphite dark:text-slate-400">
                 Nenhuma equipe cadastrada.
               </p>
             ) : (
@@ -153,7 +153,7 @@ export default async function ConfiguracoesPage() {
                 <TableBody>
                   {teamsList.map((team) => (
                     <TableRow key={team.id}>
-                      <TableCell className="font-medium text-slate-900 dark:text-slate-50">
+                      <TableCell className="font-medium text-brand-navy dark:text-slate-50">
                         {team.name}
                       </TableCell>
                       <TableCell>{cityNameById.get(team.city_id)}</TableCell>
@@ -172,7 +172,7 @@ export default async function ConfiguracoesPage() {
           <CardContent className="flex flex-col gap-4">
             {isAdmin && <JobFunctionForm />}
             {jobFunctionsList.length === 0 ? (
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-sm text-brand-graphite dark:text-slate-400">
                 Nenhum cargo cadastrado.
               </p>
             ) : (
@@ -189,7 +189,7 @@ export default async function ConfiguracoesPage() {
                 <TableBody>
                   {jobFunctionsList.map((jf) => (
                     <TableRow key={jf.id}>
-                      <TableCell className="font-medium text-slate-900 dark:text-slate-50">
+                      <TableCell className="font-medium text-brand-navy dark:text-slate-50">
                         {jf.name}
                       </TableCell>
                       <TableCell>{jf.category || "—"}</TableCell>

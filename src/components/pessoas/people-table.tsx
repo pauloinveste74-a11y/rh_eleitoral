@@ -23,7 +23,7 @@ export type PersonListRow = {
 export function PeopleTable({ people }: { people: PersonListRow[] }) {
   if (people.length === 0) {
     return (
-      <p className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+      <p className="py-12 text-center text-sm text-brand-graphite dark:text-slate-400">
         Nenhuma pessoa encontrada.
       </p>
     );
@@ -42,7 +42,7 @@ export function PeopleTable({ people }: { people: PersonListRow[] }) {
       <TableBody>
         {people.map((person) => (
           <TableRow key={person.id}>
-            <TableCell className="font-medium text-slate-900 dark:text-slate-50">
+            <TableCell className="font-medium text-brand-navy dark:text-slate-50">
               {person.social_name || person.full_name}
             </TableCell>
             <TableCell>{formatCpf(person.cpf)}</TableCell>
@@ -52,7 +52,7 @@ export function PeopleTable({ people }: { people: PersonListRow[] }) {
             <TableCell className="text-right">
               <Link
                 href={`/pessoas/${person.id}/editar`}
-                className="text-sm font-medium text-slate-900 underline-offset-4 hover:underline dark:text-slate-50"
+                className="text-sm font-medium text-brand-navy underline-offset-4 hover:underline dark:text-slate-50"
               >
                 Editar
               </Link>

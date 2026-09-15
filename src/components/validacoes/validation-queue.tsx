@@ -59,7 +59,7 @@ export function ValidationQueue({
 }) {
   if (rows.length === 0) {
     return (
-      <p className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+      <p className="py-12 text-center text-sm text-brand-graphite dark:text-slate-400">
         {emptyMessage}
       </p>
     );
@@ -80,7 +80,7 @@ export function ValidationQueue({
         {rows.map((row) => (
           <Fragment key={row.id}>
             <TableRow>
-              <TableCell className="font-medium text-slate-900 dark:text-slate-50">
+              <TableCell className="font-medium text-brand-navy dark:text-slate-50">
                 {row.fullName}
               </TableCell>
               <TableCell>{row.cpf ? formatCpf(row.cpf) : "—"}</TableCell>
@@ -97,8 +97,8 @@ export function ValidationQueue({
               </TableCell>
             </TableRow>
             <TableRow>
-              <TableCell colSpan={5} className="bg-slate-50/60 dark:bg-slate-900/40">
-                <p className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+              <TableCell colSpan={5} className="bg-surface-page/60 dark:bg-slate-900/40">
+                <p className="mb-2 text-xs font-medium text-brand-graphite dark:text-slate-400">
                   Documentos
                 </p>
                 <DocumentReviewList

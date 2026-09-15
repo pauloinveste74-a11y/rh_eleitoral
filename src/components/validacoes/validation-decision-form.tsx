@@ -59,7 +59,7 @@ export function ValidationDecisionForm({
         name="reason"
         placeholder="Motivo (obrigatório para solicitar correção)"
       />
-      <details className="text-xs text-slate-500 dark:text-slate-400">
+      <details className="text-xs text-brand-graphite dark:text-slate-400">
         <summary className="cursor-pointer select-none">
           Campos a corrigir (só usado se a decisão for &quot;Solicitar correção&quot;)
         </summary>

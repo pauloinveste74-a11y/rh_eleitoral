@@ -184,7 +184,7 @@ export default async function RelatorioFinanceiroPage({
       <Card>
         <CardContent className="p-6">
           {rows.length === 0 ? (
-            <p className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+            <p className="py-12 text-center text-sm text-brand-graphite dark:text-slate-400">
               Nenhum lançamento encontrado para os filtros selecionados.
             </p>
           ) : (
@@ -228,7 +228,7 @@ export default async function RelatorioFinanceiroPage({
                 </TableBody>
               </Table>
               {rows.length === MAX_ROWS && (
-                <p className="pt-4 text-xs text-slate-500 dark:text-slate-400">
+                <p className="pt-4 text-xs text-brand-graphite dark:text-slate-400">
                   Mostrando os {MAX_ROWS} lançamentos mais recentes. Use
                   &quot;Exportar CSV&quot; para obter todos os resultados.
                 </p>

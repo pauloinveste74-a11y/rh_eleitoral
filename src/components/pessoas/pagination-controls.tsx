@@ -29,7 +29,7 @@ export function PaginationControls({
 
   return (
     <div className="flex items-center justify-between pt-4">
-      <p className="text-sm text-slate-500 dark:text-slate-400">
+      <p className="text-sm text-brand-graphite dark:text-slate-400">
         Página {page} de {totalPages}
       </p>
       <div className="flex gap-2">

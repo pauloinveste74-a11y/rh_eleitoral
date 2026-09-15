@@ -112,7 +112,7 @@ export default async function ContratoDetalhePage({
 
       <Card className="mb-6">
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-          <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-50">
+          <CardTitle className="text-base font-semibold text-brand-navy dark:text-slate-50">
             Documento gerado
           </CardTitle>
           <Badge variant={CONTRACT_STATUS_VARIANT[contract.status] ?? "secondary"}>
@@ -127,12 +127,12 @@ export default async function ContratoDetalhePage({
       {canUploadSigned && contract.status !== "assinado_e_validado" && contract.status !== "recusado" && (
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-50">
+            <CardTitle className="text-base font-semibold text-brand-navy dark:text-slate-50">
               Enviar assinatura
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
+            <p className="mb-3 text-sm text-brand-graphite dark:text-slate-400">
               Depois de assinar fora do sistema, envie o PDF (ou foto) de volta aqui.
             </p>
             <UploadSignedContractForm contractId={contract.id} storagePathPrefix={storagePathPrefix} />
@@ -143,7 +143,7 @@ export default async function ContratoDetalhePage({
       {docsWithUrl.length > 0 && (
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-50">
+            <CardTitle className="text-base font-semibold text-brand-navy dark:text-slate-50">
               Assinaturas enviadas
             </CardTitle>
           </CardHeader>
@@ -152,7 +152,7 @@ export default async function ContratoDetalhePage({
               {docsWithUrl.map((d) => (
                 <li
                   key={d.id}
-                  className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2 text-sm dark:border-slate-800"
+                  className="flex items-center justify-between rounded-md border border-border-default px-3 py-2 text-sm dark:border-slate-800"
                 >
                   <span>
                     {d.file_name} —{" "}
@@ -163,12 +163,12 @@ export default async function ContratoDetalhePage({
                       href={d.signedUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="font-medium text-slate-900 underline-offset-4 hover:underline dark:text-slate-50"
+                      className="font-medium text-brand-navy underline-offset-4 hover:underline dark:text-slate-50"
                     >
                       Ver arquivo
                     </a>
                   ) : (
-                    <span className="text-slate-400">Indisponível</span>
+                    <span className="text-brand-graphite/60">Indisponível</span>
                   )}
                 </li>
               ))}
@@ -190,7 +190,7 @@ export default async function ContratoDetalhePage({
       {canDecide && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-50">
+            <CardTitle className="text-base font-semibold text-brand-navy dark:text-slate-50">
               Conferência
             </CardTitle>
           </CardHeader>

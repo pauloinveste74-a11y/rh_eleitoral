@@ -88,7 +88,7 @@ export default async function AuditoriaPage({
           ) : (
             <div className="p-6">
               {(logs ?? []).length === 0 ? (
-                <p className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+                <p className="py-12 text-center text-sm text-brand-graphite dark:text-slate-400">
                   Nenhum evento de auditoria encontrado.
                 </p>
               ) : (
@@ -118,7 +118,7 @@ export default async function AuditoriaPage({
                         <TableCell>
                           {log.entity_table}
                           {log.entity_id && (
-                            <span className="block font-mono text-xs text-slate-400">
+                            <span className="block font-mono text-xs text-brand-graphite/60">
                               {log.entity_id}
                             </span>
                           )}
@@ -131,7 +131,7 @@ export default async function AuditoriaPage({
                         <TableCell>
                           {log.before_data || log.after_data || log.reason || log.ip_address || log.user_agent ? (
                             <details>
-                              <summary className="cursor-pointer text-sm text-slate-500 hover:underline dark:text-slate-400">
+                              <summary className="cursor-pointer text-sm text-brand-graphite hover:underline dark:text-slate-400">
                                 Ver
                               </summary>
                               <div className="mt-2 flex max-w-xs flex-col gap-1 text-xs">
@@ -152,19 +152,19 @@ export default async function AuditoriaPage({
                                   </p>
                                 )}
                                 {log.before_data && (
-                                  <pre className="overflow-x-auto rounded bg-slate-100 p-2 dark:bg-slate-900">
+                                  <pre className="overflow-x-auto rounded bg-state-neutral-soft p-2 dark:bg-slate-900">
                                     {JSON.stringify(log.before_data, null, 2)}
                                   </pre>
                                 )}
                                 {log.after_data && (
-                                  <pre className="overflow-x-auto rounded bg-slate-100 p-2 dark:bg-slate-900">
+                                  <pre className="overflow-x-auto rounded bg-state-neutral-soft p-2 dark:bg-slate-900">
                                     {JSON.stringify(log.after_data, null, 2)}
                                   </pre>
                                 )}
                               </div>
                             </details>
                           ) : (
-                            <span className="text-slate-400">—</span>
+                            <span className="text-brand-graphite/60">—</span>
                           )}
                         </TableCell>
                       </TableRow>

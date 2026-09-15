@@ -20,7 +20,7 @@ export function PaymentBatchForm({
 
   if (people.length === 0) {
     return (
-      <p className="text-sm text-slate-500 dark:text-slate-400">
+      <p className="text-sm text-brand-graphite dark:text-slate-400">
         Nenhuma pessoa com status &quot;ativo&quot; encontrada — só pessoas
         ativas podem receber pagamento.
       </p>
@@ -83,7 +83,7 @@ export function PaymentBatchForm({
           name="personIds"
           multiple
           size={Math.min(10, Math.max(4, people.length))}
-          className="flex w-full max-w-md rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50 dark:focus-visible:ring-slate-300"
+          className="flex w-full max-w-md rounded-md border border-border-default bg-white px-3 py-2 text-sm text-brand-navy focus-visible:ring-2 focus-visible:ring-state-info focus-visible:outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50 dark:focus-visible:ring-slate-300"
         >
           {people.map((person) => (
             <option key={person.id} value={person.id}>

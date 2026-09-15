@@ -89,23 +89,23 @@ export default async function ImportacaoDetalhePage({
           <CardContent className="flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-5">
               <div>
-                <div className="text-slate-500 dark:text-slate-400">Total</div>
+                <div className="text-brand-graphite dark:text-slate-400">Total</div>
                 <div className="text-lg font-semibold">{batch.total_rows}</div>
               </div>
               <div>
-                <div className="text-slate-500 dark:text-slate-400">Prontas</div>
+                <div className="text-brand-graphite dark:text-slate-400">Prontas</div>
                 <div className="text-lg font-semibold">{batch.valid_rows}</div>
               </div>
               <div>
-                <div className="text-slate-500 dark:text-slate-400">Duplicadas</div>
+                <div className="text-brand-graphite dark:text-slate-400">Duplicadas</div>
                 <div className="text-lg font-semibold">{batch.duplicate_rows}</div>
               </div>
               <div>
-                <div className="text-slate-500 dark:text-slate-400">Inválidas</div>
+                <div className="text-brand-graphite dark:text-slate-400">Inválidas</div>
                 <div className="text-lg font-semibold">{batch.rejected_rows}</div>
               </div>
               <div>
-                <div className="text-slate-500 dark:text-slate-400">Importadas</div>
+                <div className="text-brand-graphite dark:text-slate-400">Importadas</div>
                 <div className="text-lg font-semibold">{batch.imported_rows}</div>
               </div>
             </div>
@@ -133,12 +133,12 @@ export default async function ImportacaoDetalhePage({
               </div>
             )}
             {batch.status === "cancelado" && (
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-sm text-brand-graphite dark:text-slate-400">
                 Esta importação foi cancelada — nenhuma pessoa foi criada.
               </p>
             )}
             {batch.status === "revertido" && (
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-sm text-brand-graphite dark:text-slate-400">
                 Esta importação foi revertida em{" "}
                 {batch.reverted_at
                   ? new Date(batch.reverted_at).toLocaleString("pt-BR")
@@ -172,7 +172,7 @@ export default async function ImportacaoDetalhePage({
                     return (
                       <TableRow key={row.id}>
                         <TableCell>{row.row_number}</TableCell>
-                        <TableCell className="font-medium text-slate-900 dark:text-slate-50">
+                        <TableCell className="font-medium text-brand-navy dark:text-slate-50">
                           {raw?.fullName || "—"}
                         </TableCell>
                         <TableCell>
@@ -183,7 +183,7 @@ export default async function ImportacaoDetalhePage({
                             {RESULT_LABEL[row.result] ?? row.result}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-xs text-slate-500 dark:text-slate-400">
+                        <TableCell className="text-xs text-brand-graphite dark:text-slate-400">
                           {errors.length > 0 ? errors.join("; ") : "—"}
                         </TableCell>
                       </TableRow>

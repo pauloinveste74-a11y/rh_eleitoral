@@ -62,7 +62,7 @@ function DocumentRow({
   const status = doc.reviewStatus ?? "pendente";
 
   return (
-    <li className="flex flex-col gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm dark:border-slate-800">
+    <li className="flex flex-col gap-2 rounded-md border border-border-default px-3 py-2 text-sm dark:border-slate-800">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span>
           {documentTypeLabels[doc.documentType] ?? doc.documentType} —{" "}
@@ -77,12 +77,12 @@ function DocumentRow({
               href={doc.signedUrl}
               target="_blank"
               rel="noreferrer"
-              className="font-medium text-slate-900 underline-offset-4 hover:underline dark:text-slate-50"
+              className="font-medium text-brand-navy underline-offset-4 hover:underline dark:text-slate-50"
             >
               Ver documento
             </a>
           ) : (
-            <span className="text-slate-400">Indisponível</span>
+            <span className="text-brand-graphite/60">Indisponível</span>
           )}
         </div>
       </div>
@@ -150,7 +150,7 @@ export function DocumentReviewList({
 }) {
   if (documents.length === 0) {
     return (
-      <p className="text-xs text-slate-500 dark:text-slate-400">
+      <p className="text-xs text-brand-graphite dark:text-slate-400">
         Nenhum documento enviado ainda.
       </p>
     );

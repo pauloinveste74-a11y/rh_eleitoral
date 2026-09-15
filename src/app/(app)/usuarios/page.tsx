@@ -39,7 +39,7 @@ export default async function UsuariosPage() {
         />
         <Card>
           <CardContent className="p-6">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-brand-graphite dark:text-slate-400">
               Você não tem permissão para acessar esta área — restrita a
               administrador e RH.
             </p>
@@ -92,7 +92,7 @@ export default async function UsuariosPage() {
       <Card>
         <CardContent className="p-6">
           {(profiles ?? []).length === 0 ? (
-            <p className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+            <p className="py-12 text-center text-sm text-brand-graphite dark:text-slate-400">
               Nenhum usuário cadastrado ainda.
             </p>
           ) : (
@@ -109,18 +109,18 @@ export default async function UsuariosPage() {
               <TableBody>
                 {(profiles ?? []).map((p) => (
                   <TableRow key={p.id}>
-                    <TableCell className="font-medium text-slate-900 dark:text-slate-50">
+                    <TableCell className="font-medium text-brand-navy dark:text-slate-50">
                       <Link href={`/usuarios/${p.id}`} className="hover:underline">
                         {p.full_name}
                       </Link>
                     </TableCell>
                     <TableCell>{p.email}</TableCell>
                     <TableCell>
-                      {p.phone || <span className="text-slate-400">—</span>}
+                      {p.phone || <span className="text-brand-graphite/60">—</span>}
                     </TableCell>
                     <TableCell>
                       {(rolesByProfile.get(p.id) ?? []).length === 0 ? (
-                        <span className="text-slate-400">Sem papel atribuído</span>
+                        <span className="text-brand-graphite/60">Sem papel atribuído</span>
                       ) : (
                         <div className="flex flex-wrap gap-1">
                           {rolesByProfile.get(p.id)!.map((name, i) => (

@@ -52,7 +52,7 @@ export function ExpenseList({
 }) {
   if (rows.length === 0) {
     return (
-      <p className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+      <p className="py-12 text-center text-sm text-brand-graphite dark:text-slate-400">
         Nenhuma despesa registrada.
       </p>
     );
@@ -75,10 +75,10 @@ export function ExpenseList({
       <TableBody>
         {rows.map((row) => (
           <TableRow key={row.id}>
-            <TableCell className="font-medium text-slate-900 dark:text-slate-50">
+            <TableCell className="font-medium text-brand-navy dark:text-slate-50">
               {row.personName}
               {row.protocol && (
-                <span className="block text-xs font-normal text-slate-400">
+                <span className="block text-xs font-normal text-brand-graphite/60">
                   {row.protocol}
                 </span>
               )}
@@ -86,7 +86,7 @@ export function ExpenseList({
             <TableCell>{expenseCategoryLabels[row.category]}</TableCell>
             <TableCell>
               {row.authorizerName ?? (
-                <span className="text-slate-400">—</span>
+                <span className="text-brand-graphite/60">—</span>
               )}
               {row.unidentifiedAuthorizer && (
                 <span className="block text-xs font-normal text-amber-600">
@@ -117,12 +117,12 @@ export function ExpenseList({
                   href={row.receiptUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="font-medium text-slate-900 underline-offset-4 hover:underline dark:text-slate-50"
+                  className="font-medium text-brand-navy underline-offset-4 hover:underline dark:text-slate-50"
                 >
                   Ver
                 </a>
               ) : (
-                <span className="text-slate-400">Indisponível</span>
+                <span className="text-brand-graphite/60">Indisponível</span>
               )}
             </TableCell>
             <TableCell>

@@ -120,7 +120,7 @@ export default async function EditarPessoaPage({
           <CardContent className="flex flex-col gap-4">
             <PersonDocumentUpload personId={id} />
             {documentsWithUrl.length === 0 ? (
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-sm text-brand-graphite dark:text-slate-400">
                 Nenhum documento anexado.
               </p>
             ) : (
@@ -128,7 +128,7 @@ export default async function EditarPessoaPage({
                 {documentsWithUrl.map((doc) => (
                   <li
                     key={doc.id}
-                    className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2 text-sm dark:border-slate-800"
+                    className="flex items-center justify-between rounded-md border border-border-default px-3 py-2 text-sm dark:border-slate-800"
                   >
                     <span>
                       {documentTypeLabels[doc.document_type]} — {doc.file_name}
@@ -138,12 +138,12 @@ export default async function EditarPessoaPage({
                         href={doc.signedUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="font-medium text-slate-900 underline-offset-4 hover:underline dark:text-slate-50"
+                        className="font-medium text-brand-navy underline-offset-4 hover:underline dark:text-slate-50"
                       >
                         Ver documento
                       </a>
                     ) : (
-                      <span className="text-slate-400">Indisponível</span>
+                      <span className="text-brand-graphite/60">Indisponível</span>
                     )}
                   </li>
                 ))}

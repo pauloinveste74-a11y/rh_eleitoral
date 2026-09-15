@@ -90,7 +90,7 @@ export default async function ContratosPage() {
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-50">
+          <CardTitle className="text-base font-semibold text-brand-navy dark:text-slate-50">
             Gerar contrato
           </CardTitle>
         </CardHeader>
@@ -101,7 +101,7 @@ export default async function ContratosPage() {
             legalEntities={(legalEntities ?? []).map((e) => ({ id: e.id, companyName: e.company_name }))}
             jobFunctions={jobFunctions ?? []}
           />
-          <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+          <p className="mt-3 text-xs text-brand-graphite dark:text-slate-400">
             Não achou o modelo que precisa?{" "}
             <Link href="/contratos/modelos" className="underline underline-offset-4">
               Gerencie os modelos aqui
@@ -114,7 +114,7 @@ export default async function ContratosPage() {
       <Card>
         <CardContent className="p-6">
           {(contracts ?? []).length === 0 ? (
-            <p className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+            <p className="py-12 text-center text-sm text-brand-graphite dark:text-slate-400">
               Nenhum contrato gerado ainda.
             </p>
           ) : (
@@ -129,7 +129,7 @@ export default async function ContratosPage() {
               <TableBody>
                 {(contracts ?? []).map((c) => (
                   <TableRow key={c.id}>
-                    <TableCell className="font-medium text-slate-900 dark:text-slate-50">
+                    <TableCell className="font-medium text-brand-navy dark:text-slate-50">
                       <Link href={`/contratos/${c.id}`} className="hover:underline">
                         {c.person_id
                           ? peopleById.get(c.person_id) ?? "—"

@@ -31,7 +31,7 @@ export default async function AlcadasPage() {
         />
         <Card>
           <CardContent className="p-6">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-brand-graphite dark:text-slate-400">
               Você não tem permissão para acessar esta área — restrita a
               administrador.
             </p>
@@ -88,7 +88,7 @@ export default async function AlcadasPage() {
         <Card>
           <CardContent className="p-6">
             {(rules ?? []).length === 0 ? (
-              <p className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+              <p className="py-12 text-center text-sm text-brand-graphite dark:text-slate-400">
                 Nenhuma regra de alçada configurada ainda.
               </p>
             ) : (
@@ -104,7 +104,7 @@ export default async function AlcadasPage() {
                 <TableBody>
                   {(rules ?? []).map((rule) => (
                     <TableRow key={rule.id}>
-                      <TableCell className="font-medium text-slate-900 dark:text-slate-50">
+                      <TableCell className="font-medium text-brand-navy dark:text-slate-50">
                         {rule.role_id
                           ? (roleNameById.get(rule.role_id) ?? "—")
                           : rule.profile_id

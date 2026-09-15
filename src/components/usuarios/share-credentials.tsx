@@ -35,10 +35,10 @@ export function ShareCredentials({
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-slate-200 p-3 dark:border-slate-800">
-      <p className="text-sm text-slate-600 dark:text-slate-300">
+    <div className="flex flex-col gap-2 rounded-md border border-border-default p-3 dark:border-slate-800">
+      <p className="text-sm text-brand-graphite dark:text-slate-300">
         Acesso criado para <strong>{email}</strong>. Senha inicial:{" "}
-        <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-sm dark:bg-slate-900">
+        <code className="rounded bg-state-neutral-soft px-1.5 py-0.5 font-mono text-sm dark:bg-slate-900">
           {password}
         </code>{" "}
         — os últimos dígitos do telefone cadastrado. Compartilhe por um dos

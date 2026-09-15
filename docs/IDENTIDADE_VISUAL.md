@@ -72,18 +72,52 @@ existentes (paleta slate) continuam como estavam.
   `/painel`, `/pessoas` e `/validacoes` após o deploy.
 - `npm run typecheck`/`lint`/`build` — sem erros nem avisos.
 
-## Fase 2 — pendente (fora de escopo desta etapa)
+## Fase 2 — telas de conteúdo (aplicada nesta etapa)
+
+Escopo: os ~44 arquivos que ainda usavam classes `slate-*` soltas em vez
+de só herdar dos componentes de `src/components/ui/*` (a Fase 1 já
+cobria a fundação — componentes-base, navegação, login).
+
+Feito com um script (`reskin.mjs`, descartado depois de usado — não faz
+parte do repo) em vez de edição manual arquivo a arquivo, dado o volume
+(167 trocas em 44 arquivos): percorre todo `.tsx` sob `src/`, entra em
+cada string de classe (`className="..."`) e troca só os tokens de modo
+**claro** — qualquer token que comece com `dark:` fica intocado, mesmo
+dentro da mesma string (ex.: `"text-slate-500 dark:text-slate-400"` vira
+`"text-brand-graphite dark:text-slate-400"`). Mesmo princípio da Fase 1:
+modo escuro propositalmente fora de escopo (manual, seção 12.1).
+
+Mapeamento aplicado (modo claro):
+
+| Classe antiga | Token novo |
+| --- | --- |
+| `text-slate-900`/`950` | `text-brand-navy` |
+| `text-slate-600`/`500` | `text-brand-graphite` |
+| `text-slate-400` | `text-brand-graphite/60` |
+| `border-slate-200`/`300`/`100` | `border-border-default` |
+| `hover:border-slate-300`/`400` | `hover:border-state-info` |
+| `bg-slate-100` | `bg-state-neutral-soft` |
+| `bg-slate-50` | `bg-surface-page` |
+| `bg-slate-900` (texto solto, não em `dark:`) | `bg-brand-navy` |
+| `ring-slate-950` (`focus-visible:ring-slate-950`) | `ring-state-info` |
+
+- **Verificado**: `npm run typecheck`/`lint`/`build` sem erros nem
+  avisos; `git diff --stat` conferido arquivo a arquivo (167
+  inserções/167 remoções — troca 1:1, nenhuma linha estrutural tocada);
+  screenshot do `/login` repetido depois da troca pra confirmar que a
+  fundação da Fase 1 não regrediu (arquivo idêntico, não fazia parte do
+  escopo desta etapa). Não foi possível screenshot de tela autenticada
+  de novo (mesma limitação de credencial da Fase 1) — recomenda-se
+  conferência visual do usuário em `/painel`, `/pessoas`, `/despesas`,
+  `/validacoes` e `/contratos` depois do deploy.
+
+## Fase 3 — pendente (fora de escopo até aqui)
 
 - **Logo vetorial**: o próprio manual diz que "a arte conceitual
   aprovada deve ser redesenhada em vetor antes do uso definitivo"
   (seção 14) — a imagem embutida no `.docx` é um mockup, não um SVG
   final. Não tentei vetorizar o brasão (risco alto de sair errado sem
   um designer); favicon/logo continuam como estão até existir o SVG.
-- **~60 arquivos de tela** ainda usam classes `slate-*` soltas
-  diretamente (em vez de só herdar dos componentes de `src/components/ui`)
-  — normalizar cada um é o próximo passo natural, mas é troca de
-  conteúdo tela a tela, não fundação; ficou de fora pra manter esta
-  etapa revisável.
 - **Sidebar recolhida (72px)**: o manual prevê os dois estados; só o
   estado aberto (240px) foi implementado — recolher exigiria estado
   (toggle) novo, é feature de interação, não só visual.
@@ -100,4 +134,4 @@ existentes (paleta slate) continuam como estavam.
   preto, rodapé institucional — os exports atuais são CSV puro, sem
   layout visual a aplicar.
 - **Checklist de aprovação visual** (seção 13) — vale revisar com o
-  usuário depois que a Fase 2 avançar.
+  usuário depois que a Fase 3 avançar.

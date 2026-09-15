@@ -66,7 +66,7 @@ export default async function MinhaEquipePage() {
         />
         <Card>
           <CardContent className="p-6">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-brand-graphite dark:text-slate-400">
               Complete{" "}
               <Link href="/meu-cadastro" className="underline underline-offset-4">
                 o seu próprio cadastro
@@ -115,7 +115,7 @@ export default async function MinhaEquipePage() {
       <Card>
         <CardContent className="p-6">
           {(invites ?? []).length === 0 ? (
-            <p className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+            <p className="py-12 text-center text-sm text-brand-graphite dark:text-slate-400">
               Nenhum convite criado ainda.
             </p>
           ) : (
@@ -135,19 +135,19 @@ export default async function MinhaEquipePage() {
                     : undefined;
                   return (
                     <TableRow key={invite.id}>
-                      <TableCell className="font-medium text-slate-900 dark:text-slate-50">
+                      <TableCell className="font-medium text-brand-navy dark:text-slate-50">
                         {invite.contact_name || (
-                          <span className="text-slate-400">Sem nome</span>
+                          <span className="text-brand-graphite/60">Sem nome</span>
                         )}
                         {invite.contact_phone && (
-                          <span className="block text-xs font-normal text-slate-500 dark:text-slate-400">
+                          <span className="block text-xs font-normal text-brand-graphite dark:text-slate-400">
                             {invite.contact_phone}
                           </span>
                         )}
                       </TableCell>
                       <TableCell>
                         {person?.full_name ?? (
-                          <span className="text-slate-400">
+                          <span className="text-brand-graphite/60">
                             Ainda não preenchido
                           </span>
                         )}

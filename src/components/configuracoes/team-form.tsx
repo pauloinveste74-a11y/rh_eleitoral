@@ -31,7 +31,7 @@ export function TeamForm({
 
   if (cities.length === 0) {
     return (
-      <p className="text-sm text-slate-500 dark:text-slate-400">
+      <p className="text-sm text-brand-graphite dark:text-slate-400">
         Crie uma cidade antes de cadastrar equipes.
       </p>
     );

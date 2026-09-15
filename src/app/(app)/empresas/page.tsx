@@ -47,7 +47,7 @@ export default async function EmpresasPage() {
         />
         <Card>
           <CardContent className="p-6">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-brand-graphite dark:text-slate-400">
               Você não tem permissão para acessar esta área — restrita a
               administrador e RH.
             </p>
@@ -78,7 +78,7 @@ export default async function EmpresasPage() {
       <Card>
         <CardContent className="p-6">
           {(entities ?? []).length === 0 ? (
-            <p className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+            <p className="py-12 text-center text-sm text-brand-graphite dark:text-slate-400">
               Nenhuma empresa cadastrada ainda.
             </p>
           ) : (
@@ -94,10 +94,10 @@ export default async function EmpresasPage() {
               <TableBody>
                 {(entities ?? []).map((e) => (
                   <TableRow key={e.id}>
-                    <TableCell className="font-medium text-slate-900 dark:text-slate-50">
+                    <TableCell className="font-medium text-brand-navy dark:text-slate-50">
                       {e.trade_name || e.company_name}
                       {e.trade_name && (
-                        <span className="block text-xs font-normal text-slate-400">
+                        <span className="block text-xs font-normal text-brand-graphite/60">
                           {e.company_name}
                         </span>
                       )}

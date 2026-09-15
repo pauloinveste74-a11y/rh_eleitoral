@@ -60,7 +60,7 @@ export function SubmitOwnRegistrationCard({
           </p>
         ) : (
           <>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-brand-graphite dark:text-slate-400">
               Depois de preencher seus dados e anexar ao menos um documento,
               envie para o seu coordenador validar.
             </p>

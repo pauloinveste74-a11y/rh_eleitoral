@@ -118,7 +118,7 @@ export function GenerateContractForm({
             ))}
           </Select>
           {versionsForType.length === 0 && (
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-brand-graphite dark:text-slate-400">
               Nenhum modelo {targetType === "pf" ? "de PF" : "de PJ"} com versão publicada ainda.
             </p>
           )}

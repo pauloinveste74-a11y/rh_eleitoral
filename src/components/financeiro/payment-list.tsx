@@ -31,7 +31,7 @@ export function PaymentList({
 }) {
   if (rows.length === 0) {
     return (
-      <p className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+      <p className="py-12 text-center text-sm text-brand-graphite dark:text-slate-400">
         Nenhum pagamento registrado.
       </p>
     );
@@ -53,7 +53,7 @@ export function PaymentList({
       <TableBody>
         {rows.map((row) => (
           <TableRow key={row.id}>
-            <TableCell className="font-medium text-slate-900 dark:text-slate-50">
+            <TableCell className="font-medium text-brand-navy dark:text-slate-50">
               {row.personName}
             </TableCell>
             <TableCell>{formatCentsAsBRL(row.amountCents)}</TableCell>

@@ -62,7 +62,7 @@ export function PublicDocumentUpload({
         <CardTitle>Documentos</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <p className="text-sm text-slate-500 dark:text-slate-400">
+        <p className="text-sm text-brand-graphite dark:text-slate-400">
           Anexe pelo menos um documento com foto (RG, CPF ou título de
           eleitor) antes de concluir. Você pode anexar mais de um.
         </p>
@@ -111,7 +111,7 @@ export function PublicDocumentUpload({
           </p>
         )}
 
-        <div className="border-t border-slate-200 pt-4 dark:border-slate-800">
+        <div className="border-t border-border-default pt-4 dark:border-slate-800">
           <Button type="button" onClick={handleFinalSubmit} disabled={isSubmitting}>
             {isSubmitting ? "Enviando..." : "Concluir e enviar para validação"}
           </Button>

@@ -47,13 +47,13 @@ function KpiGrid({ kpis }: { kpis: Kpi[] }) {
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {kpis.map(({ label, value, icon: Icon, href }) => {
         const card = (
-          <Card className={href ? "transition-colors hover:border-slate-300 dark:hover:border-slate-700" : undefined}>
+          <Card className={href ? "transition-colors hover:border-state-info dark:hover:border-slate-700" : undefined}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle>{label}</CardTitle>
-              <Icon className="h-4 w-4 text-slate-400" aria-hidden="true" />
+              <Icon className="h-4 w-4 text-brand-graphite/60" aria-hidden="true" />
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
+              <p className="text-2xl font-semibold text-brand-navy dark:text-slate-50">
                 {value}
               </p>
             </CardContent>
@@ -185,7 +185,7 @@ export default async function PainelPage() {
       {showCoordinatorSection && (
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-50">
+            <CardTitle className="text-base font-semibold text-brand-navy dark:text-slate-50">
               Minha equipe
             </CardTitle>
           </CardHeader>
@@ -197,7 +197,7 @@ export default async function PainelPage() {
 
       {!hasAnyRoleSummary && (
         <Card className="mb-6">
-          <CardContent className="p-6 text-sm text-slate-500 dark:text-slate-400">
+          <CardContent className="p-6 text-sm text-brand-graphite dark:text-slate-400">
             Sem indicadores de gestão para o seu perfil de acesso.{" "}
             {ownPersonId ? (
               <Link href="/meu-cadastro" className="underline underline-offset-4">
@@ -215,20 +215,20 @@ export default async function PainelPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-50">
+          <CardTitle className="text-base font-semibold text-brand-navy dark:text-slate-50">
             Cadastros recentes
           </CardTitle>
         </CardHeader>
         <CardContent>
           {recentPeople.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+            <p className="py-8 text-center text-sm text-brand-graphite dark:text-slate-400">
               Nenhum cadastro visível para o seu perfil ainda.
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                  <tr className="border-b border-border-default text-brand-graphite dark:border-slate-800 dark:text-slate-400">
                     <th scope="col" className="py-2 pr-4 font-medium">
                       Pessoa
                     </th>
@@ -244,14 +244,14 @@ export default async function PainelPage() {
                   {recentPeople.map((p) => (
                     <tr
                       key={p.id}
-                      className="border-b border-slate-100 last:border-0 dark:border-slate-800"
+                      className="border-b border-border-default last:border-0 dark:border-slate-800"
                     >
-                      <td className="py-2 pr-4 text-slate-900 dark:text-slate-50">
+                      <td className="py-2 pr-4 text-brand-navy dark:text-slate-50">
                         <Link href={`/pessoas/${p.id}/editar`} className="hover:underline">
                           {p.fullName}
                         </Link>
                       </td>
-                      <td className="py-2 pr-4 text-slate-600 dark:text-slate-300">
+                      <td className="py-2 pr-4 text-brand-graphite dark:text-slate-300">
                         {new Date(p.createdAt).toLocaleDateString("pt-BR")}
                       </td>
                       <td className="py-2">

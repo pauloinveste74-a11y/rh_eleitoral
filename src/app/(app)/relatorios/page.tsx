@@ -41,13 +41,13 @@ export default function RelatoriosPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {REPORTS.map((r) => (
           <Link key={r.href} href={r.href}>
-            <Card className="h-full transition-colors hover:border-slate-400 dark:hover:border-slate-600">
+            <Card className="h-full transition-colors hover:border-state-info dark:hover:border-slate-600">
               <CardHeader>
-                <r.icon className="mb-2 h-6 w-6 text-slate-500 dark:text-slate-400" />
+                <r.icon className="mb-2 h-6 w-6 text-brand-graphite dark:text-slate-400" />
                 <CardTitle>{r.title}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
+                <p className="text-sm text-brand-graphite dark:text-slate-400">
                   {r.description}
                 </p>
               </CardContent>

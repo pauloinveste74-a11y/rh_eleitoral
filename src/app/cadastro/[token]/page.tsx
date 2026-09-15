@@ -130,10 +130,10 @@ export default async function CadastroPublicoPage({
     <PublicPageShell>
       <div className="flex w-full max-w-2xl flex-col gap-6">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-50">
+          <h1 className="text-xl font-semibold text-brand-navy dark:text-slate-50">
             Complete seu cadastro
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <p className="text-sm text-brand-graphite dark:text-slate-400">
             {needsCorrection
               ? "Seu coordenador pediu uma correção — revise os dados abaixo."
               : "Preencha seus dados e anexe um documento para concluir seu cadastro na campanha."}
@@ -161,8 +161,8 @@ export default async function CadastroPublicoPage({
 
 function PublicPageShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col items-center bg-slate-50 px-4 py-10 dark:bg-slate-900">
-      <div className="mb-6 text-lg font-semibold text-slate-900 dark:text-slate-50">
+    <div className="flex min-h-screen flex-col items-center bg-surface-page px-4 py-10 dark:bg-slate-900">
+      <div className="mb-6 text-lg font-semibold text-brand-navy dark:text-slate-50">
         RH Eleitoral
       </div>
       {children}
