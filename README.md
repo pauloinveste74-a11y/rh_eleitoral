@@ -24,9 +24,10 @@ Sistema de gestão de pessoas, operações e pagamentos para campanha eleitoral.
 > por convite, cadeia de coordenação, importação em lote por Excel e uma
 > reformulação de Despesas com autorizador/alçada — ver
 > [MVP — Cadastro, Convite, Coordenação, Importação e Despesas](#mvp--cadastro-convite-coordenação-importação-e-despesas)
-> logo abaixo. A **Etapa 1** (camada de banco, migrações `0013`–`0021`)
-> está aplicada e verificada em produção; a UI (Etapa 2 em diante) ainda
-> não existe.
+> logo abaixo. As **Etapas 1 e 2** (camada de banco, migrações `0013`–`0022`)
+> estão aplicadas e verificadas em produção — Etapa 2 já resolve o
+> mecanismo de sessão do coordenador (login normal) e do cabo eleitoral
+> (só link/token); a UI (Etapa 3 em diante) ainda não existe.
 
 ## MVP — Cadastro, Convite, Coordenação, Importação e Despesas
 
@@ -82,12 +83,82 @@ local do agente, não versionado no repositório).
   ainda não tem acesso modelado; fica para a Etapa 2, quando o mecanismo
   de sessão dele for decidido.
 
-**Próxima etapa (2 — não iniciada)**: autocadastro do contratado —
-decidir o mecanismo de sessão dele, formulário por etapas, upload de
-documento, seleção de coordenador com fallback
-"meu coordenador não está na lista" (grava em `data_conflicts`),
-submissão criando `registration_submissions`. Primeiro ponto em que a RLS
-desenhada na Etapa 1 precisa ser revisitada para dar acesso ao contratado.
+**Etapa 2 — coordenador completa o próprio cadastro e convida o cabo
+eleitoral (camada de banco concluída e verificada; UI ainda não
+existe):**
+
+- Migração `0022_etapa2_autocadastro_coordenacao.sql` aplicada ao projeto
+  `pjjarkxwwzqiajlvpsdx` pelo próprio usuário via Supabase CLI
+  (`supabase db push` — mesmo motivo da Etapa 1, MCP instável na hora).
+  Histórico de migrações registrado manualmente depois (mesmo gap de
+  bookkeeping da Etapa 1).
+- Mecanismo de sessão decidido: o **coordenador tem login normal**
+  (e-mail + senha, reaproveita `/usuarios` da Fase 9); o **cabo
+  eleitoral nunca tem login** — só o link/token de
+  `registration_invites` já construído na Etapa 1. Preenche o elo
+  `profiles.person_id` (existe desde a `0001`, nunca usado até aqui).
+- 5 funções novas, todas `security definer`, autorização própria via
+  `auth.uid()` (nenhuma política de `INSERT`/`UPDATE` de
+  `people`/`coordination_relationships`/`registration_submissions`/
+  `registration_invites` muda — só as duas funções seguintes que também
+  vão para `anon`, mais `redeem_registration_invite()` da Etapa 1):
+  - `complete_own_registration(...)`: qualquer `authenticated` cria/edita
+    a **própria** `people` (liga `profiles.person_id` na primeira
+    chamada) e os 3 satélites (endereço, banco, dados eleitorais).
+  - `create_team_invite(...)`: qualquer `authenticated` que já completou
+    o próprio cadastro cria um convite para um subordinado; herda
+    cidade/eixo do `profile_roles` do chamador quando ele for
+    `coordenador_cidade`/`coordenador_eixo`.
+  - `submit_public_registration(...)`: terceira função liberada para
+    `anon` — cria a `people` do cabo eleitoral a partir do token do
+    convite, sem sessão nenhuma; cria o vínculo em
+    `coordination_relationships` com o coordenador sugerido no convite.
+  - `submit_registration_for_review(p_person_id)`: o próprio coordenador
+    (ou admin/rh) envia a própria `people` para validação do gestor —
+    exige ao menos 1 documento ativo.
+  - `submit_public_registration_for_review(p_token)`: mesma função, mas
+    para o cabo eleitoral via token, sem `auth.uid()`.
+- RLS: 6 extensões pontuais, todas restritas ao próprio registro —
+  `person_documents_insert` e a policy de Storage
+  `pessoas_documentos_insert` passam a aceitar upload sobre o próprio
+  `person_id`; `people_select`, `registration_submissions_select`,
+  `coordination_relationships_select` e `registration_invites_select`
+  passam a liberar leitura da própria pessoa/equipe/convites criados.
+  Nenhuma policy de escrita além de `person_documents_insert` muda.
+- **Verificado** (via `execute_sql` direto, testes funcionais em
+  transação com `rollback` — sem dado de teste residual ao final):
+  `complete_own_registration` cria a pessoa e liga `profiles.person_id`;
+  `create_team_invite` gera o convite com o coordenador correto;
+  `submit_public_registration` com o token do convite cria a pessoa do
+  cabo eleitoral e o vínculo em `coordination_relationships`
+  (`relationship_type = 'contratado_para_coordenador'`, `status =
+  'vigente'`); `submit_public_registration_for_review` rejeita quando a
+  pessoa não tem nenhum documento ativo (`P0001`) e, com 1 documento,
+  conclui corretamente (`registration_invites.status = 'concluido'`,
+  `people.status = 'aguardando_gestor'`,
+  `registration_submissions.status = 'aguardando_validacao_gestor'`,
+  `manager_person_id` apontando pro coordenador certo).
+- `npm run typecheck`/`lint`/`build` — sem erros (nenhum código de
+  aplicação foi alterado nesta etapa, só SQL).
+- **Riscos/pendências**: nenhum segundo usuário não-admin real existe no
+  banco ainda, então o isolamento de RLS entre contas foi testado só por
+  simulação de `auth.uid()` (mesma limitação já registrada desde a Fase
+  3), não com uma sessão de verdade de um coordenador/cabo eleitoral. A
+  conexão do MCP do Supabase ficou instável por boa parte desta etapa
+  (erros de socket intermitentes, sem relação aparente com a query) —
+  contornado com novas tentativas e o usuário aplicando a migração
+  manualmente via CLI quando necessário.
+
+**Próxima etapa (3 — não iniciada)**: páginas de aplicação para o que a
+Etapa 2 já habilitou no banco — `/meu-cadastro` (coordenador completa o
+próprio cadastro, reaproveitando os componentes de
+`src/components/pessoas/`), `/minha-equipe` (coordenador convida e
+acompanha o cabo eleitoral, com link compartilhável por WhatsApp/e-mail)
+e `/cadastro/[token]` (página pública fora do grupo `(app)`, autocadastro
+do cabo eleitoral incluindo upload de documento sem sessão via cliente
+admin, mesmo padrão já usado em `/usuarios`). Depois, a fila de validação
+do gestor sobre `registration_submissions` (aprovar/rejeitar/pedir
+correção) fica para a etapa seguinte.
 
 ## Stack
 

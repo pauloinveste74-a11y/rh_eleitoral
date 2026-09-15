@@ -77,14 +77,19 @@ README, seção "Modelo de dados"):
 - `0011`: `rh` ganha leitura/edição de outros `profiles` (pra tela de
   Usuários).
 - `0012`: `profiles.phone`.
-- `0013`–`0021`: **camada de banco de uma iniciativa nova e separada**
+- `0013`–`0022`: **camada de banco de uma iniciativa nova e separada**
   (spec `docs/IMPLEMENTACAO_CADASTRO_IMPORTACAO_DESPESAS.md` — autocadastro
   por convite, cadeia de coordenação, importação por Excel, despesas com
-  autorizador/alçada). Aplicadas e verificadas (advisors + testes de RLS
-  simulados) — ver seção própria "MVP — Cadastro, Convite, Coordenação,
-  Importação e Despesas" no `README.md` para o detalhe completo. **Só
-  banco — nenhuma UI existe ainda para essas tabelas** (isso é a Etapa 2
-  em diante, não iniciada).
+  autorizador/alçada). Aplicadas e verificadas (advisors + testes
+  funcionais/RLS diretos no banco, em transação com `rollback`) — ver
+  seção própria "MVP — Cadastro, Convite, Coordenação, Importação e
+  Despesas" no `README.md` para o detalhe completo, etapa por etapa.
+  `0022` (Etapa 2) resolve o mecanismo de sessão: coordenador com login
+  normal (reaproveita `/usuarios`), cabo eleitoral só com link/token,
+  nunca loga — preenche o elo `profiles.person_id` que existe desde a
+  `0001` e nunca tinha sido usado. **Só banco — nenhuma UI existe ainda
+  para essas tabelas/funções** (isso é a Etapa 3 em diante, não
+  iniciada: `/meu-cadastro`, `/minha-equipe`, `/cadastro/[token]`).
 
 ## O que falta para o sistema funcionar de ponta a ponta
 
