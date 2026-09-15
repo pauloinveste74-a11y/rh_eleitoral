@@ -1311,6 +1311,28 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["contract_documents"]["Insert"]>;
         Relationships: [];
       };
+      contract_deliveries: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          contract_id: string;
+          channel: "whatsapp" | "email";
+          recipient: string;
+          sent_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id?: string;
+          contract_id: string;
+          channel: "whatsapp" | "email";
+          recipient: string;
+          sent_by?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["contract_deliveries"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

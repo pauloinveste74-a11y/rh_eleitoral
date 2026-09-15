@@ -18,6 +18,7 @@ import {
   type ActiveTemplateVersion,
 } from "@/components/contratos/generate-contract-form";
 import { CONTRACT_STATUS_LABEL, CONTRACT_STATUS_VARIANT } from "@/lib/validations/contract";
+import { SendContractAccess } from "@/components/contratos/send-contract-access";
 
 export const metadata: Metadata = { title: "Contratos" };
 
@@ -124,6 +125,7 @@ export default async function ContratosPage() {
                   <TableHead>Contratado</TableHead>
                   <TableHead>Gerado em</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -143,6 +145,9 @@ export default async function ContratosPage() {
                       <Badge variant={CONTRACT_STATUS_VARIANT[c.status] ?? "secondary"}>
                         {CONTRACT_STATUS_LABEL[c.status] ?? c.status}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <SendContractAccess contractId={c.id} compact />
                     </TableCell>
                   </TableRow>
                 ))}

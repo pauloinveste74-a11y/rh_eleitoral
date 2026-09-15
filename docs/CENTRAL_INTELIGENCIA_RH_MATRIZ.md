@@ -56,7 +56,7 @@ qualquer migração.
 | 10/11 | Geração em lote com tabela de prontidão por pessoa + `contract_batches` | 🔴 **Confirmado ausente** — `generate_contract()` só gera **um contrato por vez**; geração em lote foi explicitamente deixada de fora na Etapa 5 ("fica fora, documentado no cabeçalho da migração") |
 | 12 | Snapshot imutável do contrato | 🟢 Já existe — `contracts.generated_body`/`variables_used` são gravados na hora, editar o cadastro depois não muda o contrato já emitido (confirmado no código de `generate_contract()`) |
 | 13 | Complementação de dados (admin/coordenador/portal/rascunho) | 🟡 `/meu-cadastro` e `/cadastro/[token]` já cobrem "o contratado completa pelo portal" — mas não há um fluxo específico "contrato pede campo faltante ao contratado" fora da correção geral de cadastro (`correction_requests`) |
-| 14 | Aprovação/envio com e-mail + WhatsApp rastreado | 🔴 **Maior lacuna de infraestrutura real**: não existe envio de e-mail nenhum (nem SMTP nem provedor) — os únicos "envios" no app inteiro são links `mailto:`/`wa.me` que o próprio usuário clica manualmente (`src/components/usuarios/share-credentials.tsx`). Nenhum rastreamento de entrega/leitura existe |
+| 14 | Aprovação/envio com e-mail + WhatsApp rastreado | 🟡 **Implementado o envio manual rastreado** — botão "Enviar" em `/contratos` (lista) e `/contratos/[id]`: monta link + (pra PF sem login ainda) cria acesso de verdade, e cada clique em WhatsApp/e-mail grava em `contract_deliveries`. Continua sem envio automático de verdade (nenhum provedor pago contratado) — ver seção "Envio manual de contrato" abaixo |
 | 15 | Retorno do contrato (upload + registro de quem/canal/hash) | 🟡 `submit_signed_contract()` já grava hash/quem enviou/quando — falta "importação de arquivo recebido externamente" e associação por identificador seguro além do upload autenticado direto |
 | 16/17 | Estados e linha do tempo do contrato | 🟡 Já existe um ciclo de status rico (ver "achado central" acima) — falta granularidade de evento por canal (enviado por e-mail às 10h, visualizado às 14h etc.) — hoje só timestamps agregados (`downloaded_at`, `signed_submitted_at`, `reviewed_at`) |
 | 18 | Lembretes programados | 🔴 Não existe nenhum mecanismo de lembrete/agendamento no app |
@@ -66,7 +66,7 @@ qualquer migração.
 | 22 | Índice de prontidão configurável | 🔴 Não existe — `src/lib/painel/dashboard.ts` tem contadores por papel, não um índice de prontidão por pessoa |
 | 23 | Portal do contratado (dados, documentos, contrato, pagamentos) | 🟡 Bem avançado já — `/meu-cadastro` (dados+documentos), `/contratos/[id]` (RLS já restringe ao próprio/coordenador). **Falta**: consultar os próprios pagamentos (não existe tela nenhuma disso pro contratado hoje) |
 | 24 | Caixa de entrada documental centralizada | 🔴 Não existe — cada módulo (pessoas, contratos) tem upload próprio, sem uma inbox central |
-| 25 | Comunicação rastreável (`communication_events`) | 🔴 Não existe — ver item 14 |
+| 25 | Comunicação rastreável (`communication_events`) | 🟡 `contract_deliveries` (migração `0039`) cobre o caso de contrato — canal/destinatário/quem enviou/quando. Ainda não existe pra outros tipos de comunicação (convite de usuário, lembrete, etc.) |
 | 26 | Schema novo proposto | ⚠️ **Conflita** com schema já existente e em uso — ver "achado central" acima. Recomendo mapear os conceitos do caderno pras tabelas já existentes em vez de criar um schema paralelo |
 | 27 | Permissões novas (`imports.*`, `contracts.*`, `hr_intelligence.*`, `payments.release`) | 🟡 Hoje a autorização é só por **papel** (`administrador`/`rh`/coordenador), não por permissão granular nomeada — funciona, mas não bate com o vocabulário do caderno. Criar essa granularidade é uma mudança de modelo de autorização, não uma migração pontual |
 | 28 | Segurança (bucket privado, URL assinada, tenant isolation, CPF mascarado) | 🟢 Maior parte já é assim (buckets privados, `createSignedUrl` de 60s, isolamento por `campaign_id`/RLS) — **exceto CPF mascarado**, que é um gap real já documentado em `docs/IDENTIDADE_VISUAL.md` (CPF aparece sem máscara em pelo menos 11 arquivos) |
@@ -94,6 +94,57 @@ Separando por esforço, não por seção do caderno:
 - Caixa de entrada documental centralizada.
 - Índice de prontidão configurável.
 - Assinatura eletrônica integrada (fase 3 do próprio caderno, explicitamente adiada por eles também).
+
+## Envio manual de contrato (concluído)
+
+Primeira etapa implementada desta análise — pedido do usuário: botão
+"Enviar" ao lado do contrato, deixando pronto pra automatizar depois,
+mas por enquanto copiando/colando ou abrindo WhatsApp/e-mail
+manualmente, com a opção de mandar login + senha pra pessoa entrar no
+sistema e assinar por lá.
+
+- **Migração `0039_contract_deliveries.sql`**: tabela nova e pequena
+  (`campaign_id`, `contract_id`, `channel`, `recipient`, `sent_by`,
+  `created_at`) só pra registrar o envio manual de hoje — quando a
+  automação de verdade vier (provedor pago, decisão futura), é só
+  mais um escritor nessa mesma tabela, sem precisar de nova migração
+  pra isso funcionar. RLS mirror de `contracts_select`/mesma
+  autorização de quem já pode agir no contrato (admin/rh da campanha
+  ou coordenador direto do alvo).
+- **`sendContractAccess(contractId)`** (nova, `src/app/(app)/contratos/actions.ts`):
+  - **PJ**: sem conceito de login — só monta a mensagem com o link do
+    contrato, endereçada ao `email`/`phone` de `legal_entities`.
+  - **PF já com login**: mensagem diz pra acessar com o login já
+    existente — nunca reseta a senha de ninguém só por mandar um
+    contrato.
+  - **PF sem login ainda** — a decisão do usuário foi criar um login
+    de verdade (não um link de token avulso): mesma sequência de
+    `usuarios/actions.ts#inviteUser()` (senha derivada do telefone,
+    `createAdminClient()`), só que ligando ao `person_id` já existente
+    do contrato em vez de criar uma pessoa nova — precisou de uma
+    checagem nova (`profiles.person_id`), que não existia em nenhum
+    código do projeto até agora.
+  - O link do contrato (`/contratos/[id]`) já funciona sem sessão
+    prévia — o `redirectTo` do login (existente desde o Multi-tenant)
+    já leva a pessoa de volta pro contrato depois de entrar.
+- **`logContractDelivery()`**: grava em `contract_deliveries` só
+  quando o administrador de fato clica em WhatsApp ou e-mail (não
+  quando só abre o painel de envio).
+- **`src/components/contratos/send-contract-access.tsx`** (novo):
+  mesmo idioma visual de `ShareCredentials`
+  (`src/components/usuarios/share-credentials.tsx`), botão em
+  `/contratos` (lista, coluna "Ações") e `/contratos/[id]` (topo,
+  visível só pra quem já vê os outros controles de conferência).
+- **Verificado**: transação de teste (`rollback`) confirmando a RLS
+  de `contract_deliveries` (insert/select como `administrador`);
+  `npm run typecheck`/`lint`/`build` sem erros; advisors sem achado
+  novo.
+- **Fora de escopo, documentado**: envio automático de verdade
+  (precisa de provedor pago — Resend/SES pra e-mail, API oficial da
+  Meta/BSP pra WhatsApp, mesmo processo de decisão da chave da
+  OpenAI), lembretes programados, assinatura eletrônica dentro do app
+  ("assinar no sistema" aqui continua sendo ver o contrato logado +
+  subir o PDF assinado, fluxo que já existia).
 
 ## Recomendação
 

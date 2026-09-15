@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { ContractPrintView } from "@/components/contratos/contract-print-view";
 import { UploadSignedContractForm } from "@/components/contratos/upload-signed-contract-form";
 import { ContractDecisionForm } from "@/components/contratos/contract-decision-form";
+import { SendContractAccess } from "@/components/contratos/send-contract-access";
 import { CONTRACT_STATUS_LABEL, CONTRACT_STATUS_VARIANT } from "@/lib/validations/contract";
 
 export const metadata: Metadata = { title: "Contrato" };
@@ -119,8 +120,9 @@ export default async function ContratoDetalhePage({
             {CONTRACT_STATUS_LABEL[contract.status] ?? contract.status}
           </Badge>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
           <ContractPrintView contractId={contract.id} body={contract.generated_body} />
+          {(isManager || isCoordinatorOfTarget) && <SendContractAccess contractId={contract.id} />}
         </CardContent>
       </Card>
 

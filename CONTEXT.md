@@ -51,6 +51,7 @@ partir da raiz do projeto — isso já está reforçado em `AGENTS.md`.
 | Usuários (criar acesso, papéis, trocar senha) | `/usuarios`, `/conta` | 9 |
 | Organizações — painel do master, CNPJ, login por CNPJ, modo de suporte (Multi-tenant, Etapas 1/2) | `/master/organizacoes` | — |
 | Divergências — nome×CPF na importação + verificação de documento por IA (docs/IA_DIVERGENCIAS.md, Etapa A) | `/divergencias` | — |
+| Envio de contrato (link + login/senha, manual, pronto pra automatizar) (docs/CENTRAL_INTELIGENCIA_RH_MATRIZ.md) | `/contratos`, `/contratos/[id]` | — |
 
 **Ainda placeholder** (nunca implementados): **Ponto** (`/ponto`) e
 **Operações** (`/operacoes`) — são os dois únicos itens do menu sem
