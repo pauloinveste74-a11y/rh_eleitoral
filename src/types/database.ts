@@ -651,10 +651,14 @@ export interface Database {
           campaign_id: string;
           document_type:
             | "rg"
+            | "cnh"
             | "cpf"
             | "comprovante_residencia"
             | "titulo_eleitor"
             | "carteira_trabalho"
+            | "comprovante_bancario"
+            | "contrato"
+            | "certidao"
             | "outro";
           storage_path: string;
           file_name: string;
@@ -679,10 +683,14 @@ export interface Database {
           campaign_id?: string;
           document_type:
             | "rg"
+            | "cnh"
             | "cpf"
             | "comprovante_residencia"
             | "titulo_eleitor"
             | "carteira_trabalho"
+            | "comprovante_bancario"
+            | "contrato"
+            | "certidao"
             | "outro";
           storage_path: string;
           file_name: string;
@@ -990,6 +998,56 @@ export interface Database {
         Update: Partial<
           Database["public"]["Tables"]["correction_requests"]["Insert"]
         >;
+        Relationships: [];
+      };
+      data_conflicts: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          person_id: string | null;
+          submission_id: string | null;
+          staging_record_id: string | null;
+          conflict_type:
+            | "pix_divergente"
+            | "coordenador_nao_identificado"
+            | "cpf_duplicado"
+            | "titulo_duplicado"
+            | "dado_divergente"
+            | "autorizador_nao_identificado"
+            | "documento_divergente"
+            | "pagamento_divergente_contrato";
+          details: Json;
+          status: "pendente" | "em_analise" | "resolvido" | "descartado";
+          due_at: string | null;
+          resolved_by: string | null;
+          resolved_at: string | null;
+          resolution_note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id: string;
+          person_id?: string | null;
+          submission_id?: string | null;
+          staging_record_id?: string | null;
+          conflict_type:
+            | "pix_divergente"
+            | "coordenador_nao_identificado"
+            | "cpf_duplicado"
+            | "titulo_duplicado"
+            | "dado_divergente"
+            | "autorizador_nao_identificado"
+            | "documento_divergente"
+            | "pagamento_divergente_contrato";
+          details: Json;
+          status?: "pendente" | "em_analise" | "resolvido" | "descartado";
+          due_at?: string | null;
+          resolved_by?: string | null;
+          resolved_at?: string | null;
+          resolution_note?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["data_conflicts"]["Insert"]>;
         Relationships: [];
       };
       job_functions: {
@@ -1536,6 +1594,16 @@ export interface Database {
           p_electoral?: Json | null;
         };
         Returns: string;
+      };
+      resolve_data_conflict: {
+        Args: {
+          p_conflict_id: string;
+          p_resolution: string;
+          p_note?: string | null;
+          p_apply_correction?: boolean;
+          p_corrected_name?: string | null;
+        };
+        Returns: undefined;
       };
     };
     Enums: Record<string, never>;

@@ -50,6 +50,7 @@ partir da raiz do projeto — isso já está reforçado em `AGENTS.md`.
 | Relatórios (financeiro/pessoas/aprovações, filtro + CSV) | `/relatorios` | 8 |
 | Usuários (criar acesso, papéis, trocar senha) | `/usuarios`, `/conta` | 9 |
 | Organizações — painel do master, CNPJ, login por CNPJ, modo de suporte (Multi-tenant, Etapas 1/2) | `/master/organizacoes` | — |
+| Divergências — nome×CPF na importação + verificação de documento por IA (docs/IA_DIVERGENCIAS.md, Etapa A) | `/divergencias` | — |
 
 **Ainda placeholder** (nunca implementados): **Ponto** (`/ponto`) e
 **Operações** (`/operacoes`) — são os dois únicos itens do menu sem
@@ -256,22 +257,20 @@ relatórios com layout em PDF.
 
 ## O que falta para o sistema funcionar de ponta a ponta
 
-**Bloqueio ativo, único item realmente impeditivo:**
-`SUPABASE_SERVICE_ROLE_KEY` **não está configurada em nenhum ambiente**
-(nem `.env.local`, nem Vercel). Sem ela, `/usuarios` não consegue criar
-usuário nem resetar senha (usa `auth.admin.createUser()`/
-`updateUserById()`, que exigem essa chave). O restante do sistema
-funciona normalmente sem ela. **Mesmo bloqueio agora também afeta
-`/master/organizacoes`** (Multi-tenant, Etapa 1) — criar a primeira
-organização inclui criar o usuário administrador dela, mesmo
-`createAdminClient()`; sem a chave, a organização é criada mas a
-criação do administrador falha com uma mensagem apontando pra
-completar depois em `/master/organizacoes/[id]`.
+`SUPABASE_SERVICE_ROLE_KEY` **já está configurada** (`.env.local` e
+Vercel, desde 15/09/2026) — `/usuarios` e `/master/organizacoes`
+conseguem criar usuário/administrador normalmente. Nunca peça pra
+colar esse valor no chat de novo — é uma credencial que ignora RLS por
+completo; se precisar reconfigurar, o caminho é painel do Supabase →
+Settings → API → `service_role` secret.
 
-Como resolver: painel do Supabase → Settings → API → `service_role`
-secret → colar em `.env.local` (variável `SUPABASE_SERVICE_ROLE_KEY`) e
-nas variáveis de ambiente do projeto no Vercel. **Nunca peça para colar
-esse valor no chat** — é uma credencial que ignora RLS por completo.
+**`ANTHROPIC_API_KEY`** (novo, IA para checagem de dados,
+`docs/IA_DIVERGENCIAS.md`) ainda **não está configurada em nenhum
+ambiente** — mesmo processo: gerar em console.anthropic.com, colar em
+`.env.local` e no Vercel. Sem ela, `/divergencias` funciona
+normalmente (a detecção de nome divergente no import independe de IA)
+— só o botão "Verificar com IA" fica indisponível, com mensagem clara
+(`getAnthropicClient()`), sem travar a página.
 
 ## Padrões de arquitetura que vale conhecer antes de mexer no código
 

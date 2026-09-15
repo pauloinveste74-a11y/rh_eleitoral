@@ -81,10 +81,14 @@ export type ElectoralDataInput = z.infer<typeof electoralDataSchema>;
 
 export const documentTypes = [
   "rg",
+  "cnh",
   "cpf",
   "comprovante_residencia",
   "titulo_eleitor",
   "carteira_trabalho",
+  "comprovante_bancario",
+  "contrato",
+  "certidao",
   "outro",
 ] as const;
 
@@ -93,10 +97,14 @@ export const documentTypeLabels: Record<
   string
 > = {
   rg: "RG",
+  cnh: "CNH",
   cpf: "CPF",
   comprovante_residencia: "Comprovante de residência",
   titulo_eleitor: "Título de eleitor",
   carteira_trabalho: "Carteira de trabalho",
+  comprovante_bancario: "Comprovante bancário",
+  contrato: "Contrato",
+  certidao: "Certidão",
   outro: "Outro",
 };
 

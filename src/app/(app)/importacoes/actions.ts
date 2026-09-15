@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { parseWorkbook, classifyRow, type ImportRowResult } from "@/lib/imports/person-import";
+import { namesDiverge } from "@/lib/imports/name-match";
 import type { Json } from "@/types/database";
 import type { ImportBatchActionState } from "./action-state";
 
@@ -109,13 +110,13 @@ export async function uploadImportBatch(
 
   const { data: existingPeople } = await supabase
     .from("people")
-    .select("cpf, status")
+    .select("id, cpf, full_name, status")
     .eq("campaign_id", campaignId);
-  const cpfsExisting = new Set(
-    (existingPeople ?? [])
-      .filter((p) => p.status !== "arquivado" && p.status !== "rejeitado")
-      .map((p) => p.cpf),
+  const activeExistingPeople = (existingPeople ?? []).filter(
+    (p) => p.status !== "arquivado" && p.status !== "rejeitado",
   );
+  const cpfsExisting = new Set(activeExistingPeople.map((p) => p.cpf));
+  const existingByCpf = new Map(activeExistingPeople.map((p) => [p.cpf, p]));
 
   const cpfsSeenInFile = new Set<string>();
   const classified = rows.map((row, i) =>
@@ -190,6 +191,36 @@ export async function uploadImportBatch(
     await supabase.from("import_row_errors").insert(errorRows);
   }
 
+  // IA (Claude) para checagem de dados, Etapa A — detecção determinística
+  // (sem IA, é grátis): CPF já existente na campanha, mas nome divergente
+  // do já cadastrado (ex.: "Jose" importado vs. "Josue" já cadastrado) —
+  // provável erro de digitação numa das duas fontes. Fica em
+  // data_conflicts (existia desde a 0018, nunca usada) pro administrador
+  // resolver em /divergencias, com checagem opcional por IA contra o
+  // documento de identidade da pessoa.
+  const nameMismatchConflicts = classified
+    .filter((row) => row.result === "ja_existente" && row.cpf && row.fullName)
+    .map((row) => {
+      const existing = existingByCpf.get(row.cpf!);
+      if (!existing || !namesDiverge(existing.full_name, row.fullName!)) return null;
+      return {
+        campaign_id: campaignId,
+        person_id: existing.id,
+        staging_record_id: stagingIdByRow.get(row.rowNumber) ?? null,
+        conflict_type: "dado_divergente" as const,
+        details: toJson({
+          cpf: row.cpf,
+          nome_importado: row.fullName,
+          nome_existente: existing.full_name,
+        }),
+      };
+    })
+    .filter((c): c is NonNullable<typeof c> => c !== null);
+
+  if (nameMismatchConflicts.length > 0) {
+    await supabase.from("data_conflicts").insert(nameMismatchConflicts);
+  }
+
   await supabase.rpc("log_audit_event", {
     p_action: "importacao.enviar",
     p_entity_table: "import_batches",
@@ -249,13 +280,13 @@ export async function uploadPdfImportBatch(
 
   const { data: existingPeople } = await supabase
     .from("people")
-    .select("cpf, status")
+    .select("id, cpf, full_name, status")
     .eq("campaign_id", campaignId);
-  const cpfsExisting = new Set(
-    (existingPeople ?? [])
-      .filter((p) => p.status !== "arquivado" && p.status !== "rejeitado")
-      .map((p) => p.cpf),
+  const activeExistingPeople = (existingPeople ?? []).filter(
+    (p) => p.status !== "arquivado" && p.status !== "rejeitado",
   );
+  const cpfsExisting = new Set(activeExistingPeople.map((p) => p.cpf));
+  const existingByCpf = new Map(activeExistingPeople.map((p) => [p.cpf, p]));
 
   // Import dinâmico, de propósito: pdf-parse/pdfjs-dist tenta
   // polyfillar DOMMatrix/ImageData/Path2D pra suprir o
@@ -359,6 +390,32 @@ export async function uploadPdfImportBatch(
 
   if (errorRows.length > 0) {
     await supabase.from("import_row_errors").insert(errorRows);
+  }
+
+  // IA (Claude) para checagem de dados, Etapa A — mesma detecção
+  // determinística do caminho Excel (ver comentário lá): CPF já
+  // existente, nome divergente do já cadastrado.
+  const nameMismatchConflicts = classified
+    .filter((row) => row.result === "ja_existente" && row.cpf && row.fullName)
+    .map((row) => {
+      const existing = existingByCpf.get(row.cpf!);
+      if (!existing || !namesDiverge(existing.full_name, row.fullName!)) return null;
+      return {
+        campaign_id: campaignId,
+        person_id: existing.id,
+        staging_record_id: stagingIdByRow.get(row.rowNumber) ?? null,
+        conflict_type: "dado_divergente" as const,
+        details: toJson({
+          cpf: row.cpf,
+          nome_importado: row.fullName,
+          nome_existente: existing.full_name,
+        }),
+      };
+    })
+    .filter((c): c is NonNullable<typeof c> => c !== null);
+
+  if (nameMismatchConflicts.length > 0) {
+    await supabase.from("data_conflicts").insert(nameMismatchConflicts);
   }
 
   await supabase.rpc("log_audit_event", {
