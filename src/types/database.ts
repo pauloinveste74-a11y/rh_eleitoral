@@ -652,6 +652,16 @@ export interface Database {
           file_size_bytes: number;
           status: "ativo" | "removido";
           uploaded_by: string | null;
+          // Migração 0030 (Nova versão, Etapa 3) — hash/versionamento/
+          // classificação, colunas existiam desde a 0019 mas nunca eram
+          // lidas/escritas por nenhum código até agora.
+          file_hash: string | null;
+          replaces_document_id: string | null;
+          origin: "autocadastro" | "administrativo" | "importacao_excel" | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          review_status: "pendente" | "aprovado" | "ilegivel" | "divergente" | null;
+          rejection_reason: string | null;
         } & Timestamps;
         Insert: Partial<Timestamps> & {
           id?: string;
@@ -670,6 +680,13 @@ export interface Database {
           file_size_bytes: number;
           status?: "ativo" | "removido";
           uploaded_by?: string | null;
+          file_hash?: string | null;
+          replaces_document_id?: string | null;
+          origin?: "autocadastro" | "administrativo" | "importacao_excel" | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          review_status?: "pendente" | "aprovado" | "ilegivel" | "divergente" | null;
+          rejection_reason?: string | null;
         };
         Update: Partial<
           Database["public"]["Tables"]["person_documents"]["Insert"]
@@ -1254,6 +1271,18 @@ export interface Database {
       revert_import_batch: {
         Args: { p_batch_id: string };
         Returns: undefined;
+      };
+      record_person_document: {
+        Args: {
+          p_person_id: string;
+          p_document_type: string;
+          p_storage_path: string;
+          p_file_name: string;
+          p_mime_type: string;
+          p_file_size_bytes: number;
+          p_file_hash?: string | null;
+        };
+        Returns: string;
       };
       get_public_registration_status: {
         Args: { p_token: string };

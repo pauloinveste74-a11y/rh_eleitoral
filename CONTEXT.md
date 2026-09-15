@@ -143,6 +143,16 @@ README, seção "Modelo de dados"):
   pagamentos pendentes pra financeiro/tesouraria) só com consultas sobre
   a RLS que as Etapas 2/11 da iniciativa anterior já tinham estendido —
   nenhuma política nova precisou ser criada.
+- Etapa 3 (`0030`): dois bugs de produção achados investigando o schema
+  ocioso de `person_documents` — `person_documents_select`/
+  `pessoas_documentos_select` (Storage) nunca liberavam leitura pra "a
+  própria pessoa"/"o gestor", e `uploadPersonDocument()` chamava
+  `log_audit_event()` sem checar papel antes (que dá `raise exception`
+  pra quem não é admin/rh) — um coordenador comum recebia erro do
+  servidor depois do arquivo já salvo. Corrigidos junto com a função
+  nova `record_person_document()` (hash com dedup + versionamento via
+  `replaces_document_id` quando reenvia o mesmo tipo após
+  ilegível/divergente). Ver `docs/NOVA_VERSAO_MATRIZ.md` pra detalhe.
 
 ## Etapas 3 a 11 — páginas de aplicação (autocadastro, validações, importação, despesas, correção)
 

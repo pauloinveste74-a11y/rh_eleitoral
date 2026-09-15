@@ -13,6 +13,7 @@ import {
   documentTypes,
   isSectionEmpty,
 } from "@/lib/validations/registration";
+import { sha256Hex } from "@/lib/documents/hash";
 import type { Json } from "@/types/database";
 import type {
   PublicRegistrationActionState,
@@ -393,6 +394,40 @@ export async function uploadPublicDocument(
   const personId = invite.person_id;
   const campaignId = invite.campaign_id;
   const storagePath = `${campaignId}/${personId}/${randomUUID()}-${sanitizeFileName(file.name)}`;
+  const fileHash = await sha256Hex(file);
+
+  // Duplicata exata (mesmo hash já ativo pra essa pessoa) — mesma checagem
+  // de record_person_document() (migração 0030), replicada aqui em vez de
+  // chamada via RPC porque este fluxo não tem auth.uid() (é anon: usa o
+  // cliente admin, que já bypassa RLS por completo — mesma exceção
+  // documentada no README pro upload sem sessão).
+  const { data: duplicate } = await admin
+    .from("person_documents")
+    .select("id")
+    .eq("person_id", personId)
+    .eq("file_hash", fileHash)
+    .eq("status", "ativo")
+    .limit(1)
+    .maybeSingle();
+  if (duplicate) {
+    return {
+      status: "error",
+      message: "Este arquivo já foi enviado antes para esta pessoa.",
+    };
+  }
+
+  // Versionamento: reenvio do mesmo tipo de documento depois de
+  // ilegível/divergente vira substituto do anterior.
+  const { data: superseded } = await admin
+    .from("person_documents")
+    .select("id")
+    .eq("person_id", personId)
+    .eq("document_type", documentTypeRaw as (typeof documentTypes)[number])
+    .eq("status", "ativo")
+    .in("review_status", ["ilegivel", "divergente"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   const { error: uploadError } = await admin.storage
     .from("pessoas-documentos")
@@ -401,21 +436,45 @@ export async function uploadPublicDocument(
     return { status: "error", message: "Não foi possível enviar o arquivo." };
   }
 
-  const { error: insertError } = await admin.from("person_documents").insert({
-    person_id: personId,
-    campaign_id: campaignId,
-    document_type: documentTypeRaw as (typeof documentTypes)[number],
-    storage_path: storagePath,
-    file_name: file.name,
-    mime_type: file.type,
-    file_size_bytes: file.size,
-  });
-  if (insertError) {
+  const { data: doc, error: insertError } = await admin
+    .from("person_documents")
+    .insert({
+      person_id: personId,
+      campaign_id: campaignId,
+      document_type: documentTypeRaw as (typeof documentTypes)[number],
+      storage_path: storagePath,
+      file_name: file.name,
+      mime_type: file.type,
+      file_size_bytes: file.size,
+      file_hash: fileHash,
+      origin: "autocadastro",
+      review_status: "pendente",
+      replaces_document_id: superseded?.id ?? null,
+    })
+    .select("id")
+    .single();
+  if (insertError || !doc) {
+    await admin.storage.from("pessoas-documentos").remove([storagePath]);
     return {
       status: "error",
       message: "Arquivo enviado, mas não foi possível registrar o documento.",
     };
   }
+
+  if (superseded) {
+    await admin
+      .from("person_documents")
+      .update({ status: "removido" })
+      .eq("id", superseded.id);
+  }
+
+  await admin.from("audit_logs").insert({
+    action: "pessoa.documento.autocadastro.anexar",
+    entity_table: "person_documents",
+    entity_id: doc.id,
+    after_data: toJson({ person_id: personId, document_type: documentTypeRaw, file_name: file.name }),
+    campaign_id: campaignId,
+  });
 
   revalidatePath(`/cadastro/${token}`);
   return { status: "success" };

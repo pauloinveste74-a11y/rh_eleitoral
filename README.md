@@ -675,12 +675,76 @@ seção 11, concluída):**
   subdividida — o `/relatorios` já cobre filtro por território pra quem
   tem acesso a relatórios).
 
-**Próxima etapa proposta**: aproveitar schema já pronto e ocioso
-(hash/versionamento/classificação de documento, valor previous/new em
-correção, valor autorizado de despesa, IP/user-agent na auditoria) —
-ganho rápido sem migração nova na maioria dos casos — antes de entrar
-no módulo de contratos (spec seção 12), que é a peça maior e ainda sem
-nenhuma tabela.
+**Etapa 3 — schema ocioso de documento: hash, versionamento e dois bugs
+de produção corrigidos (spec seções 8 e 10, parcial):**
+
+Investigando o schema ocioso de `person_documents` (colunas prontas
+desde a migração `0019`, nunca usadas), dois bugs reais de produção
+foram achados **antes** de qualquer feature nova — nenhum reportado
+pelo usuário, só nunca testados fora da conta platform_admin (que
+bypassa toda RLS):
+
+1. `person_documents_select` e a policy de Storage
+   `pessoas_documentos_select` nunca tinham sido estendidas pra "a
+   própria pessoa" ou "o gestor da pessoa" — só administrador/rh/auditor
+   liam. O coordenador que sobe o próprio documento em `/meu-cadastro`
+   (a policy de INSERT já permitia desde a Etapa 2) nunca conseguia ver
+   nem baixar o que tinha acabado de subir.
+2. `uploadPersonDocument()` chamava `log_audit_event()` sem checar o
+   papel do chamador antes — essa função faz `raise exception` pra quem
+   não é administrador/rh. Um coordenador comum recebia erro do
+   servidor **depois** do arquivo já ter sido gravado.
+
+- Migração `0030_nova_versao_documentos_leitura_e_hash.sql`: corrige as
+  duas policies de leitura (mesmo padrão de extensão de
+  `people_select`/`registration_submissions_select` das Etapas 2/11) e
+  cria `record_person_document()` — função única que agora escreve
+  `person_documents` (substitui o insert direto + chamada solta de
+  `log_audit_event()`), com:
+  - **hash** (spec seção 8): rejeita duplicata exata (mesma pessoa,
+    mesmo hash, documento ainda ativo).
+  - **versionamento** (spec seção 8): reenvio do mesmo tipo de
+    documento depois de classificado `ilegivel`/`divergente` vira
+    substituto (`replaces_document_id`) e supera o anterior
+    (`status = 'removido'`), preservando o histórico.
+  - auditoria condicional (mesmo padrão de
+    `complete_own_registration()`/`create_team_invite()`: admin/rh via
+    `log_audit_event()`, senão insert direto em `audit_logs`).
+- `uploadPersonDocument()` (`/pessoas`, `/meu-cadastro`) e
+  `uploadPublicDocument()` (`/cadastro/[token]`, anon) recalculados pra
+  computar o hash (`src/lib/documents/hash.ts`, SHA-256) e aplicar a
+  mesma lógica — o caminho anônimo replica a lógica em TypeScript com o
+  cliente admin (não pode chamar a função, que exige `authenticated`),
+  já que aquele fluxo já usa o cliente admin pra bypassar RLS por
+  completo (mesma exceção documentada nesta seção).
+- **Verificado** (transação com `rollback`, sem dado residual):
+  duplicata rejeitada; reenvio do mesmo tipo após `divergente` virou
+  substituto e superou o documento antigo corretamente. A extensão de
+  RLS em si (ramo "própria pessoa") não pôde ser testada isolada do
+  bypass de platform_admin — só existe uma conta real no banco — mas é
+  cópia estrutural exata da cláusula já provada em produção em
+  `people_select` desde a Etapa 2.
+- **Limpeza incidental**: achados e removidos 5 registros de teste
+  residuais na tabela `people` (mais convite e vínculos organizacionais
+  associados) deixados por uma sessão de teste anterior via navegador
+  (fora da disciplina de transação-com-rollback desta sessão) — não
+  eram desta etapa, mas violavam a mesma regra de "sem dado real" que
+  este projeto segue.
+- `npm run typecheck`/`lint`/`build` — sem erros nem avisos.
+- **Fora de escopo desta etapa** (fica pra próxima): a classificação em
+  si do documento pelo gestor (aprovar/ilegível/divergente — spec seção
+  10) — precisa de uma função `decide_person_document()` nova e de uma
+  tela (o gestor agora já consegue **ver** o documento da equipe, que
+  era o pré-requisito que faltava); `correction_requests.previous_values`/
+  `new_values`; `expenses.authorized_amount_cents`; `audit_logs.ip_address`/
+  `user_agent`.
+
+**Próxima etapa proposta**: função + tela de classificação de documento
+pelo gestor (aprovar/ilegível/divergente), agora que a leitura já
+funciona — fecha o item 10 da spec por completo. Os demais itens do
+schema ocioso (correção previous/new, despesa autorizada, IP/user-agent
+da auditoria) ficam pra depois, ou entram junto se forem pequenos o
+suficiente.
 
 ## Stack
 

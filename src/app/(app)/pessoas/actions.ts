@@ -14,6 +14,7 @@ import {
   isSectionEmpty,
 } from "@/lib/validations/person";
 import { sendForApprovalSchema } from "@/lib/validations/territory";
+import { sha256Hex } from "@/lib/documents/hash";
 import type { Json } from "@/types/database";
 import type { PersonActionState } from "./action-state";
 
@@ -408,6 +409,7 @@ export async function uploadPersonDocument(
   const campaignId = person.campaign_id;
 
   const storagePath = `${campaignId}/${personId}/${randomUUID()}-${sanitizeFileName(file.name)}`;
+  const fileHash = await sha256Hex(file);
 
   const { error: uploadError } = await supabase.storage
     .from("pessoas-documentos")
@@ -417,40 +419,32 @@ export async function uploadPersonDocument(
     return { status: "error", message: "Não foi possível enviar o arquivo." };
   }
 
-  const { data: doc, error: insertError } = await supabase
-    .from("person_documents")
-    .insert({
-      person_id: personId,
-      campaign_id: campaignId,
-      document_type: documentTypeRaw as (typeof documentTypes)[number],
-      storage_path: storagePath,
-      file_name: file.name,
-      mime_type: file.type,
-      file_size_bytes: file.size,
-      uploaded_by: user.id,
-    })
-    .select("id")
-    .single();
+  // record_person_document() faz a checagem de autorização, a detecção de
+  // duplicata por hash e o versionamento (substitui um documento anterior
+  // classificado ilegível/divergente) — ver migração 0030. Se ela falhar,
+  // o arquivo já subiu pro Storage; melhor esforço pra não deixar lixo.
+  const { error: recordError } = await supabase.rpc("record_person_document", {
+    p_person_id: personId,
+    p_document_type: documentTypeRaw as (typeof documentTypes)[number],
+    p_storage_path: storagePath,
+    p_file_name: file.name,
+    p_mime_type: file.type,
+    p_file_size_bytes: file.size,
+    p_file_hash: fileHash,
+  });
 
-  if (insertError) {
+  if (recordError) {
+    await supabase.storage.from("pessoas-documentos").remove([storagePath]);
     return {
       status: "error",
-      message: "Arquivo enviado, mas não foi possível registrar o documento.",
+      message: recordError.message.includes("duplicado")
+        ? "Este arquivo já foi enviado antes para esta pessoa."
+        : "Não foi possível registrar o documento.",
     };
   }
 
-  await supabase.rpc("log_audit_event", {
-    p_action: "pessoa.documento.anexar",
-    p_entity_table: "person_documents",
-    p_entity_id: doc.id,
-    p_after_data: toJson({
-      person_id: personId,
-      document_type: documentTypeRaw,
-      file_name: file.name,
-    }),
-  });
-
   revalidatePath(`/pessoas/${personId}/editar`);
+  revalidatePath("/meu-cadastro");
   return { status: "success" };
 }
 
