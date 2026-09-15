@@ -9,6 +9,7 @@ export {
   addressSchema,
   bankAccountSchema,
   electoralDataSchema,
+  vehicleSchema,
   documentTypes,
   documentTypeLabels,
   isSectionEmpty,
@@ -18,4 +19,5 @@ export type {
   AddressInput,
   BankAccountInput,
   ElectoralDataInput,
+  VehicleInput,
 } from "./person";

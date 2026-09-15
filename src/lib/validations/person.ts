@@ -20,6 +20,7 @@ export const personSchema = z.object({
     .transform(sanitizeCpf)
     .refine((v) => v.length === 11, { error: "CPF deve conter 11 dígitos." })
     .refine(isValidCpf, { error: "CPF inválido." }),
+  rg: z.string().trim().max(20).optional().or(z.literal("")),
   birthDate: z.string().optional().or(z.literal("")),
   phone: z.string().trim().max(20).optional().or(z.literal("")),
   whatsapp: z.string().trim().max(20).optional().or(z.literal("")),
@@ -78,6 +79,28 @@ export const electoralDataSchema = z.object({
   voterState: z.string().length(2).optional().or(z.literal("")),
 });
 export type ElectoralDataInput = z.infer<typeof electoralDataSchema>;
+
+/**
+ * Veículo próprio usado no trabalho de campanha (marca/modelo/placa/renavam)
+ * — mesmo padrão all-or-nothing das demais seções opcionais. Regex de placa
+ * frouxo de propósito (aceita padrão antigo ABC1234 e Mercosul ABC1D23);
+ * renavam sem dígito verificador (o órgão de trânsito valida isso, não é
+ * papel deste sistema).
+ */
+export const vehicleSchema = z.object({
+  brand: z.string().trim().min(1, { error: "Informe a marca do veículo." }).max(60),
+  model: z.string().trim().min(1, { error: "Informe o modelo do veículo." }).max(60),
+  plate: z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/[^a-zA-Z0-9]/g, "").toUpperCase())
+    .refine((v) => /^[A-Z0-9]{6,8}$/.test(v), { error: "Placa inválida." }),
+  renavam: z
+    .string()
+    .transform((v) => v.replace(/\D/g, ""))
+    .refine((v) => v.length >= 9 && v.length <= 11, { error: "Renavam deve ter entre 9 e 11 dígitos." }),
+});
+export type VehicleInput = z.infer<typeof vehicleSchema>;
 
 export const documentTypes = [
   "rg",

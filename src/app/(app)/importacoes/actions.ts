@@ -6,7 +6,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
-import { parseWorkbook, classifyRow, type ImportRowResult } from "@/lib/imports/person-import";
+import {
+  parseWorkbookAllSheets,
+  classifyRow,
+  type ImportRowResult,
+  type ImportReferenceMaps,
+} from "@/lib/imports/person-import";
+import { normalizeHeader } from "@/lib/imports/columns";
 import { namesDiverge } from "@/lib/imports/name-match";
 import type { Json } from "@/types/database";
 import type { ImportBatchActionState } from "./action-state";
@@ -81,20 +87,23 @@ export async function uploadImportBatch(
 
   const buffer = await file.arrayBuffer();
 
-  let rows: Record<string, string>[];
+  let parsed: ReturnType<typeof parseWorkbookAllSheets>;
   try {
-    rows = parseWorkbook(buffer);
+    parsed = parseWorkbookAllSheets(buffer);
   } catch {
     return {
       status: "error",
       message: "Não foi possível ler o arquivo. Confirme que é um .xlsx válido.",
     };
   }
-  if (rows.length === 0) {
+  const { mergedRows, fileWarnings } = parsed;
+  if (mergedRows.length === 0) {
     return {
       status: "error",
       message:
-        "Nenhuma linha de dados encontrada. Confira se a primeira linha é o cabeçalho e se os nomes das colunas batem com o modelo.",
+        fileWarnings.length > 0
+          ? `Nenhuma pessoa identificada. ${fileWarnings.join(" ")}`
+          : "Nenhuma linha de dados encontrada. Confira se a primeira linha de cada aba é o cabeçalho, se há uma coluna de CPF e se os nomes das colunas batem com o modelo.",
     };
   }
 
@@ -118,9 +127,62 @@ export async function uploadImportBatch(
   const cpfsExisting = new Set(activeExistingPeople.map((p) => p.cpf));
   const existingByCpf = new Map(activeExistingPeople.map((p) => [p.cpf, p]));
 
+  const activePeopleByName = new Map<string, string[]>();
+  for (const p of activeExistingPeople) {
+    const key = normalizeHeader(p.full_name);
+    const list = activePeopleByName.get(key) ?? [];
+    list.push(p.id);
+    activePeopleByName.set(key, list);
+  }
+
+  const { data: axesRows } = await supabase
+    .from("axes")
+    .select("id, name")
+    .eq("campaign_id", campaignId);
+  const axisIdByName = new Map((axesRows ?? []).map((a) => [normalizeHeader(a.name), a.id]));
+
+  const { data: jobFunctionRows } = await supabase
+    .from("job_functions")
+    .select("id, name")
+    .eq("campaign_id", campaignId);
+  const jobFunctionIdByName = new Map(
+    (jobFunctionRows ?? []).map((f) => [normalizeHeader(f.name), f.id]),
+  );
+
+  // Função nova (não existe ainda no catálogo da campanha): criada
+  // automaticamente com o texto exato da planilha — decisão confirmada com
+  // o usuário, pra nunca travar uma linha só por causa de um cargo que
+  // ainda não tinha sido cadastrado.
+  const missingJobFunctionNames = new Map<string, string>();
+  for (const row of mergedRows) {
+    const name = row.rawData.jobFunctionName?.trim();
+    if (!name) continue;
+    const key = normalizeHeader(name);
+    if (!jobFunctionIdByName.has(key) && !missingJobFunctionNames.has(key)) {
+      missingJobFunctionNames.set(key, name);
+    }
+  }
+  if (missingJobFunctionNames.size > 0) {
+    const { data: createdJobFunctions } = await supabase
+      .from("job_functions")
+      .insert(
+        [...missingJobFunctionNames.values()].map((name) => ({
+          campaign_id: campaignId,
+          name,
+          created_by: user.id,
+        })),
+      )
+      .select("id, name");
+    for (const f of createdJobFunctions ?? []) {
+      jobFunctionIdByName.set(normalizeHeader(f.name), f.id);
+    }
+  }
+
+  const refs: ImportReferenceMaps = { axisIdByName, jobFunctionIdByName, activePeopleByName };
+
   const cpfsSeenInFile = new Set<string>();
-  const classified = rows.map((row, i) =>
-    classifyRow(i + 2, row, cpfsSeenInFile, cpfsExisting),
+  const classified = mergedRows.map((row, i) =>
+    classifyRow(i + 1, row.rawData, cpfsSeenInFile, cpfsExisting, refs, row.warnings),
   );
 
   const counts: Record<ImportRowResult, number> = {
@@ -140,7 +202,7 @@ export async function uploadImportBatch(
       storage_path: storagePath,
       file_hash: fileHash,
       created_by: user.id,
-      total_rows: rows.length,
+      total_rows: mergedRows.length,
       valid_rows: counts.pronta,
       duplicate_rows: counts.duplicada_arquivo + counts.ja_existente,
       rejected_rows: counts.invalida,
@@ -191,6 +253,26 @@ export async function uploadImportBatch(
     await supabase.from("import_row_errors").insert(errorRows);
   }
 
+  // Avisos não bloqueantes de mesclagem entre abas (valor divergente pro
+  // mesmo campo em abas diferentes) — não afetam `result`, só ficam
+  // visíveis na prévia pra quem for confirmar decidir se precisa corrigir
+  // a planilha antes.
+  const warningRows = classified
+    .filter((row) => row.warnings.length > 0)
+    .flatMap((row) =>
+      row.warnings.map((warn) => ({
+        staging_record_id: stagingIdByRow.get(row.rowNumber)!,
+        field_name: warn.field,
+        error_code: "aviso_mesclagem",
+        error_message: warn.message,
+      })),
+    )
+    .filter((e) => e.staging_record_id);
+
+  if (warningRows.length > 0) {
+    await supabase.from("import_row_errors").insert(warningRows);
+  }
+
   // IA (Claude) para checagem de dados, Etapa A — detecção determinística
   // (sem IA, é grátis): CPF já existente na campanha, mas nome divergente
   // do já cadastrado (ex.: "Jose" importado vs. "Josue" já cadastrado) —
@@ -226,7 +308,8 @@ export async function uploadImportBatch(
     p_action: "importacao.enviar",
     p_entity_table: "import_batches",
     p_entity_id: batch.id,
-    p_after_data: toJson({ total_rows: rows.length, ...counts }),
+    p_after_data: toJson({ total_rows: mergedRows.length, ...counts }),
+    p_reason: fileWarnings.length > 0 ? fileWarnings.join(" ") : null,
   });
 
   revalidatePath("/importacoes");
@@ -456,7 +539,7 @@ export async function confirmImportBatch(
 
   const { data: batchRow, error: batchFetchError } = await supabase
     .from("import_batches")
-    .select("id, status, source_type")
+    .select("id, status, source_type, campaign_id")
     .eq("id", batchId)
     .maybeSingle();
   if (batchFetchError || !batchRow) {
@@ -488,6 +571,10 @@ export async function confirmImportBatch(
       address?: Record<string, string>;
       bank?: Record<string, string>;
       electoral?: Record<string, string>;
+      vehicle?: Record<string, string>;
+      axisId?: string;
+      jobFunctionId?: string;
+      coordinatorPersonId?: string;
     } | null;
     const person = data?.person;
     if (!person) {
@@ -500,10 +587,12 @@ export async function confirmImportBatch(
       .insert({
         full_name: person.fullName,
         cpf: person.cpf,
+        rg: person.rg || null,
         birth_date: person.birthDate || null,
         phone: person.phone || null,
         whatsapp: person.whatsapp || null,
         email: person.email || null,
+        job_function_id: data?.jobFunctionId || null,
         origin,
         created_by: user.id,
       })
@@ -574,6 +663,38 @@ export async function confirmImportBatch(
         voter_state: e.voterState ? e.voterState.toUpperCase() : null,
         created_by: user.id,
         updated_by: user.id,
+      });
+    }
+    if (data?.vehicle) {
+      const v = data.vehicle;
+      await supabase.from("person_vehicles").insert({
+        person_id: personId,
+        brand: v.brand,
+        model: v.model,
+        plate: v.plate,
+        renavam: v.renavam,
+        created_by: user.id,
+        updated_by: user.id,
+      });
+    }
+    if (data?.axisId) {
+      await supabase.from("organizational_assignments").insert({
+        person_id: personId,
+        campaign_id: batchRow.campaign_id,
+        axis_id: data.axisId,
+        status: "vigente",
+        created_by: user.id,
+      });
+    }
+    if (data?.coordinatorPersonId) {
+      await supabase.from("coordination_relationships").insert({
+        campaign_id: batchRow.campaign_id,
+        subordinate_person_id: personId,
+        coordinator_person_id: data.coordinatorPersonId,
+        relationship_type: "contratado_para_coordenador",
+        source: "importacao_excel",
+        status: "vigente",
+        created_by: user.id,
       });
     }
 

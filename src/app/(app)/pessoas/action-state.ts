@@ -10,3 +10,23 @@ export type PersonActionState = {
 };
 
 export const initialPersonActionState: PersonActionState = { status: "idle" };
+
+/**
+ * Resultado de `sendPersonAccess()` — mesmo formato de
+ * `SendContractAccessState` (contratos/action-state.ts), adaptado pra
+ * pessoa: mensagem pronta pra copiar/mandar por WhatsApp/e-mail, com senha
+ * só quando um login novo foi criado agora (nunca reexibida depois).
+ */
+export type SendPersonAccessState = {
+  status: "idle" | "error" | "success";
+  message?: string;
+  personLink?: string;
+  recipientEmail?: string | null;
+  recipientPhone?: string | null;
+  tempPassword?: string;
+  isNewLogin?: boolean;
+};
+
+export const initialSendPersonAccessState: SendPersonAccessState = {
+  status: "idle",
+};

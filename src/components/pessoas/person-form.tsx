@@ -18,6 +18,7 @@ export type PersonFormValues = {
   fullName: string;
   socialName: string;
   cpf: string;
+  rg: string;
   birthDate: string;
   phone: string;
   whatsapp: string;
@@ -43,12 +44,18 @@ export type PersonFormValues = {
   electoralSection: string;
   voterCity: string;
   voterState: string;
+  jobFunctionId: string;
+  vehicleBrand: string;
+  vehicleModel: string;
+  vehiclePlate: string;
+  vehicleRenavam: string;
 };
 
 export const emptyPersonFormValues: PersonFormValues = {
   fullName: "",
   socialName: "",
   cpf: "",
+  rg: "",
   birthDate: "",
   phone: "",
   whatsapp: "",
@@ -74,6 +81,11 @@ export const emptyPersonFormValues: PersonFormValues = {
   electoralSection: "",
   voterCity: "",
   voterState: "",
+  jobFunctionId: "",
+  vehicleBrand: "",
+  vehicleModel: "",
+  vehiclePlate: "",
+  vehicleRenavam: "",
 };
 
 function FieldError({ message }: { message?: string }) {
@@ -94,6 +106,8 @@ export function PersonForm({
   showSocialName = true,
   onSuccess,
   editableFields,
+  showExtraFields = false,
+  jobFunctions = [],
 }: {
   mode: "create" | "edit";
   personId?: string;
@@ -127,6 +141,17 @@ export function PersonForm({
    * editável, comportamento de sempre.
    */
   editableFields?: string[] | null;
+  /**
+   * Mostra RG, veículo e função — só quando o `action` de gravação de
+   * verdade sabe lidar com esses campos (createPerson/updatePerson, em
+   * /pessoas). `/meu-cadastro` e `/cadastro/[token]` chamam RPCs próprias
+   * (complete_own_registration/update_public_registration) que ainda não
+   * têm parâmetro pra isso — manter `false` lá evita que a pessoa preencha
+   * um campo que seria descartado em silêncio.
+   */
+  showExtraFields?: boolean;
+  /** Cargos da campanha, pro seletor de função — só usado quando `showExtraFields`. */
+  jobFunctions?: { id: string; name: string }[];
 }) {
   const action =
     actionOverride ??
@@ -201,6 +226,24 @@ export function PersonForm({
             <Input id="cpf" placeholder="000.000.000-00" disabled={isLocked("cpf")} {...register("cpf")} />
             <FieldError message={errorFor("cpf")} />
           </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="rg">RG</Label>
+            <Input id="rg" disabled={isLocked("rg")} {...register("rg")} />
+            <FieldError message={errorFor("rg")} />
+          </div>
+          {showExtraFields && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="jobFunctionId">Função</Label>
+              <Select id="jobFunctionId" disabled={isLocked("jobFunctionId")} {...register("jobFunctionId")}>
+                <option value="">Nenhuma</option>
+                {jobFunctions.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          )}
           <div className="flex flex-col gap-2">
             <Label htmlFor="birthDate">Data de nascimento</Label>
             <Input id="birthDate" type="date" disabled={isLocked("birthDate")} {...register("birthDate")} />
@@ -348,6 +391,36 @@ export function PersonForm({
           </div>
         </CardContent>
       </Card>
+
+      {showExtraFields && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Veículo (opcional)</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="vehicleBrand">Marca</Label>
+              <Input id="vehicleBrand" disabled={isLocked("vehicleBrand")} {...register("vehicleBrand")} />
+              <FieldError message={errorFor("brand")} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="vehicleModel">Modelo</Label>
+              <Input id="vehicleModel" disabled={isLocked("vehicleModel")} {...register("vehicleModel")} />
+              <FieldError message={errorFor("model")} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="vehiclePlate">Placa</Label>
+              <Input id="vehiclePlate" disabled={isLocked("vehiclePlate")} {...register("vehiclePlate")} />
+              <FieldError message={errorFor("plate")} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="vehicleRenavam">Renavam</Label>
+              <Input id="vehicleRenavam" disabled={isLocked("vehicleRenavam")} {...register("vehicleRenavam")} />
+              <FieldError message={errorFor("renavam")} />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {state.status === "error" && state.message && (
         <p className="text-sm text-red-600" role="alert">

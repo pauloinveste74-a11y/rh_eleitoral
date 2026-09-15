@@ -1,7 +1,14 @@
 import "server-only";
 import { PDFParse } from "pdf-parse";
 
-import { classifyRow, type ClassifiedRow } from "./person-import";
+import { classifyRow, type ClassifiedRow, type ImportReferenceMaps } from "./person-import";
+
+/** PDF não extrai eixo/coordenador/função por regex — mapas sempre vazios, então essa resolução nunca dispara. */
+const EMPTY_REFERENCE_MAPS: ImportReferenceMaps = {
+  axisIdByName: new Map(),
+  jobFunctionIdByName: new Map(),
+  activePeopleByName: new Map(),
+};
 
 /**
  * Importação em lote por PDF (Nova versão, Etapa 7 — spec seção 9.2),
@@ -104,12 +111,19 @@ export async function classifyPdfBatch(
               "Página sem texto extraível — provável imagem digitalizada. OCR ainda não é suportado nesta versão; envie um PDF com texto pesquisável ou cadastre esta pessoa manualmente.",
           },
         ],
+        warnings: [],
         requiresOcr: true,
       };
     }
 
     const rawData = extractCandidateFields(pageText);
-    const classified = classifyRow(pageNumber, rawData, cpfsSeenInFile, cpfsExistingInCampaign);
+    const classified = classifyRow(
+      pageNumber,
+      rawData,
+      cpfsSeenInFile,
+      cpfsExistingInCampaign,
+      EMPTY_REFERENCE_MAPS,
+    );
     return { ...classified, requiresOcr: false };
   });
 }

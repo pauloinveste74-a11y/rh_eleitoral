@@ -5,18 +5,21 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { derivePasswordFromPhone } from "@/lib/temp-password";
 import {
   personSchema,
   addressSchema,
   bankAccountSchema,
   electoralDataSchema,
+  vehicleSchema,
   documentTypes,
   isSectionEmpty,
 } from "@/lib/validations/person";
 import { sendForApprovalSchema } from "@/lib/validations/territory";
 import { sha256Hex } from "@/lib/documents/hash";
 import type { Json } from "@/types/database";
-import type { PersonActionState } from "./action-state";
+import type { PersonActionState, SendPersonAccessState } from "./action-state";
 
 /** Dados arbitrários já validados/serializáveis, só faltando o cast estrutural para Json. */
 function toJson(value: unknown): Json {
@@ -33,6 +36,7 @@ const PERSON_FIELDS = [
   "fullName",
   "socialName",
   "cpf",
+  "rg",
   "birthDate",
   "phone",
   "whatsapp",
@@ -65,6 +69,7 @@ const ELECTORAL_FIELDS = [
   "voterCity",
   "voterState",
 ];
+const VEHICLE_FIELDS = ["vehicleBrand", "vehicleModel", "vehiclePlate", "vehicleRenavam"];
 
 /**
  * Grava pessoa + satélites preenchidos a partir de um FormData. Usado tanto
@@ -115,6 +120,21 @@ async function savePerson(
     Object.assign(errors, electoralParsed.error.flatten().fieldErrors);
   }
 
+  const vehicleFieldsRaw = fieldsOf(formData, VEHICLE_FIELDS);
+  const vehicleRaw = {
+    brand: vehicleFieldsRaw.vehicleBrand,
+    model: vehicleFieldsRaw.vehicleModel,
+    plate: vehicleFieldsRaw.vehiclePlate,
+    renavam: vehicleFieldsRaw.vehicleRenavam,
+  };
+  const vehiclePresent = !isSectionEmpty(vehicleFieldsRaw);
+  const vehicleParsed = vehiclePresent ? vehicleSchema.safeParse(vehicleRaw) : null;
+  if (vehicleParsed && !vehicleParsed.success) {
+    Object.assign(errors, vehicleParsed.error.flatten().fieldErrors);
+  }
+
+  const jobFunctionId = String(formData.get("jobFunctionId") ?? "").trim() || null;
+
   if (!personParsed.success || Object.keys(errors).length > 0) {
     return {
       status: "error",
@@ -143,10 +163,12 @@ async function savePerson(
     full_name: person.fullName,
     social_name: person.socialName || null,
     cpf: person.cpf,
+    rg: person.rg || null,
     birth_date: person.birthDate || null,
     phone: person.phone || null,
     whatsapp: person.whatsapp || null,
     email: person.email || null,
+    job_function_id: jobFunctionId,
     updated_by: user.id,
   };
 
@@ -299,6 +321,33 @@ async function savePerson(
         p_entity_table: "person_electoral_data",
         p_entity_id: personId,
         p_after_data: toJson(e),
+        p_related_request_id: requestId,
+      });
+    }
+  }
+
+  if (vehiclePresent && vehicleParsed?.success) {
+    const v = vehicleParsed.data;
+    const { error } = await supabase.from("person_vehicles").upsert(
+      {
+        person_id: personId,
+        brand: v.brand,
+        model: v.model,
+        plate: v.plate,
+        renavam: v.renavam,
+        created_by: user.id,
+        updated_by: user.id,
+      },
+      { onConflict: "person_id" },
+    );
+    if (error) {
+      partialFailures.push("veículo");
+    } else {
+      await supabase.rpc("log_audit_event", {
+        p_action: "pessoa.veiculo.salvar",
+        p_entity_table: "person_vehicles",
+        p_entity_id: personId,
+        p_after_data: toJson(v),
         p_related_request_id: requestId,
       });
     }
@@ -549,4 +598,151 @@ export async function getPersonDocumentSignedUrl(
 
   if (error || !data) return null;
   return data.signedUrl;
+}
+
+const PERSON_LINK_BASE = "https://rh-eleitoral.vercel.app";
+
+/**
+ * Envio manual de link por WhatsApp/e-mail pra própria pessoa completar/
+ * corrigir o cadastro dela — mesmo padrão de `sendContractAccess()`
+ * (contratos/actions.ts), adaptado: aqui a pessoa já existe em `people`
+ * (não é um convite novo), então o alvo é sempre `/meu-cadastro` (login
+ * normal), nunca um token de `/cadastro/[token]`. Sem tabela de tracking
+ * de entrega (diferente de `contract_deliveries`) — decisão deliberada,
+ * é só um link de acesso, não um fluxo de entrega/lembrete como contrato.
+ */
+export async function sendPersonAccess(personId: string): Promise<SendPersonAccessState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { status: "error", message: "Sessão expirada. Faça login novamente." };
+
+  const { data: person } = await supabase
+    .from("people")
+    .select("id, campaign_id, full_name, email, phone")
+    .eq("id", personId)
+    .maybeSingle();
+  if (!person) return { status: "error", message: "Pessoa não encontrada." };
+
+  const [{ data: isManager }, { data: profile }] = await Promise.all([
+    supabase.rpc("has_role", { role_codes: ["administrador", "rh"] }),
+    supabase.from("profiles").select("person_id").eq("id", user.id).maybeSingle(),
+  ]);
+
+  const ownPersonId = profile?.person_id ?? null;
+  let isCoordinatorOfTarget = false;
+  if (!isManager && ownPersonId) {
+    const { data: rel } = await supabase
+      .from("coordination_relationships")
+      .select("id")
+      .eq("coordinator_person_id", ownPersonId)
+      .eq("subordinate_person_id", personId)
+      .eq("status", "vigente")
+      .maybeSingle();
+    isCoordinatorOfTarget = Boolean(rel);
+  }
+
+  if (!isManager && !isCoordinatorOfTarget) {
+    return { status: "error", message: "Você não tem permissão para enviar este link." };
+  }
+
+  const personLink = `${PERSON_LINK_BASE}/meu-cadastro`;
+
+  const { data: existingProfile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("person_id", personId)
+    .maybeSingle();
+
+  if (existingProfile) {
+    return {
+      status: "success",
+      message:
+        `Complete ou corrija seu cadastro:\n${personLink}\n\n` +
+        `Acesse com seu login já cadastrado.`,
+      personLink,
+      recipientEmail: person.email,
+      recipientPhone: person.phone,
+      isNewLogin: false,
+    };
+  }
+
+  if (!person.email) {
+    return {
+      status: "error",
+      message: "Esta pessoa não tem e-mail cadastrado — não é possível criar o login.",
+    };
+  }
+  if (!person.phone) {
+    return {
+      status: "error",
+      message: "Esta pessoa não tem telefone cadastrado — não é possível gerar a senha inicial.",
+    };
+  }
+
+  let admin: ReturnType<typeof createAdminClient>;
+  try {
+    admin = createAdminClient();
+  } catch (err) {
+    return {
+      status: "error",
+      message: err instanceof Error ? err.message : "Criação de login indisponível no momento.",
+    };
+  }
+
+  const password = derivePasswordFromPhone(person.phone);
+  const { data: created, error: createError } = await admin.auth.admin.createUser({
+    email: person.email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: person.full_name },
+  });
+
+  if (createError || !created?.user) {
+    const alreadyExists = createError?.message?.toLowerCase().includes("already");
+    return {
+      status: "error",
+      message: alreadyExists
+        ? "Já existe um usuário com esse e-mail."
+        : createError?.message || "Não foi possível criar o login.",
+    };
+  }
+
+  const { error: updateError } = await admin
+    .from("profiles")
+    .update({
+      campaign_id: person.campaign_id,
+      full_name: person.full_name,
+      phone: person.phone,
+      person_id: personId,
+    })
+    .eq("id", created.user.id);
+
+  if (updateError) {
+    return {
+      status: "error",
+      message: "Login criado, mas houve um erro ao associar a pessoa. Avise o suporte.",
+    };
+  }
+
+  await supabase.rpc("log_audit_event", {
+    p_action: "pessoa.acesso.enviar",
+    p_entity_table: "people",
+    p_entity_id: personId,
+    p_after_data: toJson({ email: person.email }),
+  });
+
+  return {
+    status: "success",
+    message:
+      `Complete ou corrija seu cadastro:\n${personLink}\n\n` +
+      `E-mail: ${person.email}\nSenha: ${password}\n\n` +
+      `Assim que entrar, recomendamos trocar a senha em "Minha conta".`,
+    personLink,
+    recipientEmail: person.email,
+    recipientPhone: person.phone,
+    tempPassword: password,
+    isNewLogin: true,
+  };
 }

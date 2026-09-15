@@ -177,6 +177,8 @@ export interface Database {
           pais_nascimento: string;
           phone_alternate: string | null;
           origin: "autocadastro" | "administrativo" | "importacao_excel" | "importacao_pdf";
+          // Migração 0045 — cargo/função (job_functions), finalmente ligado ao cadastro.
+          job_function_id: string | null;
         } & Timestamps;
         Insert: Partial<Timestamps> & {
           id?: string;
@@ -203,6 +205,7 @@ export interface Database {
           pais_nascimento?: string;
           phone_alternate?: string | null;
           origin?: "autocadastro" | "administrativo" | "importacao_excel" | "importacao_pdf";
+          job_function_id?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["people"]["Insert"]>;
         Relationships: [];
@@ -437,6 +440,32 @@ export interface Database {
         Update: Partial<
           Database["public"]["Tables"]["person_electoral_data"]["Insert"]
         >;
+        Relationships: [];
+      };
+      person_vehicles: {
+        Row: {
+          id: string;
+          person_id: string;
+          campaign_id: string;
+          brand: string | null;
+          model: string | null;
+          plate: string | null;
+          renavam: string | null;
+          created_by: string | null;
+          updated_by: string | null;
+        } & Timestamps;
+        Insert: Partial<Timestamps> & {
+          id?: string;
+          person_id: string;
+          campaign_id?: string;
+          brand?: string | null;
+          model?: string | null;
+          plate?: string | null;
+          renavam?: string | null;
+          created_by?: string | null;
+          updated_by?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["person_vehicles"]["Insert"]>;
         Relationships: [];
       };
       payments: {

@@ -32,7 +32,22 @@ export const IMPORT_COLUMNS: { header: string; key: string }[] = [
   { header: "Seção eleitoral", key: "electoralSection" },
   { header: "Cidade de votação", key: "voterCity" },
   { header: "UF de votação", key: "voterState" },
+  { header: "RG", key: "rg" },
+  { header: "Eixo", key: "axisName" },
+  { header: "Coordenador", key: "coordinatorName" },
+  { header: "Função", key: "jobFunctionName" },
+  { header: "Marca do veículo", key: "vehicleBrand" },
+  { header: "Modelo do veículo", key: "vehicleModel" },
+  { header: "Placa", key: "vehiclePlate" },
+  { header: "Renavam", key: "vehicleRenavam" },
 ];
+
+/**
+ * Colunas que servem de chave de junção entre abas (import multi-planilha) —
+ * toda aba precisa ter pelo menos a coluna CPF pra suas linhas entrarem na
+ * mesclagem por pessoa.
+ */
+export const SHEET_JOIN_KEY = "cpf";
 
 /** Remove acentos, baixa a caixa e apara espaços — pra casar cabeçalhos com pequenas variações de digitação. */
 export function normalizeHeader(value: string): string {

@@ -11,6 +11,7 @@ import {
 } from "@/components/pessoas/person-form";
 import { PersonDocumentUpload } from "@/components/pessoas/person-document-upload";
 import { SendForApprovalCard } from "@/components/pessoas/send-for-approval-card";
+import { SendPersonAccess } from "@/components/pessoas/send-person-access";
 import { MasterFieldRecord } from "@/components/pessoas/master-field-record";
 import { documentTypeLabels } from "@/lib/validations/person";
 
@@ -29,8 +30,10 @@ export default async function EditarPessoaPage({
     { data: address },
     { data: bank },
     { data: electoral },
+    { data: vehicle },
     { data: documents },
     { data: cities },
+    { data: jobFunctions },
     { data: canViewMasterRecord },
   ] = await Promise.all([
     supabase.from("people").select("*").eq("id", id).maybeSingle(),
@@ -50,12 +53,18 @@ export default async function EditarPessoaPage({
       .eq("person_id", id)
       .maybeSingle(),
     supabase
+      .from("person_vehicles")
+      .select("*")
+      .eq("person_id", id)
+      .maybeSingle(),
+    supabase
       .from("person_documents")
       .select("*")
       .eq("person_id", id)
       .eq("status", "ativo")
       .order("created_at", { ascending: false }),
     supabase.from("cities").select("id, name").order("name"),
+    supabase.from("job_functions").select("id, name").eq("status", "ativa").order("name"),
     supabase.rpc("has_role", { role_codes: ["administrador", "rh"] }),
   ]);
 
@@ -129,6 +138,7 @@ export default async function EditarPessoaPage({
     fullName: person.full_name,
     socialName: person.social_name ?? "",
     cpf: person.cpf,
+    rg: person.rg ?? "",
     birthDate: person.birth_date ?? "",
     phone: person.phone ?? "",
     whatsapp: person.whatsapp ?? "",
@@ -154,6 +164,11 @@ export default async function EditarPessoaPage({
     electoralSection: electoral?.electoral_section ?? "",
     voterCity: electoral?.voter_city ?? "",
     voterState: electoral?.voter_state ?? "",
+    jobFunctionId: person.job_function_id ?? "",
+    vehicleBrand: vehicle?.brand ?? "",
+    vehicleModel: vehicle?.model ?? "",
+    vehiclePlate: vehicle?.plate ?? "",
+    vehicleRenavam: vehicle?.renavam ?? "",
   };
 
   const documentsWithUrl = await Promise.all(
@@ -170,7 +185,15 @@ export default async function EditarPessoaPage({
         description="Edite os dados da pessoa e anexe documentos."
       />
       <div className="flex flex-col gap-6">
-        <PersonForm mode="edit" personId={id} defaultValues={defaultValues} />
+        <PersonForm
+          mode="edit"
+          personId={id}
+          defaultValues={defaultValues}
+          showExtraFields
+          jobFunctions={jobFunctions ?? []}
+        />
+
+        <SendPersonAccess personId={id} />
 
         <SendForApprovalCard
           personId={id}
