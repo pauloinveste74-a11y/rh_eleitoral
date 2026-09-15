@@ -818,6 +818,14 @@ export interface Database {
         Args: { p_token: string };
         Returns: string;
       };
+      decide_registration_submission: {
+        Args: {
+          p_submission_id: string;
+          p_decision: string;
+          p_reason?: string | null;
+        };
+        Returns: undefined;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

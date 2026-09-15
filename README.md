@@ -24,11 +24,11 @@ Sistema de gestão de pessoas, operações e pagamentos para campanha eleitoral.
 > por convite, cadeia de coordenação, importação em lote por Excel e uma
 > reformulação de Despesas com autorizador/alçada — ver
 > [MVP — Cadastro, Convite, Coordenação, Importação e Despesas](#mvp--cadastro-convite-coordenação-importação-e-despesas)
-> logo abaixo. As **Etapas 1 e 2** (camada de banco, migrações `0013`–`0022`)
-> estão aplicadas e verificadas em produção, e a **Etapa 3** (as páginas
-> `/meu-cadastro`, `/minha-equipe` e `/cadastro/[token]`) já está
-> implementada e passando em `typecheck`/`lint`/`build` — falta só
-> autorização para publicar (`git push`).
+> logo abaixo. As Etapas 1, 2 e 4 (camada de banco, migrações
+> `0013`–`0023`) estão aplicadas e verificadas em produção, e as Etapas 3
+> e 4 (páginas `/meu-cadastro`, `/minha-equipe`, `/cadastro/[token]` e
+> `/validacoes`) já estão implementadas e passando em
+> `typecheck`/`lint`/`build`.
 
 ## MVP — Cadastro, Convite, Coordenação, Importação e Despesas
 
@@ -206,9 +206,65 @@ existe):**
   Excel e a reformulação de Despesas com autorizador/alçada (banco já
   pronto desde a Etapa 1) também não têm UI ainda.
 
-**Próxima etapa (4 — não iniciada)**: tela do gestor/coordenador revisando
-`registration_submissions` pendentes — aprovar, rejeitar, pedir correção
-de campos específicos (`correction_requests`).
+**Etapa 4 — fila de validação do gestor (concluída):**
+
+- Migração `0023_etapa4_fila_validacao_gestor.sql`: função
+  `decide_registration_submission(p_submission_id, p_decision, p_reason)`
+  (`aprovar`/`rejeitar`/`solicitar_correcao`), mesmo idioma de
+  `decide_approval()` (0006) — `SECURITY DEFINER`, autoriza e audita ela
+  mesma. Só atua sobre submissões em `aguardando_validacao_gestor`;
+  `aprovar` → `aprovado_gestor`, `rejeitar` → `rejeitado` (grava
+  `rejection_reason`), `solicitar_correcao` → `correcao_solicitada` +
+  cria uma linha em `correction_requests`. Autorizado: `administrador`/
+  `rh`, ou a pessoa cujo `people.id` bate com
+  `registration_submissions.manager_person_id` do chamador. **Nenhuma
+  policy de RLS muda** — a Etapa 2 já libera leitura da própria fila.
+- `/validacoes`: nova página listando o que está `aguardando_validacao_gestor`
+  para o usuário decidir (RLS já filtra: administrador/rh vê tudo da
+  campanha, coordenador só o que é `manager_person_id` dele; a tela ainda
+  exclui a própria submissão da lista, que pertence a `/meu-cadastro`).
+  Formulário de decisão com 3 botões (aprovar/solicitar correção/rejeitar)
+  + motivo, mesmo padrão de `ApprovalDecisionForm` em `/aprovacoes`. O
+  reenvio após correção **não precisou de código novo**: `people.status =
+  'correcao_solicitada'` já cai nos `EDITABLE_STATUSES` de `/meu-cadastro`
+  (Etapa 3), que já permite editar e reenviar para validação.
+- **Bug de segurança encontrado e corrigido durante o teste, antes de
+  qualquer publicação**: a checagem de autorização original comparava
+  `registration_submissions.manager_person_id = v_manager_person_id` sem
+  proteger contra `v_manager_person_id` nulo (usuário sem
+  `profiles.person_id`) — em PL/pgSQL, `NULL` propagando por `AND`/`OR`
+  faz `v_authorized` virar `NULL`, e `if not v_authorized` **não dispara**
+  para `NULL` (só para `false` explícito), deixando um chamador não
+  autorizado passar. Corrigido com um guard `v_manager_person_id is not
+  null and ...` mais um `coalesce(v_authorized, false)` de defesa em
+  profundidade. Auditei as outras 4 funções de decisão do projeto
+  (`decide_approval`, `decide_expense`, `decide_payment`,
+  `submit_registration_for_review`) — nenhuma tinha esse padrão vulnerável
+  (todas já guardavam comparações contra valor possivelmente nulo, ou só
+  compunham `v_authorized` a partir de funções que retornam booleano
+  garantido via `coalesce` interno).
+- **Verificado** (testes funcionais diretos, em transação com `rollback`,
+  sem dado residual): `aprovar`/`rejeitar`/`solicitar_correcao` fazem a
+  transição de status correta em `registration_submissions` **e**
+  `people`; `solicitar_correcao` cria a linha em `correction_requests`
+  com o motivo certo; decidir a mesma submissão duas vezes é rejeitado
+  (`status atual: aprovado_gestor`); decisão inválida é rejeitada;
+  chamador sem vínculo com a submissão é rejeitado (só depois da correção
+  do bug acima — antes dela, esse teste vazava).
+- `npm run typecheck`/`lint`/`build` — sem erros nem avisos; `/validacoes`
+  aparece no build.
+- **Riscos/pendências**: mesma limitação de sempre — sem um segundo
+  usuário não-admin real, não dá pra testar o caminho "só
+  `manager_person_id`, sem ser admin/rh" com uma sessão de verdade (só
+  via simulação de `auth.uid()`). A revisão campo a campo
+  (`registration_field_reviews`, reabrir só os campos específicos
+  pedidos) e a etapa de validação do RH (`aprovado_gestor` →
+  `aguardando_rh` → `validado`) ficam para a etapa seguinte.
+
+**Próxima etapa (5 — não iniciada)**: validação do RH sobre cadastros já
+aprovados pelo gestor (`aprovado_gestor` → `aguardando_rh` → `validado`),
+e/ou a importação em lote por Excel (banco já pronto desde a Etapa 1, sem
+UI ainda).
 
 ## Stack
 

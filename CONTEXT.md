@@ -77,7 +77,7 @@ README, seção "Modelo de dados"):
 - `0011`: `rh` ganha leitura/edição de outros `profiles` (pra tela de
   Usuários).
 - `0012`: `profiles.phone`.
-- `0013`–`0022`: **camada de banco de uma iniciativa nova e separada**
+- `0013`–`0023`: **camada de banco de uma iniciativa nova e separada**
   (spec `docs/IMPLEMENTACAO_CADASTRO_IMPORTACAO_DESPESAS.md` — autocadastro
   por convite, cadeia de coordenação, importação por Excel, despesas com
   autorizador/alçada). Aplicadas e verificadas (advisors + testes
@@ -87,17 +87,22 @@ README, seção "Modelo de dados"):
   `0022` (Etapa 2) resolve o mecanismo de sessão: coordenador com login
   normal (reaproveita `/usuarios`), cabo eleitoral só com link/token,
   nunca loga — preenche o elo `profiles.person_id` que existe desde a
-  `0001` e nunca tinha sido usado. A Etapa 3 (app, ver abaixo) já
-  consome tudo isso; falta só a fila de validação do gestor (Etapa 4).
+  `0001` e nunca tinha sido usado. `0023` (Etapa 4) fecha o primeiro
+  ciclo: gestor aprova/rejeita/pede correção
+  (`decide_registration_submission()`) — durante o teste dessa função
+  encontrei e corrigi um bug real de autorização (NULL propagando por
+  AND/OR deixava `if not v_authorized` não disparar pra um chamador sem
+  vínculo nenhum); as outras 4 funções de decisão do projeto já eram
+  imunes a esse padrão, conferido depois. Falta só a validação do RH
+  (Etapa 5).
 
-## Etapa 3 — páginas de aplicação do autocadastro (implementada, não publicada)
+## Etapas 3 e 4 — páginas de aplicação do autocadastro e da fila de validação
 
-`/meu-cadastro`, `/minha-equipe` e `/cadastro/[token]` (autocadastro
-público do cabo eleitoral, sem sessão) já estão implementadas e passam em
-`typecheck`/`lint`/`build` — commit local feito, **`git push` ainda não
-autorizado**. Detalhe completo na seção "MVP — Cadastro, Convite,
-Coordenação, Importação e Despesas" do `README.md`. Dois pontos que valem
-saber antes de mexer:
+`/meu-cadastro`, `/minha-equipe`, `/cadastro/[token]` (Etapa 3) e
+`/validacoes` (Etapa 4, fila do gestor: aprovar/rejeitar/solicitar
+correção) — todas implementadas, publicadas em produção. Detalhe completo
+na seção "MVP — Cadastro, Convite, Coordenação, Importação e Despesas" do
+`README.md`. Dois pontos que valem saber antes de mexer:
 
 - `PersonForm` (usado por `/pessoas`) ganhou props opcionais
   (`action`/`submitLabel`/`showSocialName`/`onSuccess`) pra ser
