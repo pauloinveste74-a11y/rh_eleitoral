@@ -7,7 +7,6 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { parseWorkbook, classifyRow, type ImportRowResult } from "@/lib/imports/person-import";
-import { classifyPdfBatch } from "@/lib/imports/pdf-import";
 import type { Json } from "@/types/database";
 import type { ImportBatchActionState } from "./action-state";
 
@@ -258,13 +257,25 @@ export async function uploadPdfImportBatch(
       .map((p) => p.cpf),
   );
 
-  let classified: Awaited<ReturnType<typeof classifyPdfBatch>>;
+  // Import dinâmico, de propósito: pdf-parse/pdfjs-dist tenta
+  // polyfillar DOMMatrix/ImageData/Path2D pra suprir o
+  // @napi-rs/canvas que não instala no runtime serverless da Vercel
+  // (dependência nativa) — e essa tentativa falha com
+  // "ReferenceError: DOMMatrix is not defined" assim que o módulo é
+  // avaliado, não só quando chamado. Com import estático no topo do
+  // arquivo, isso derrubava TODAS as Server Actions deste arquivo
+  // (inclusive a importação por Excel, sem relação nenhuma com PDF) —
+  // achado ao vivo em produção. Import dinâmico isola a falha: só
+  // quebra quem realmente tenta importar por PDF.
+  let classified: Awaited<ReturnType<typeof import("@/lib/imports/pdf-import").classifyPdfBatch>>;
   try {
+    const { classifyPdfBatch } = await import("@/lib/imports/pdf-import");
     classified = await classifyPdfBatch(buffer, cpfsExisting);
   } catch {
     return {
       status: "error",
-      message: "Não foi possível ler o arquivo. Confirme que é um .pdf válido.",
+      message:
+        "Importação por PDF indisponível no momento neste ambiente. Use a planilha Excel ou tente novamente mais tarde.",
     };
   }
   if (classified.length === 0) {

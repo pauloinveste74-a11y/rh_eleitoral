@@ -7,8 +7,12 @@ import { getSupabaseEnv } from "./env";
  * Rotas acessíveis sem sessão autenticada. `/cadastro` é o autocadastro
  * público do cabo eleitoral (Etapa 2) — protegido pelo token na própria URL
  * (`/cadastro/[token]`), não por sessão; nunca terá login tradicional.
+ * `/manifest.webmanifest` precisa ser público — o navegador/SO o busca
+ * mesmo sem sessão (ex.: na própria tela de login), e sem isso o proxy
+ * respondia com o redirect pro `/login` em vez do JSON, dando erro de
+ * parse ("Manifest: Line 1, column 1, Syntax error") no console.
  */
-const PUBLIC_ROUTES = ["/login", "/cadastro"];
+const PUBLIC_ROUTES = ["/login", "/cadastro", "/manifest.webmanifest"];
 
 function isPublicRoute(pathname: string) {
   return PUBLIC_ROUTES.some(

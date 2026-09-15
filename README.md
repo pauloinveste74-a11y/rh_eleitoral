@@ -1431,6 +1431,52 @@ maior que isso (perto dos 15 MB anunciados) pode esbarrar nesse
 segundo limite, da plataforma, não do código — vale testar com um
 arquivo grande de verdade depois do deploy pra confirmar.
 
+### Segundo bug de produção, achado logo depois do primeiro: import estático de `pdf-parse` derrubava a importação por Excel inteira
+
+O corrigido acima não bastou — a importação por planilha continuou
+falhando, agora com `500` e "ReferenceError: DOMMatrix is not
+defined" no log da Vercel (`digest: '1948676443'`). Causa: `pdf-parse`
+(usado só na importação por **PDF**, Nova versão Etapa 7) depende de
+`pdfjs-dist`, que tenta *polyfillar* `DOMMatrix`/`ImageData`/`Path2D`
+pra suprir `@napi-rs/canvas` — dependência nativa que **não instala**
+no runtime serverless da Vercel ("Cannot find module
+'@napi-rs/canvas'"). Essa tentativa de polyfill falha e deixa
+`DOMMatrix` indefinida assim que o **módulo é avaliado**, não só
+quando alguma função dele é chamada.
+
+O problema: `src/app/(app)/importacoes/actions.ts` importava
+`classifyPdfBatch` (de `pdf-import.ts`, que importa `pdf-parse`) **no
+topo do arquivo**, estaticamente. Como todas as Server Actions de
+importação — Excel incluso — vivem nesse mesmo arquivo/módulo, a
+falha ao avaliar o import do PDF derrubava o módulo inteiro,
+inclusive `uploadImportBatch()` (Excel), que não tem nenhuma relação
+com PDF. Confirmado que o risco descrito na Etapa 7 ("a instalação do
+`@napi-rs/canvas` no build da Vercel não foi verificada") de fato se
+concretizou — só que o efeito colateral foi pior do que o esperado
+(quebrou uma feature não relacionada, não só o PDF).
+
+**Correção**: `import { classifyPdfBatch } from "@/lib/imports/pdf-import"`
+virou `import()` dinâmico, só dentro de `uploadPdfImportBatch()` — o
+módulo só é avaliado (e só pode falhar) quando alguém realmente tenta
+importar por PDF, isolado das demais Server Actions do arquivo. A
+importação por PDF em si **continua indisponível** neste ambiente
+(mesma causa, `@napi-rs/canvas` não instala na Vercel) — agora falha
+com uma mensagem tratada ("Importação por PDF indisponível no momento
+neste ambiente. Use a planilha Excel...") em vez de um erro 500 que
+arrastava a importação por Excel junto. Resolver a importação por PDF
+de verdade (trocar `pdf-parse`, forçar `@napi-rs/canvas` a instalar,
+ou outra biblioteca) fica como pendência separada, à parte da
+importação por Excel — que volta a funcionar.
+
+De quebra, também corrigido: `/manifest.webmanifest` não estava em
+`PUBLIC_ROUTES` (`src/lib/supabase/proxy.ts`) — o proxy respondia com
+o redirect pro `/login` em vez do JSON do manifesto, causando o erro
+de console "Manifest: Line 1, column 1, Syntax error" visto junto com
+o resto. Sem relação com a importação em si, mas achado no mesmo
+diagnóstico.
+
+**Verificado**: `npm run typecheck`/`lint`/`build` sem erros.
+
 ## Aprovações
 
 Núcleo do fluxo de validação territorial de uma pessoa, cobrindo só os
