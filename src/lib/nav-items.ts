@@ -15,6 +15,7 @@ import {
   BarChart3,
   Settings,
   Building2,
+  FileText,
 } from "lucide-react";
 
 export interface NavItem {
@@ -28,6 +29,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Painel", href: "/painel", icon: LayoutDashboard },
   { label: "Pessoas", href: "/pessoas", icon: Users },
   { label: "Empresas (PJ)", href: "/empresas", icon: Building2 },
+  { label: "Contratos", href: "/contratos", icon: FileText },
   { label: "Minha Equipe", href: "/minha-equipe", icon: UserPlus },
   { label: "Validações", href: "/validacoes", icon: ClipboardCheck },
   { label: "Importar pessoas", href: "/importacoes", icon: FileSpreadsheet },

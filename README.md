@@ -767,12 +767,89 @@ concluída):**
   substituto) está completo — o substituto automático no reenvio já
   tinha sido feito na Etapa 3.
 
-**Próxima etapa proposta**: os demais itens do schema ocioso —
+**Etapa 5 — gestão de contratos (spec seção 12, concluída):**
+
+A peça que a matriz tinha apontado como maior e totalmente ausente
+(nenhuma tabela existia). Migração `0032_nova_versao_contratos.sql`:
+quatro tabelas novas + bucket de Storage + seis funções.
+
+- `contract_templates` + `template_versions`: modelo de contrato
+  versionado por campanha/tipo de contratado (PF/PJ), com responsável,
+  vigência, status e aprovação jurídica (spec 12.1). Leitura liberada a
+  qualquer `authenticated` da campanha (catálogo — um coordenador
+  precisa ver os modelos disponíveis pra gerar contrato da equipe);
+  escrita administrador/rh (aprovação jurídica: jurídico/administrador).
+  `publish_template_version()` publica uma versão nova e supera a
+  anterior automaticamente — mesma lógica de versionamento de
+  `record_person_document()` (Etapa 3), aplicada a modelo em vez de
+  documento de pessoa.
+- `contracts`: geração individual via `generate_contract()` — PF
+  (autoriza administrador/rh ou o coordenador direto da pessoa) ou PJ
+  (só administrador/rh). Preenche os placeholders
+  (`{{nome_contratado}}`, `{{cpf}}`, `{{rg}}`, `{{endereco_completo}}`,
+  `{{funcao}}`, `{{cidade}}`, `{{eixo}}`, `{{coordenador}}`,
+  `{{data_inicio}}`, `{{data_fim}}`, `{{valor_contratado}}` pra PF;
+  `{{razao_social}}`, `{{cnpj}}`, `{{representante_legal}}` pra PJ — spec
+  12.1) com dados reais de `people`/`person_addresses`/
+  `organizational_assignments`/`coordination_relationships` ou
+  `legal_entities`, grava um snapshot completo (`generated_body`/
+  `variables_used`) imune a alterações futuras do modelo (spec 12.2).
+  Valor formatado em BRL (`R$ 1.234,56`) sem depender do locale da
+  sessão do banco — `to_char` com `G`/`D` varia com `lc_numeric` do
+  ambiente, então a formatação é feita na mão com regex de agrupamento
+  de milhar.
+- `contract_documents`: só o PDF assinado enviado de volta (spec 12.3)
+  — o contrato **gerado** não vira arquivo nesta versão (sem lib de PDF
+  no projeto): é servido como página imprimível a partir de
+  `generated_body` (Ctrl+P / salvar como PDF do próprio navegador),
+  suficiente pro fluxo "contratado faz download, assina fora do
+  sistema, envia o PDF assinado" — assinatura digital integrada já é
+  explicitamente uma versão futura na própria spec (12.3).
+- Ciclo de vida via três funções adicionais: `mark_contract_downloaded()`
+  (self/coordenador/admin/rh), `submit_signed_contract()` (mesmo
+  conjunto — grava `contract_documents` + muda status), `decide_contract()`
+  (administrador/rh ou o coordenador direto — `validar`/
+  `solicitar_correcao`/`recusar`, motivo obrigatório nas duas últimas).
+  Todas seguem o padrão de autorização já estabelecido (checagem própria
+  via `auth.uid()`, auditoria com insert direto em `audit_logs` — mesma
+  razão de `decide_registration_submission()` nunca usar
+  `log_audit_event()`).
+- Bucket `contratos-documentos` (privado, 10 MB, PDF/JPG/PNG) — mesma
+  convenção de path de `pessoas-documentos`
+  (`campaign_id/person_id/uuid-arquivo` pra PF; PJ não tem
+  autosserviço, só administrador/rh).
+- App: `/contratos` (lista + formulário de geração individual — PF ou
+  PJ, modelo, cargo/função ou texto livre, valor, datas),
+  `/contratos/modelos` (criar modelo, publicar versão, aprovação
+  jurídica), `/contratos/[id]` (visualização imprimível, upload da
+  assinatura, conferência do gestor/RH). Item "Contratos" adicionado à
+  navegação principal.
+- **Verificado** (transação com `rollback`, sem dado residual): ciclo
+  completo gerado → baixado → assinatura enviada → validado, testado
+  também `recusar`; placeholders PF e PJ preenchidos corretamente
+  (endereço concatenado, cidade/eixo/coordenador resolvidos via
+  `organizational_assignments`/`coordination_relationships`, valor em
+  BRL com milhar); modelo PF usado pra gerar contrato PJ rejeitado
+  corretamente pela checagem de tipo. Achado e corrigido durante o
+  teste: a primeira versão de `generate_contract()` formatava o valor
+  usando `to_char(..., 'FM999G999G990D00')`, que depende do locale da
+  sessão — trocado por formatação manual determinística.
+- `npm run typecheck`/`lint`/`build` — sem erros nem avisos; as três
+  rotas novas aparecem no build.
+- **Fora de escopo desta etapa** (documentado no cabeçalho da própria
+  migração): geração em lote/grupo (só individual por enquanto); os 4
+  status de 12.4 que pressupõem uma etapa de aprovação prévia à geração
+  (`aguardando_geracao`, `disponivel`, `aguardando_assinatura`,
+  `em_conferencia`) ficam no `CHECK` pra não exigir migração nova
+  quando forem usados, mas o fluxo desta etapa não os produz; `{{funcao}}`
+  não tem coluna estrutural em `people` ainda (o cargo impresso é
+  escolhido no momento da geração, do catálogo ou texto livre).
+
+**Próxima etapa proposta**: os itens restantes do schema ocioso —
 `correction_requests.previous_values`/`new_values` (preservar o antes/
 depois de uma correção), `expenses.authorized_amount_cents` (valor
 autorizado divergir do pedido), `audit_logs.ip_address`/`user_agent` —
-antes de entrar no módulo de contratos (spec seção 12), que é a peça
-maior e ainda sem nenhuma tabela.
+ou importação por PDF com OCR (spec 9.2), a decidir com o usuário.
 
 ## Stack
 

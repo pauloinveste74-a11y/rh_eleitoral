@@ -111,6 +111,25 @@ Fase 1C/Etapa 1.
 | --- | --- | --- | --- |
 | `revert_import_batch(p_batch_id)` | `authenticated` | `administrador`/`rh`; lote `confirmado`; **nenhuma** pessoa do lote pode ter `status` além de `rascunho` ou qualquer vínculo posterior (pagamento, despesa, vínculo organizacional, cadeia de coordenação, submissão de cadastro, login vinculado) | Tudo ou nada: se qualquer pessoa estiver bloqueada, falha sem apagar nada. Senão, desvincula `import_staging_records.person_id` (volta pra `'pronta'`), apaga as `people` do lote (e satélites), marca o lote `revertido`. |
 
+## Contratos (Nova versão, Etapa 5 — migração `0032`)
+
+Módulo completo: `contract_templates` (catálogo, leitura liberada a
+qualquer `authenticated` da campanha, escrita administrador/rh),
+`template_versions` (conteúdo versionado, só escrito via função),
+`contracts` (snapshot gerado, só escrito via função),
+`contract_documents` (só o PDF assinado enviado de volta — o contrato
+gerado não vira arquivo, é servido como página imprimível a partir de
+`contracts.generated_body`).
+
+| Função | Quem chama | Verifica | O que faz |
+| --- | --- | --- | --- |
+| `publish_template_version(p_contract_template_id, p_body, p_valid_from?, p_valid_until?)` | `authenticated` | `administrador`/`rh` | Publica versão nova (auto-incrementa `version_number`), marca a versão `ativo` anterior como `substituido`, ativa o modelo se ainda `rascunho`. |
+| `set_template_legal_approval(p_contract_template_id, p_approved, p_note?)` | `authenticated` | `administrador`/`juridico` | Aprova/reprova o modelo (spec 12.1) — `legal_approval_status`/`legal_approved_by`/`legal_approved_at`. |
+| `generate_contract(p_template_version_id, p_person_id?, p_legal_entity_id?, p_job_function_id?, p_position_override?, p_value_cents?, p_start_date?, p_end_date?)` | `authenticated` | Exatamente pessoa OU empresa; tipo do modelo compatível; PF: `administrador`/`rh` ou coordenador direto (`coordination_relationships`); PJ: só `administrador`/`rh` | Preenche os placeholders com dados reais (`people`/`person_addresses`/`organizational_assignments`/`coordination_relationships` ou `legal_entities`) e grava o snapshot (`generated_body`/`variables_used`) — imune a edição futura do modelo. Valor em BRL formatado sem depender de locale da sessão. |
+| `mark_contract_downloaded(p_contract_id)` | `authenticated` | `administrador`/`rh`, a própria pessoa, ou o coordenador direto | `gerado`/`disponivel` → `baixado`. Chamada ao abrir `/contratos/[id]`. |
+| `submit_signed_contract(p_contract_id, p_storage_path, p_file_name, p_mime_type, p_file_size_bytes)` | `authenticated` | Mesmo conjunto da anterior | Grava `contract_documents` (`kind='assinado'`) e muda o contrato pra `assinado_enviado`. |
+| `decide_contract(p_contract_id, p_decision, p_reason?)` | `authenticated` | `administrador`/`rh` ou o coordenador direto; contrato em `assinado_enviado` | `validar` → `assinado_e_validado`; `solicitar_correcao`/`recusar` → `correcao_solicitada`/`recusado` (motivo obrigatório). |
+
 ## 9. Gatilhos (`trigger`, nunca chamados direto pelo app)
 
 | Função | Dispara em | O que faz |
@@ -146,7 +165,15 @@ exigem sessão (bloqueio otimista no `proxy.ts` + checagem de novo no
 | `/pessoas` | Lista de pessoas cadastradas (cadastro administrativo). |
 | `/pessoas/novo` | Formulário de cadastro manual (`PersonForm`). |
 | `/pessoas/[id]/editar` | Edição + upload de documento + enviar para aprovação (cidade/eixo). |
-| `/empresas` *(Nova versão, Etapa 1)* | Cadastro-mestre de pessoa jurídica (`legal_entities`) — só administrador/rh; cria e lista, sem edição/documento/contrato ainda. |
+| `/empresas` *(Nova versão, Etapa 1)* | Cadastro-mestre de pessoa jurídica (`legal_entities`) — só administrador/rh; cria e lista, sem edição/documento ainda (contrato de PJ já é possível via `/contratos`, Etapa 5). |
+
+### Contratos (Nova versão, Etapa 5)
+
+| Rota | Descrição |
+| --- | --- |
+| `/contratos` | Lista (RLS-scoped: admin/rh/auditor vê tudo, self/coordenador vê o próprio/da equipe) + formulário de geração individual (PF ou PJ, modelo, cargo, valor, datas — `generate_contract()`). |
+| `/contratos/modelos` | Criar modelo, publicar versão (`publish_template_version()`), aprovação jurídica (`set_template_legal_approval()`) — administrador/rh/jurídico. |
+| `/contratos/[id]` | Visualização imprimível do contrato gerado (Ctrl+P, sem lib de PDF), upload da assinatura (`submit_signed_contract()`), conferência do gestor/RH (`decide_contract()`). |
 
 ### Autocadastro e equipe (Etapas 2/3/11)
 

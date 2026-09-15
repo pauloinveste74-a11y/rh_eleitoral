@@ -159,6 +159,18 @@ README, seção "Modelo de dados"):
   obrigatório pras duas últimas). `/validacoes` ganhou uma linha
   expandida por submissão da fila com os documentos ativos da pessoa e
   os três botões de classificação inline. Fecha o item 10 da spec.
+- Etapa 5 (`0032`): módulo de contratos completo (spec seção 12) — a
+  peça que a matriz apontava como maior e totalmente ausente. Quatro
+  tabelas (`contract_templates`, `template_versions`, `contracts`,
+  `contract_documents`) + bucket `contratos-documentos` + seis funções
+  (`publish_template_version`, `set_template_legal_approval`,
+  `generate_contract`, `mark_contract_downloaded`,
+  `submit_signed_contract`, `decide_contract`). `generate_contract()`
+  preenche os placeholders com dados reais e grava um snapshot imune a
+  edição futura do modelo. Sem lib de PDF: o contrato gerado é servido
+  como página imprimível (Ctrl+P), só a assinatura enviada de volta vira
+  arquivo em `contract_documents`. `/contratos`, `/contratos/modelos`,
+  `/contratos/[id]` novos, item "Contratos" na navegação.
 
 ## Etapas 3 a 11 — páginas de aplicação (autocadastro, validações, importação, despesas, correção)
 

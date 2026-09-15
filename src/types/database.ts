@@ -1097,6 +1097,149 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["legal_entities"]["Insert"]>;
         Relationships: [];
       };
+      // Migração 0032 (Nova versão, Etapa 5) — gestão de contratos.
+      contract_templates: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          name: string;
+          contract_type: "pf" | "pj";
+          job_function_id: string | null;
+          responsible_profile_id: string | null;
+          status: "rascunho" | "ativo" | "inativo";
+          legal_approval_status: "pendente" | "aprovado" | "reprovado";
+          legal_approved_by: string | null;
+          legal_approved_at: string | null;
+          legal_approval_note: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id?: string;
+          name: string;
+          contract_type: "pf" | "pj";
+          job_function_id?: string | null;
+          responsible_profile_id?: string | null;
+          status?: "rascunho" | "ativo" | "inativo";
+          legal_approval_status?: "pendente" | "aprovado" | "reprovado";
+          legal_approved_by?: string | null;
+          legal_approved_at?: string | null;
+          legal_approval_note?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["contract_templates"]["Insert"]>;
+        Relationships: [];
+      };
+      template_versions: {
+        Row: {
+          id: string;
+          contract_template_id: string;
+          version_number: number;
+          body: string;
+          valid_from: string;
+          valid_until: string | null;
+          status: "rascunho" | "ativo" | "substituido";
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          contract_template_id: string;
+          version_number: number;
+          body: string;
+          valid_from?: string;
+          valid_until?: string | null;
+          status?: "rascunho" | "ativo" | "substituido";
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["template_versions"]["Insert"]>;
+        Relationships: [];
+      };
+      contracts: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          template_version_id: string;
+          person_id: string | null;
+          legal_entity_id: string | null;
+          job_function_id: string | null;
+          position_override: string | null;
+          value_cents: number | null;
+          start_date: string | null;
+          end_date: string | null;
+          generated_body: string;
+          variables_used: Json;
+          status: ContractStatus;
+          replaces_contract_id: string | null;
+          generated_by: string | null;
+          generated_at: string;
+          downloaded_at: string | null;
+          signed_submitted_at: string | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          rejection_reason: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id?: string;
+          template_version_id: string;
+          person_id?: string | null;
+          legal_entity_id?: string | null;
+          job_function_id?: string | null;
+          position_override?: string | null;
+          value_cents?: number | null;
+          start_date?: string | null;
+          end_date?: string | null;
+          generated_body: string;
+          variables_used?: Json;
+          status?: ContractStatus;
+          replaces_contract_id?: string | null;
+          generated_by?: string | null;
+          generated_at?: string;
+          downloaded_at?: string | null;
+          signed_submitted_at?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          rejection_reason?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["contracts"]["Insert"]>;
+        Relationships: [];
+      };
+      contract_documents: {
+        Row: {
+          id: string;
+          contract_id: string;
+          document_kind: "assinado";
+          storage_path: string;
+          file_name: string;
+          mime_type: string;
+          file_size_bytes: number;
+          uploaded_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          contract_id: string;
+          document_kind?: "assinado";
+          storage_path: string;
+          file_name: string;
+          mime_type: string;
+          file_size_bytes: number;
+          uploaded_by?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["contract_documents"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -1292,6 +1435,59 @@ export interface Database {
         };
         Returns: string;
       };
+      // Migração 0032 (Nova versão, Etapa 5) — gestão de contratos.
+      publish_template_version: {
+        Args: {
+          p_contract_template_id: string;
+          p_body: string;
+          p_valid_from?: string;
+          p_valid_until?: string | null;
+        };
+        Returns: string;
+      };
+      set_template_legal_approval: {
+        Args: {
+          p_contract_template_id: string;
+          p_approved: boolean;
+          p_note?: string | null;
+        };
+        Returns: undefined;
+      };
+      generate_contract: {
+        Args: {
+          p_template_version_id: string;
+          p_person_id?: string | null;
+          p_legal_entity_id?: string | null;
+          p_job_function_id?: string | null;
+          p_position_override?: string | null;
+          p_value_cents?: number | null;
+          p_start_date?: string | null;
+          p_end_date?: string | null;
+        };
+        Returns: string;
+      };
+      mark_contract_downloaded: {
+        Args: { p_contract_id: string };
+        Returns: undefined;
+      };
+      submit_signed_contract: {
+        Args: {
+          p_contract_id: string;
+          p_storage_path: string;
+          p_file_name: string;
+          p_mime_type: string;
+          p_file_size_bytes: number;
+        };
+        Returns: string;
+      };
+      decide_contract: {
+        Args: {
+          p_contract_id: string;
+          p_decision: string;
+          p_reason?: string | null;
+        };
+        Returns: undefined;
+      };
       get_public_registration_status: {
         Args: { p_token: string };
         // `returns table (...)` — PostgREST/supabase-js devolve um array.
@@ -1388,3 +1584,18 @@ export type RegistrationSubmissionStatus =
   | "rejeitado"
   | "suspenso"
   | "arquivado";
+
+/** Status de `contracts` (migração 0032, spec 12.4) — o fluxo desta etapa só produz um subconjunto (ver cabeçalho da migração). */
+export type ContractStatus =
+  | "aguardando_geracao"
+  | "gerado"
+  | "disponivel"
+  | "baixado"
+  | "aguardando_assinatura"
+  | "assinado_enviado"
+  | "em_conferencia"
+  | "correcao_solicitada"
+  | "assinado_e_validado"
+  | "recusado"
+  | "substituido"
+  | "encerrado";

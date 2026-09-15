@@ -60,7 +60,7 @@ conta que não fosse o platform_admin (que bypassa toda RLS):
 | 9.2 | Importação por PDF (OCR, 1 ou várias pessoas) | 🔴 Ausente — `data_conflicts` existe desde `0018`, nunca usada |
 | 10 | Gestor: documento válido/ilegível/divergente, documento substituto | 🟢 **Implementado na Etapa 4** — classificação inline em `/validacoes` (por documento, dentro de cada submissão da fila); substituto automático no reenvio já era da Etapa 3 |
 | 11 | Painel do coordenador com indicadores por escopo territorial | 🟢 **Implementado na Etapa 2** — sem migração nova, só consultas com a RLS já existente |
-| 12 | Contratos (modelos, versionamento, geração PF/PJ, upload assinado) | 🔴 Ausente por completo — nenhuma tabela existe |
+| 12 | Contratos (modelos, versionamento, geração PF/PJ, upload assinado) | 🟢 **Implementado na Etapa 5** (migração `0032`) — geração em lote/grupo e assinatura digital integrada ficam fora, documentado no cabeçalho da migração |
 | 13 | Despesas com autorizador/alçada | 🟢 Etapas 1/7/8/9 |
 | 13 | Valor autorizado ≠ valor pedido | 🟡 `expenses.authorized_amount_cents` existe, nunca difere de `requested_amount_cents` |
 | 14 | Pagamentos: contratado/calculado/autorizado/pago/conciliado, PIX/TED, conciliação | 🟡 Modelo atual (`payments`) é bem mais simples; sem `reconciliation_matches` |
@@ -76,13 +76,12 @@ conta que não fosse o platform_admin (que bypassa toda RLS):
 esta spec dar propósito): `notifications`, `data_conflicts`,
 `expense_documents`, `expense_approvals`, `registration_field_reviews`.
 
-**Ausentes por completo antes desta etapa**: `job_functions` ✅ criada
-nesta etapa, `legal_entities` ✅ criada nesta etapa, `contacts` (arquitetura
-atual guarda telefone/e-mail direto em `people`, divergência de design,
-não necessariamente errada), `document_versions` (usa
-`replaces_document_id` em vez disso), `contract_templates`,
-`template_versions`, `contracts`, `contract_documents`,
-`reconciliation_matches`.
+**Ausentes por completo antes da iniciativa**: `job_functions` ✅ Etapa 1,
+`legal_entities` ✅ Etapa 1, `contract_templates`/`template_versions`/
+`contracts`/`contract_documents` ✅ Etapa 5, `contacts` (arquitetura atual
+guarda telefone/e-mail direto em `people`, divergência de design, não
+necessariamente errada), `document_versions` (usa `replaces_document_id`
+em vez disso), `reconciliation_matches` (segue ausente — spec seção 14).
 
 ## Ordem proposta (adaptando a seção 22 da spec ao que já existe)
 
@@ -94,7 +93,8 @@ não necessariamente errada), `document_versions` (usa
    RLS/auditoria corrigidos de brinde). Falta ainda:
    `correction_requests.previous_values`/`new_values`,
    `expenses.authorized_amount_cents`, `audit_logs.ip_address`/`user_agent`.
-5. Contratos (modelos, geração, upload assinado) — a peça mais grande.
+5. ✅ **Contratos (modelos, versionamento, geração PF/PJ, upload
+   assinado, conferência)** — Etapa 5, a peça que era a maior.
 6. Importação por PDF com OCR e revisão humana.
 7. Pagamentos com modelo rico (conciliação, PIX/TED).
 8. Central de pendências consolidada + relatórios novos.
