@@ -262,6 +262,25 @@ export function ExpenseForm({
             </p>
           )}
         </div>
+
+        <div className="flex flex-col gap-2 sm:max-w-xs">
+          <Label htmlFor="authorizedAmountReais">
+            Valor autorizado (R$, opcional — se diferente do pedido)
+          </Label>
+          <Input
+            id="authorizedAmountReais"
+            name="authorizedAmountReais"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="Deixe em branco se igual ao valor pedido"
+          />
+          {state.errors?.authorizedAmountReais && (
+            <p className="text-sm text-red-600" role="alert">
+              {state.errors.authorizedAmountReais[0]}
+            </p>
+          )}
+        </div>
       </fieldset>
 
       <div className="flex flex-col gap-2">

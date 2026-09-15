@@ -34,7 +34,7 @@ export default async function AuditoriaPage({
   let query = supabase
     .from("audit_logs")
     .select(
-      "id, occurred_at, actor_user_id, action, entity_table, entity_id, reason, result, related_request_id, before_data, after_data",
+      "id, occurred_at, actor_user_id, action, entity_table, entity_id, reason, result, related_request_id, before_data, after_data, ip_address, user_agent",
       { count: "exact" },
     )
     .order("occurred_at", { ascending: false })
@@ -129,7 +129,7 @@ export default async function AuditoriaPage({
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {log.before_data || log.after_data || log.reason ? (
+                          {log.before_data || log.after_data || log.reason || log.ip_address || log.user_agent ? (
                             <details>
                               <summary className="cursor-pointer text-sm text-slate-500 hover:underline dark:text-slate-400">
                                 Ver
@@ -138,6 +138,17 @@ export default async function AuditoriaPage({
                                 {log.reason && (
                                   <p>
                                     <span className="font-medium">Motivo:</span> {log.reason}
+                                  </p>
+                                )}
+                                {log.ip_address && (
+                                  <p>
+                                    <span className="font-medium">IP:</span> {log.ip_address}
+                                  </p>
+                                )}
+                                {log.user_agent && (
+                                  <p className="truncate" title={log.user_agent}>
+                                    <span className="font-medium">Dispositivo:</span>{" "}
+                                    {log.user_agent}
                                   </p>
                                 )}
                                 {log.before_data && (

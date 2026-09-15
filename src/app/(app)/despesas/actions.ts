@@ -35,6 +35,7 @@ export async function createExpense(
     unidentifiedAuthorizerPhone: String(formData.get("unidentifiedAuthorizerPhone") ?? ""),
     unidentifiedAuthorizerReason: String(formData.get("unidentifiedAuthorizerReason") ?? ""),
     authorizationChannel: String(formData.get("authorizationChannel") ?? ""),
+    authorizedAmountReais: String(formData.get("authorizedAmountReais") ?? ""),
   });
   if (!parsed.success) {
     return {
@@ -124,6 +125,9 @@ export async function createExpense(
         ? parsed.data.unidentifiedAuthorizerReason || null
         : null,
     p_authorization_channel: parsed.data.authorizationChannel,
+    p_authorized_amount_cents: parsed.data.authorizedAmountReais
+      ? Math.round(Number(parsed.data.authorizedAmountReais) * 100)
+      : null,
   });
 
   if (error || !expenseId) {

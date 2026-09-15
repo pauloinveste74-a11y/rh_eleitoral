@@ -12,6 +12,8 @@ import {
 import { PersonDocumentUpload } from "@/components/pessoas/person-document-upload";
 import { SubmitOwnRegistrationCard } from "@/components/pessoas/submit-own-registration-card";
 import { documentTypeLabels } from "@/lib/validations/registration";
+import { CORRECTION_FIELDS } from "@/lib/validations/correction-fields";
+import type { Json } from "@/types/database";
 
 export const metadata: Metadata = { title: "Meu cadastro" };
 
@@ -86,7 +88,7 @@ export default async function MeuCadastroPage() {
     submissionIds.length > 0
       ? await supabase
           .from("correction_requests")
-          .select("reason, field_names, requested_at")
+          .select("reason, field_names, requested_at, previous_values")
           .in("submission_id", submissionIds)
           .is("resolved_at", null)
           .order("requested_at", { ascending: false })
@@ -160,6 +162,24 @@ export default async function MeuCadastroPage() {
                   o resto ficou travado.
                 </p>
               )}
+              {correction.previous_values &&
+                Object.keys(correction.previous_values as Record<string, Json>).length > 0 && (
+                  <details className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                    <summary className="cursor-pointer select-none">
+                      Valores no momento da solicitação
+                    </summary>
+                    <ul className="mt-1 flex flex-col gap-0.5">
+                      {Object.entries(correction.previous_values as Record<string, Json>).map(
+                        ([key, value]) => (
+                          <li key={key}>
+                            {CORRECTION_FIELDS.find((f) => f.key === key)?.label ?? key}:{" "}
+                            {value ? String(value) : "—"}
+                          </li>
+                        ),
+                      )}
+                    </ul>
+                  </details>
+                )}
             </CardContent>
           </Card>
         )}

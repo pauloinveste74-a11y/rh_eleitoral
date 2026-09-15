@@ -37,6 +37,8 @@ export type ExpenseRow = {
   authorizerName: string | null;
   unidentifiedAuthorizer: boolean;
   alcadaStatus: AlcadaStatus | null;
+  /** Nova versão (Etapa 6) — só exibido quando difere de amountCents (spec 13.1). */
+  authorizedAmountCents: number | null;
 };
 
 export function ExpenseList({
@@ -97,7 +99,15 @@ export function ExpenseList({
                 </Badge>
               )}
             </TableCell>
-            <TableCell>{formatCentsAsBRL(row.amountCents)}</TableCell>
+            <TableCell>
+              {formatCentsAsBRL(row.amountCents)}
+              {row.authorizedAmountCents !== null &&
+                row.authorizedAmountCents !== row.amountCents && (
+                  <span className="block text-xs font-normal text-amber-600">
+                    autorizado: {formatCentsAsBRL(row.authorizedAmountCents)}
+                  </span>
+                )}
+            </TableCell>
             <TableCell>
               {new Date(row.expenseDate).toLocaleDateString("pt-BR", { timeZone: "UTC" })}
             </TableCell>

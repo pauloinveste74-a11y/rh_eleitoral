@@ -845,11 +845,60 @@ quatro tabelas novas + bucket de Storage + seis funções.
   não tem coluna estrutural em `people` ainda (o cargo impresso é
   escolhido no momento da geração, do catálogo ou texto livre).
 
-**Próxima etapa proposta**: os itens restantes do schema ocioso —
-`correction_requests.previous_values`/`new_values` (preservar o antes/
-depois de uma correção), `expenses.authorized_amount_cents` (valor
-autorizado divergir do pedido), `audit_logs.ip_address`/`user_agent` —
-ou importação por PDF com OCR (spec 9.2), a decidir com o usuário.
+**Etapa 6 — resto do schema ocioso (concluída):**
+
+Fecha os três itens que a Etapa 3 tinha deixado de fora. Migração
+`0033_nova_versao_schema_ocioso.sql`.
+
+- **`audit_logs.ip_address`/`user_agent`** (spec 15) — a princípio
+  pareceria exigir tocar a assinatura de ~22 funções (todas as que
+  gravam `audit_logs`, direto ou via `log_audit_event()`) e cada Server
+  Action que as chama. Achado melhor antes de codificar: o PostgREST
+  expõe os headers da requisição HTTP numa GUC de sessão
+  (`current_setting('request.headers', true)`) — testado ao vivo via
+  `curl` direto no `/rest/v1/rpc` antes de qualquer código. Com isso, um
+  **trigger `BEFORE INSERT` em `audit_logs`** (`request_ip_address()`/
+  `request_user_agent()` como funções auxiliares, preferindo
+  `cf-connecting-ip` e caindo para o primeiro IP de `x-forwarded-for`)
+  preenche os dois campos sozinho — **zero função existente alterada,
+  zero mudança no app**, e cobre qualquer função futura de graça.
+- **`correction_requests.previous_values`/`new_values`** (spec 6.4) —
+  nova função auxiliar `snapshot_correction_fields(person_id,
+  field_names)` tira uma foto dos campos apontados (a partir de
+  `people` + os 3 satélites). `previous_values` é gravado quando o
+  gestor/RH pede a correção (`decide_registration_submission`/
+  `decide_rh_validation`); `new_values` quando a pessoa reenvia
+  (`submit_registration_for_review`/
+  `submit_public_registration_for_review`, que já resolviam o
+  `correction_requests` desde a Etapa 11 — só ganharam o campo novo no
+  mesmo `UPDATE`). `/meu-cadastro` ganhou um detalhe recolhível "Valores
+  no momento da solicitação" no aviso de correção pendente.
+- **`expenses.authorized_amount_cents`** (spec 13.1) — `create_expense()`
+  ganhou `p_authorized_amount_cents` (opcional, trailing — precisou do
+  `drop function` de praxe antes do `create or replace`, mesmo padrão
+  das Etapas 7/11). Em branco, continua igual ao valor pedido
+  (comportamento anterior idêntico). `/despesas/novo` ganhou o campo
+  "Valor autorizado"; a lista em `/despesas` mostra o valor autorizado
+  só quando diverge do pedido.
+- **Verificado** (transação com `rollback`, sem dado residual): despesa
+  criada com valor autorizado diferente do pedido, e outra sem informar
+  (confirma que fica igual ao pedido — sem regressão); correção
+  solicitada gravou `previous_values` com exatamente os campos
+  apontados; reenvio após corrigir gravou `new_values` com os valores
+  novos e resolveu a correção; trigger de auditoria não quebra quando
+  chamado fora de um contexto HTTP (`ip_address`/`user_agent` ficam
+  `null`, sem erro) — o funcionamento real via HTTP já tinha sido
+  confirmado antes de escrever qualquer função.
+- `npm run typecheck`/`lint`/`build` — sem erros nem avisos.
+
+Com isso, **o item 4 da ordem proposta (schema já pronto e ocioso) está
+completo** — nenhuma coluna morta identificada na matriz original ficou
+de fora.
+
+**Próxima etapa proposta**: importação por PDF com OCR (spec 9.2) —
+peça nova e ainda maior que contratos, com `data_conflicts` esperando
+desde a migração `0018` — ou pagamentos com modelo rico (conciliação,
+PIX/TED, spec 14). A decidir com o usuário.
 
 ## Stack
 

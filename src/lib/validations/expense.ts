@@ -94,6 +94,17 @@ export const expenseSchema = z
     authorizationChannel: z.enum(authorizationChannels, {
       error: "Selecione o canal de autorização.",
     }),
+    // Nova versão (Etapa 6) — valor efetivamente aprovado pelo autorizador,
+    // quando diferente do solicitado (spec 13.1). Opcional: em branco,
+    // create_expense() usa o mesmo valor pedido (comportamento anterior).
+    authorizedAmountReais: z
+      .string()
+      .trim()
+      .optional()
+      .or(z.literal(""))
+      .refine((v) => !v || (!Number.isNaN(Number(v)) && Number(v) >= 0), {
+        error: "Informe um valor válido.",
+      }),
   })
   .superRefine((data, ctx) => {
     if (data.authorizerType === "sistema" && !data.authorizedByProfileId) {

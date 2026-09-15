@@ -171,6 +171,18 @@ README, seção "Modelo de dados"):
   como página imprimível (Ctrl+P), só a assinatura enviada de volta vira
   arquivo em `contract_documents`. `/contratos`, `/contratos/modelos`,
   `/contratos/[id]` novos, item "Contratos" na navegação.
+- Etapa 6 (`0033`): resto do schema ocioso. `audit_logs.ip_address`/
+  `user_agent` via **trigger** (`request_headers()` lê
+  `current_setting('request.headers')`, GUC que o PostgREST expõe com
+  os headers HTTP — achado testando ao vivo via `curl`/`rpc` antes de
+  codificar) — zero função alterada, zero mudança no app.
+  `correction_requests.previous_values`/`new_values` via
+  `snapshot_correction_fields()`, chamada de `decide_registration_submission`/
+  `decide_rh_validation` (previous) e `submit_registration_for_review`/
+  `submit_public_registration_for_review` (new, no mesmo `UPDATE` que já
+  resolvia a correção desde a Etapa 11). `expenses.authorized_amount_cents`
+  via novo parâmetro opcional em `create_expense()` (drop+recreate, mesmo
+  footgun de sempre). Fecha o item 4 da ordem proposta da Nova versão.
 
 ## Etapas 3 a 11 — páginas de aplicação (autocadastro, validações, importação, despesas, correção)
 

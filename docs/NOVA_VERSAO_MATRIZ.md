@@ -50,7 +50,7 @@ conta que não fosse o platform_admin (que bypassa toda RLS):
 | 6.2 | Status de convite | 🟢 Bate exatamente com `registration_invites.status` |
 | 6.3 | Status cadastral | 🟢 Bate exatamente com `people.status` (migração `0013`) |
 | 6.4 | Correção com campo apontado | 🟢 Etapa 11 (`correction_requests.field_names`) |
-| 6.4 | Correção preserva valor anterior/novo | 🟡 `correction_requests.previous_values`/`new_values` existem, nunca gravados |
+| 6.4 | Correção preserva valor anterior/novo | 🟢 **Implementado na Etapa 6** — `snapshot_correction_fields()` grava `previous_values` ao pedir e `new_values` ao reenviar |
 | 7 | Dados cadastrais PF (identificação, filiação, naturalidade...) | 🟢 migração `0013` |
 | 8 | Documento: hash, detecção de repetição | 🟢 **Implementado na Etapa 3** — `record_person_document()` (migração `0030`) rejeita duplicata exata |
 | 8 | Documento: versionamento (substituição) | 🟢 **Implementado na Etapa 3** — reenvio do mesmo tipo após ilegível/divergente vira substituto automático, o anterior é marcado `removido` |
@@ -62,9 +62,9 @@ conta que não fosse o platform_admin (que bypassa toda RLS):
 | 11 | Painel do coordenador com indicadores por escopo territorial | 🟢 **Implementado na Etapa 2** — sem migração nova, só consultas com a RLS já existente |
 | 12 | Contratos (modelos, versionamento, geração PF/PJ, upload assinado) | 🟢 **Implementado na Etapa 5** (migração `0032`) — geração em lote/grupo e assinatura digital integrada ficam fora, documentado no cabeçalho da migração |
 | 13 | Despesas com autorizador/alçada | 🟢 Etapas 1/7/8/9 |
-| 13 | Valor autorizado ≠ valor pedido | 🟡 `expenses.authorized_amount_cents` existe, nunca difere de `requested_amount_cents` |
+| 13 | Valor autorizado ≠ valor pedido | 🟢 **Implementado na Etapa 6** — `create_expense(p_authorized_amount_cents)` |
 | 14 | Pagamentos: contratado/calculado/autorizado/pago/conciliado, PIX/TED, conciliação | 🟡 Modelo atual (`payments`) é bem mais simples; sem `reconciliation_matches` |
-| 15 | Auditoria com IP/dispositivo | 🟡 `audit_logs.ip_address`/`user_agent` existem, nunca populados |
+| 15 | Auditoria com IP/dispositivo | 🟢 **Implementado na Etapa 6** — trigger `audit_logs_set_request_metadata` lê `current_setting('request.headers')` (GUC do PostgREST), sem tocar em nenhuma das ~22 funções que gravam `audit_logs` |
 | 16 | Central de pendências consolidada | 🔴 Ausente como visão única (peças espalhadas em `/validacoes`, `/importacoes`, `/despesas`) |
 | 17 | Relatórios (despesas/pagamentos/contratos/pendências) | 🟡 Só pessoas/aprovações/financeiro hoje |
 | 18 | RLS, buckets privados, sem segredo no client | 🟢 Padrão do projeto inteiro |
@@ -88,11 +88,10 @@ em vez disso), `reconciliation_matches` (segue ausente — spec seção 14).
 1. ~~Segurança~~ — feito, limpo.
 2. ✅ **Cargos configuráveis + pessoa jurídica** — Etapa 1.
 3. ✅ **Painel do coordenador com indicadores por escopo** — Etapa 2.
-4. 🟡 Uso do schema já pronto e ocioso — **documento fechado nas Etapas
-   3+4** (hash, versionamento, classificação pelo gestor, e dois bugs de
-   RLS/auditoria corrigidos de brinde). Falta ainda:
-   `correction_requests.previous_values`/`new_values`,
-   `expenses.authorized_amount_cents`, `audit_logs.ip_address`/`user_agent`.
+4. ✅ **Uso do schema já pronto e ocioso** — completo. Documento (hash,
+   versionamento, classificação pelo gestor) nas Etapas 3+4; correção
+   previous/new, despesa autorizada e IP/user-agent da auditoria na
+   Etapa 6.
 5. ✅ **Contratos (modelos, versionamento, geração PF/PJ, upload
    assinado, conferência)** — Etapa 5, a peça que era a maior.
 6. Importação por PDF com OCR e revisão humana.

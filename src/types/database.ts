@@ -1302,6 +1302,7 @@ export interface Database {
           p_unidentified_authorizer_phone?: string | null;
           p_unidentified_authorizer_reason?: string | null;
           p_authorization_channel?: string | null;
+          p_authorized_amount_cents?: number | null;
         };
         Returns: string;
       };
