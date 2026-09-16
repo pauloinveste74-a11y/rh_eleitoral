@@ -1,6 +1,7 @@
 "use client";
 
 import { startTransition, useActionState, useState } from "react";
+import Link from "next/link";
 
 import { generateContract } from "@/app/(app)/contratos/actions";
 import { initialContractActionState } from "@/app/(app)/contratos/action-state";
@@ -26,11 +27,17 @@ export function GenerateContractForm({
   people,
   legalEntities,
   jobFunctions,
+  defaultPersonId,
+  defaultJobFunctionId,
 }: {
   activeVersions: ActiveTemplateVersion[];
   people: { id: string; fullName: string }[];
   legalEntities: { id: string; companyName: string }[];
   jobFunctions: { id: string; name: string }[];
+  /** Pessoa pré-selecionada (vinda do botão "Contrato" em /pessoas). */
+  defaultPersonId?: string;
+  /** Cargo já cadastrado da pessoa pré-selecionada — só falta escolher o modelo. */
+  defaultJobFunctionId?: string;
 }) {
   const [state, dispatch, isPending] = useActionState(
     generateContract,
@@ -61,24 +68,22 @@ export function GenerateContractForm({
           />
           Pessoa física
         </label>
-        {legalEntities.length > 0 && (
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="radio"
-              name="targetTypeRadio"
-              checked={targetType === "pj"}
-              onChange={() => setTargetType("pj")}
-            />
-            Pessoa jurídica
-          </label>
-        )}
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="radio"
+            name="targetTypeRadio"
+            checked={targetType === "pj"}
+            onChange={() => setTargetType("pj")}
+          />
+          Pessoa jurídica (PJ)
+        </label>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {targetType === "pf" ? (
           <div className="flex flex-col gap-2">
             <Label htmlFor="gc-person">Pessoa</Label>
-            <Select id="gc-person" name="personId" defaultValue="">
+            <Select id="gc-person" name="personId" defaultValue={defaultPersonId ?? ""}>
               <option value="" disabled>
                 Selecione
               </option>
@@ -89,7 +94,7 @@ export function GenerateContractForm({
               ))}
             </Select>
           </div>
-        ) : (
+        ) : legalEntities.length > 0 ? (
           <div className="flex flex-col gap-2">
             <Label htmlFor="gc-legalEntity">Empresa</Label>
             <Select id="gc-legalEntity" name="legalEntityId" defaultValue="">
@@ -102,6 +107,16 @@ export function GenerateContractForm({
                 </option>
               ))}
             </Select>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2 sm:col-span-2">
+            <p className="text-sm text-brand-graphite dark:text-slate-400">
+              Nenhuma empresa (PJ) cadastrada ainda.{" "}
+              <Link href="/empresas" className="underline underline-offset-4">
+                Cadastre uma em Empresas
+              </Link>{" "}
+              antes de gerar o contrato.
+            </p>
           </div>
         )}
 
@@ -128,7 +143,7 @@ export function GenerateContractForm({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
           <Label htmlFor="gc-job">Cargo/função (opcional)</Label>
-          <Select id="gc-job" name="jobFunctionId" defaultValue="">
+          <Select id="gc-job" name="jobFunctionId" defaultValue={defaultJobFunctionId ?? ""}>
             <option value="">Nenhum</option>
             {jobFunctions.map((jf) => (
               <option key={jf.id} value={jf.id}>

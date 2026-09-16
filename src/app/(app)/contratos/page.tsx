@@ -22,11 +22,13 @@ import { SendContractAccess } from "@/components/contratos/send-contract-access"
 
 export const metadata: Metadata = { title: "Contratos" };
 
-export default async function ContratosPage() {
+export default async function ContratosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ personId?: string }>;
+}) {
+  const { personId } = await searchParams;
   const supabase = await createClient();
-  const { data: canPj } = await supabase.rpc("has_role", {
-    role_codes: ["administrador", "rh"],
-  });
 
   const [
     { data: contracts },
@@ -42,12 +44,24 @@ export default async function ContratosPage() {
       .order("generated_at", { ascending: false }),
     supabase.from("template_versions").select("id, contract_template_id").eq("status", "ativo"),
     supabase.from("contract_templates").select("id, name, contract_type").eq("status", "ativo"),
-    supabase.from("people").select("id, full_name").eq("status", "ativo").order("full_name"),
-    canPj
-      ? supabase.from("legal_entities").select("id, company_name").eq("status", "ativo").order("company_name")
-      : Promise.resolve({ data: [] as { id: string; company_name: string }[] }),
+    supabase
+      .from("people")
+      .select("id, full_name, job_function_id")
+      .eq("status", "ativo")
+      .order("full_name"),
+    // O seletor PJ da página fica sempre visível agora (não só quando havia
+    // empresa cadastrada) — precisa da lista real mesmo vazia, pra mostrar
+    // o estado vazio com link pra /empresas.
+    supabase.from("legal_entities").select("id, company_name").eq("status", "ativo").order("company_name"),
     supabase.from("job_functions").select("id, name").eq("status", "ativa").order("name"),
   ]);
+
+  // Pessoa vinda de /pessoas ("Contrato" ao lado de "Editar") — pré-seleciona
+  // ela e o cargo que já está no cadastro dela, pra só faltar escolher o
+  // modelo certo.
+  const preselectedPerson = personId
+    ? (people ?? []).find((p) => p.id === personId)
+    : undefined;
 
   // Junção feita em JS (mesmo padrão de /validacoes e /painel) em vez de
   // embed do PostgREST — evita depender de metadata de FK na tipagem.
@@ -101,6 +115,8 @@ export default async function ContratosPage() {
             people={(people ?? []).map((p) => ({ id: p.id, fullName: p.full_name }))}
             legalEntities={(legalEntities ?? []).map((e) => ({ id: e.id, companyName: e.company_name }))}
             jobFunctions={jobFunctions ?? []}
+            defaultPersonId={preselectedPerson?.id}
+            defaultJobFunctionId={preselectedPerson?.job_function_id ?? undefined}
           />
           <p className="mt-3 text-xs text-brand-graphite dark:text-slate-400">
             Não achou o modelo que precisa?{" "}

@@ -43,19 +43,32 @@ export function PeopleTable({ people }: { people: PersonListRow[] }) {
         {people.map((person) => (
           <TableRow key={person.id}>
             <TableCell className="font-medium text-brand-navy dark:text-slate-50">
-              {person.social_name || person.full_name}
+              <Link
+                href={`/pessoas/${person.id}/editar`}
+                className="hover:underline"
+              >
+                {person.social_name || person.full_name}
+              </Link>
             </TableCell>
             <TableCell>{formatCpf(person.cpf)}</TableCell>
             <TableCell>
               <PersonStatusBadge status={person.status} />
             </TableCell>
             <TableCell className="text-right">
-              <Link
-                href={`/pessoas/${person.id}/editar`}
-                className="text-sm font-medium text-brand-navy underline-offset-4 hover:underline dark:text-slate-50"
-              >
-                Editar
-              </Link>
+              <div className="flex items-center justify-end gap-3">
+                <Link
+                  href={`/pessoas/${person.id}/editar`}
+                  className="text-sm font-medium text-brand-navy underline-offset-4 hover:underline dark:text-slate-50"
+                >
+                  Editar
+                </Link>
+                <Link
+                  href={`/contratos?personId=${person.id}`}
+                  className="text-sm font-medium text-brand-navy underline-offset-4 hover:underline dark:text-slate-50"
+                >
+                  Contrato
+                </Link>
+              </div>
             </TableCell>
           </TableRow>
         ))}
