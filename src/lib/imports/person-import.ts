@@ -194,6 +194,12 @@ export function classifyRow(
   mergeWarnings: ImportRowError[] = [],
 ): ClassifiedRow {
   const errors: ImportRowError[] = [];
+  // Referências organizacionais não encontradas (eixo/cidade/equipe/
+  // coordenador) nunca bloqueiam a linha — a pessoa é criada mesmo assim,
+  // só sem aquele vínculo específico, que fica pendente de ajuste manual.
+  // Diferente de CPF/e-mail inválidos, que são erro de dado da própria
+  // pessoa e continuam bloqueando.
+  const warnings: ImportRowError[] = [...mergeWarnings];
 
   // A coluna de identificação pode trazer CNPJ (pessoa jurídica) em vez de
   // CPF quando a planilha mistura PF e PJ na mesma aba (ex.: "CPF/CNPJ*").
@@ -216,7 +222,7 @@ export function classifyRow(
           message: "Pessoa jurídica (CNPJ) — esta importação só aceita pessoa física por enquanto.",
         },
       ],
-      warnings: mergeWarnings,
+      warnings,
     };
   }
 
@@ -282,9 +288,9 @@ export function classifyRow(
   if (axisName) {
     const found = refs.axisIdByName.get(normalizeHeader(axisName));
     if (!found) {
-      errors.push({
+      warnings.push({
         field: "axisName",
-        message: `Eixo não encontrado: "${axisName}" — cadastre o eixo antes de importar.`,
+        message: `Eixo não encontrado: "${axisName}" — pessoa criada sem esse vínculo, cadastre o eixo e ajuste depois.`,
       });
     } else {
       axisId = found;
@@ -296,9 +302,9 @@ export function classifyRow(
   if (cityName) {
     const found = refs.cityIdByName.get(normalizeHeader(cityName));
     if (!found) {
-      errors.push({
+      warnings.push({
         field: "cityName",
-        message: `Cidade/RA não encontrada ou nome ambíguo: "${cityName}".`,
+        message: `Cidade/RA não encontrada ou nome ambíguo: "${cityName}" — pessoa criada sem esse vínculo.`,
       });
     } else {
       cityId = found;
@@ -310,9 +316,9 @@ export function classifyRow(
   if (teamName) {
     const found = refs.teamIdByName.get(normalizeHeader(teamName));
     if (!found) {
-      errors.push({
+      warnings.push({
         field: "teamName",
-        message: `Equipe não encontrada ou nome ambíguo (existe em mais de uma cidade): "${teamName}".`,
+        message: `Equipe não encontrada ou nome ambíguo (existe em mais de uma cidade): "${teamName}" — pessoa criada sem esse vínculo.`,
       });
     } else {
       teamId = found;
@@ -338,14 +344,14 @@ export function classifyRow(
   if (coordinatorName) {
     const matches = refs.activePeopleByName.get(normalizeHeader(coordinatorName)) ?? [];
     if (matches.length === 0) {
-      errors.push({
+      warnings.push({
         field: "coordinatorName",
-        message: `Coordenador não encontrado: "${coordinatorName}".`,
+        message: `Coordenador não encontrado: "${coordinatorName}" — pessoa criada sem esse vínculo.`,
       });
     } else if (matches.length > 1) {
-      errors.push({
+      warnings.push({
         field: "coordinatorName",
-        message: `Nome de coordenador ambíguo — ${matches.length} pessoas ativas com o nome "${coordinatorName}".`,
+        message: `Nome de coordenador ambíguo — ${matches.length} pessoas ativas com o nome "${coordinatorName}" — pessoa criada sem esse vínculo.`,
       });
     } else {
       coordinatorPersonId = matches[0];
@@ -363,7 +369,7 @@ export function classifyRow(
       cpf: null,
       fullName,
       errors,
-      warnings: mergeWarnings,
+      warnings,
     };
   }
 
@@ -378,7 +384,7 @@ export function classifyRow(
       cpf,
       fullName,
       errors: [{ field: "cpf", message: "CPF repetido em outra linha deste arquivo." }],
-      warnings: mergeWarnings,
+      warnings,
     };
   }
   cpfsSeenInFile.add(cpf);
@@ -392,7 +398,7 @@ export function classifyRow(
       cpf,
       fullName,
       errors: [{ field: "cpf", message: "Já existe uma pessoa ativa com este CPF nesta campanha." }],
-      warnings: mergeWarnings,
+      warnings,
     };
   }
 
@@ -416,6 +422,6 @@ export function classifyRow(
     cpf,
     fullName,
     errors: [],
-    warnings: mergeWarnings,
+    warnings,
   };
 }

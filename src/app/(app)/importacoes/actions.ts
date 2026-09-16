@@ -311,17 +311,17 @@ export async function uploadImportBatch(
     await supabase.from("import_row_errors").insert(errorRows);
   }
 
-  // Avisos não bloqueantes de mesclagem entre abas (valor divergente pro
-  // mesmo campo em abas diferentes) — não afetam `result`, só ficam
-  // visíveis na prévia pra quem for confirmar decidir se precisa corrigir
-  // a planilha antes.
+  // Avisos não bloqueantes — não afetam `result` (a pessoa é criada mesmo
+  // assim), só ficam visíveis na prévia: valor divergente entre abas, ou
+  // eixo/cidade/equipe/coordenador não encontrado (a pessoa fica sem esse
+  // vínculo específico, ajustável depois manualmente).
   const warningRows = classified
     .filter((row) => row.warnings.length > 0)
     .flatMap((row) =>
       row.warnings.map((warn) => ({
         staging_record_id: stagingIdByRow.get(row.rowNumber)!,
         field_name: warn.field,
-        error_code: "aviso_mesclagem",
+        error_code: "aviso",
         error_message: warn.message,
       })),
     )
