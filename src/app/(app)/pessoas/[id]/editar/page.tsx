@@ -31,6 +31,7 @@ export default async function EditarPessoaPage({
     { data: bank },
     { data: electoral },
     { data: vehicle },
+    { data: engagement },
     { data: documents },
     { data: cities },
     { data: jobFunctions },
@@ -54,6 +55,11 @@ export default async function EditarPessoaPage({
       .maybeSingle(),
     supabase
       .from("person_vehicles")
+      .select("*")
+      .eq("person_id", id)
+      .maybeSingle(),
+    supabase
+      .from("person_engagement_data")
       .select("*")
       .eq("person_id", id)
       .maybeSingle(),
@@ -150,6 +156,7 @@ export default async function EditarPessoaPage({
     neighborhood: address?.neighborhood ?? "",
     city: address?.city ?? "",
     state: address?.state ?? "",
+    fullAddress: address?.full_address ?? "",
     bankCode: bank?.bank_code ?? "",
     bankName: bank?.bank_name ?? "",
     agency: bank?.agency ?? "",
@@ -169,6 +176,9 @@ export default async function EditarPessoaPage({
     vehicleModel: vehicle?.model ?? "",
     vehiclePlate: vehicle?.plate ?? "",
     vehicleRenavam: vehicle?.renavam ?? "",
+    leadershipNote: engagement?.leadership_note ?? "",
+    referralName: engagement?.referral_name ?? "",
+    contractingTypeNote: engagement?.contracting_type_note ?? "",
   };
 
   const documentsWithUrl = await Promise.all(

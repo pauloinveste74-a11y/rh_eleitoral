@@ -1,0 +1,71 @@
+﻿
+> rh_eleitoral@0.1.0 build
+> next build
+
+Ôû▓ Next.js 16.3.5 (Turbopack)
+Ô£ô Running next.config.ts took 77ms
+- Experiments (use with caution):
+  ┬À serverActions
+
+  Creating an optimized production build ...
+Ô£ô Compiled successfully in 45s
+  Running TypeScript ...
+  Finished TypeScript in 15.0s ...
+  Collecting page data using 1 worker ...
+  Generating static pages using 1 worker (0/8) ...
+  Generating static pages using 1 worker (2/8) 
+  Generating static pages using 1 worker (4/8) 
+  Generating static pages using 1 worker (6/8) 
+Ô£ô Generating static pages using 1 worker (8/8) in 361ms
+  Finalizing page optimization ...
+
+Route (app)
+Ôöî ãÆ /
+Ôö£ Ôùï /_not-found
+Ôö£ ãÆ /aprovacoes
+Ôö£ ãÆ /auditoria
+Ôö£ ãÆ /cadastro/[token]
+Ôö£ ãÆ /configuracoes
+Ôö£ ãÆ /conta
+Ôö£ ãÆ /contratos
+Ôö£ ãÆ /contratos/[id]
+Ôö£ ãÆ /contratos/modelos
+Ôö£ ãÆ /despesas
+Ôö£ ãÆ /despesas/alcadas
+Ôö£ ãÆ /despesas/novo
+Ôö£ ãÆ /divergencias
+Ôö£ ãÆ /empresas
+Ôö£ ãÆ /financeiro
+Ôö£ ãÆ /financeiro/lote/novo
+Ôö£ ãÆ /financeiro/novo
+Ôö£ Ôùï /icon.svg
+Ôö£ ãÆ /importacoes
+Ôö£ ãÆ /importacoes/[id]
+Ôö£ Ôùï /login
+Ôö£ ãÆ /master/organizacoes
+Ôö£ ãÆ /master/organizacoes/[id]
+Ôö£ ãÆ /meu-cadastro
+Ôö£ ãÆ /minha-equipe
+Ôö£ ãÆ /operacoes
+Ôö£ ãÆ /painel
+Ôö£ ãÆ /pessoas
+Ôö£ ãÆ /pessoas/[id]/editar
+Ôö£ ãÆ /pessoas/novo
+Ôö£ ãÆ /ponto
+Ôö£ ãÆ /relatorios
+Ôö£ ãÆ /relatorios/aprovacoes
+Ôö£ ãÆ /relatorios/aprovacoes/export
+Ôö£ ãÆ /relatorios/financeiro
+Ôö£ ãÆ /relatorios/financeiro/export
+Ôö£ ãÆ /relatorios/pessoas
+Ôö£ ãÆ /relatorios/pessoas/export
+Ôö£ ãÆ /usuarios
+Ôö£ ãÆ /usuarios/[id]
+Ôöö ãÆ /validacoes
+
+
+ãÆ Proxy (Middleware)
+
+Ôùï  (Static)   prerendered as static content
+ãÆ  (Dynamic)  server-rendered on demand
+

@@ -1,0 +1,1 @@
+﻿src/app/layout.tsx(40,50): error TS2304: Cannot find name 'LayoutProps'.

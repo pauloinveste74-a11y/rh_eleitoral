@@ -13,6 +13,7 @@ import {
   bankAccountSchema,
   electoralDataSchema,
   vehicleSchema,
+  engagementSchema,
   documentTypes,
   isSectionEmpty,
 } from "@/lib/validations/person";
@@ -50,6 +51,7 @@ const ADDRESS_FIELDS = [
   "neighborhood",
   "city",
   "state",
+  "fullAddress",
 ];
 const BANK_FIELDS = [
   "bankCode",
@@ -70,6 +72,11 @@ const ELECTORAL_FIELDS = [
   "voterState",
 ];
 const VEHICLE_FIELDS = ["vehicleBrand", "vehicleModel", "vehiclePlate", "vehicleRenavam"];
+const ENGAGEMENT_FIELDS = [
+  "leadershipNote",
+  "referralName",
+  "contractingTypeNote",
+];
 
 /**
  * Grava pessoa + satélites preenchidos a partir de um FormData. Usado tanto
@@ -131,6 +138,15 @@ async function savePerson(
   const vehicleParsed = vehiclePresent ? vehicleSchema.safeParse(vehicleRaw) : null;
   if (vehicleParsed && !vehicleParsed.success) {
     Object.assign(errors, vehicleParsed.error.flatten().fieldErrors);
+  }
+
+  const engagementRaw = fieldsOf(formData, ENGAGEMENT_FIELDS);
+  const engagementPresent = !isSectionEmpty(engagementRaw);
+  const engagementParsed = engagementPresent
+    ? engagementSchema.safeParse(engagementRaw)
+    : null;
+  if (engagementParsed && !engagementParsed.success) {
+    Object.assign(errors, engagementParsed.error.flatten().fieldErrors);
   }
 
   const jobFunctionId = String(formData.get("jobFunctionId") ?? "").trim() || null;
@@ -349,6 +365,32 @@ async function savePerson(
         p_entity_table: "person_vehicles",
         p_entity_id: personId,
         p_after_data: toJson(v),
+        p_related_request_id: requestId,
+      });
+    }
+  }
+
+  if (engagementPresent && engagementParsed?.success) {
+    const e = engagementParsed.data;
+    const { error } = await supabase.from("person_engagement_data").upsert(
+      {
+        person_id: personId,
+        leadership_note: e.leadershipNote || null,
+        referral_name: e.referralName || null,
+        contracting_type_note: e.contractingTypeNote || null,
+        created_by: user.id,
+        updated_by: user.id,
+      },
+      { onConflict: "person_id" },
+    );
+    if (error) {
+      partialFailures.push("dados de engajamento");
+    } else {
+      await supabase.rpc("log_audit_event", {
+        p_action: "pessoa.engajamento.salvar",
+        p_entity_table: "person_engagement_data",
+        p_entity_id: personId,
+        p_after_data: toJson(e),
         p_related_request_id: requestId,
       });
     }

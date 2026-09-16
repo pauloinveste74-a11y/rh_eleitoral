@@ -30,6 +30,7 @@ export type PersonFormValues = {
   neighborhood: string;
   city: string;
   state: string;
+  fullAddress: string;
   bankCode: string;
   bankName: string;
   agency: string;
@@ -49,6 +50,9 @@ export type PersonFormValues = {
   vehicleModel: string;
   vehiclePlate: string;
   vehicleRenavam: string;
+  leadershipNote: string;
+  referralName: string;
+  contractingTypeNote: string;
 };
 
 export const emptyPersonFormValues: PersonFormValues = {
@@ -67,6 +71,7 @@ export const emptyPersonFormValues: PersonFormValues = {
   neighborhood: "",
   city: "",
   state: "",
+  fullAddress: "",
   bankCode: "",
   bankName: "",
   agency: "",
@@ -86,6 +91,9 @@ export const emptyPersonFormValues: PersonFormValues = {
   vehicleModel: "",
   vehiclePlate: "",
   vehicleRenavam: "",
+  leadershipNote: "",
+  referralName: "",
+  contractingTypeNote: "",
 };
 
 function FieldError({ message }: { message?: string }) {
@@ -302,6 +310,10 @@ export function PersonForm({
             <Input id="city" disabled={isLocked("city")} {...register("city")} />
             <FieldError message={errorFor("city")} />
           </div>
+          <div className="flex flex-col gap-2 sm:col-span-2">
+            <Label htmlFor="fullAddress">Endereço completo (opcional)</Label>
+            <Input id="fullAddress" disabled={isLocked("fullAddress")} {...register("fullAddress")} />
+          </div>
         </CardContent>
       </Card>
 
@@ -417,6 +429,28 @@ export function PersonForm({
               <Label htmlFor="vehicleRenavam">Renavam</Label>
               <Input id="vehicleRenavam" disabled={isLocked("vehicleRenavam")} {...register("vehicleRenavam")} />
               <FieldError message={errorFor("renavam")} />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {showExtraFields && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Engajamento (opcional)</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-2 sm:col-span-2">
+              <Label htmlFor="leadershipNote">Liderança comunitária</Label>
+              <Input id="leadershipNote" disabled={isLocked("leadershipNote")} {...register("leadershipNote")} />
+            </div>
+            <div className="flex flex-col gap-2 sm:col-span-2">
+              <Label htmlFor="referralName">Indicação/Referência</Label>
+              <Input id="referralName" disabled={isLocked("referralName")} {...register("referralName")} />
+            </div>
+            <div className="flex flex-col gap-2 sm:col-span-2">
+              <Label htmlFor="contractingTypeNote">Tipo de contratação</Label>
+              <Input id="contractingTypeNote" disabled={isLocked("contractingTypeNote")} {...register("contractingTypeNote")} />
             </div>
           </CardContent>
         </Card>
