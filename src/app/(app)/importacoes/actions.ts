@@ -165,9 +165,19 @@ export async function uploadImportBatch(
   // não entra no mapa, a linha cai no mesmo tratamento de "não encontrado".
   const { data: campaignCities } = await supabase
     .from("cities")
-    .select("id")
+    .select("id, name")
     .eq("campaign_id", campaignId);
   const cityIds = (campaignCities ?? []).map((c) => c.id);
+  const cityNameCounts = new Map<string, number>();
+  for (const c of campaignCities ?? []) {
+    const key = normalizeHeader(c.name);
+    cityNameCounts.set(key, (cityNameCounts.get(key) ?? 0) + 1);
+  }
+  const cityIdByName = new Map(
+    (campaignCities ?? [])
+      .map((c) => [normalizeHeader(c.name), c.id] as const)
+      .filter(([key]) => cityNameCounts.get(key) === 1),
+  );
   const { data: teamRows } =
     cityIds.length > 0
       ? await supabase.from("teams").select("id, name").in("city_id", cityIds)
@@ -223,6 +233,7 @@ export async function uploadImportBatch(
   const refs: ImportReferenceMaps = {
     axisIdByName,
     teamIdByName,
+    cityIdByName,
     jobFunctionIdByName,
     activePeopleByName,
   };
@@ -621,6 +632,7 @@ export async function confirmImportBatch(
       vehicle?: Record<string, string>;
       engagement?: Record<string, string>;
       axisId?: string;
+      cityId?: string;
       teamId?: string;
       jobFunctionId?: string;
       coordinatorPersonId?: string;
@@ -739,11 +751,12 @@ export async function confirmImportBatch(
         updated_by: user.id,
       });
     }
-    if (data?.axisId || data?.teamId) {
+    if (data?.axisId || data?.cityId || data?.teamId) {
       await supabase.from("organizational_assignments").insert({
         person_id: personId,
         campaign_id: batchRow.campaign_id,
         axis_id: data.axisId || null,
+        city_id: data.cityId || null,
         team_id: data.teamId || null,
         status: "vigente",
         created_by: user.id,

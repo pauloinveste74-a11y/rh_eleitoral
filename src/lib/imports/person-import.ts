@@ -77,6 +77,8 @@ export type ClassifiedRow = {
 export type ImportReferenceMaps = {
   axisIdByName: Map<string, string>;
   teamIdByName: Map<string, string>;
+  /** Cidade/RA — nome normalizado -> id (só entra no mapa quando único na campanha). */
+  cityIdByName: Map<string, string>;
   jobFunctionIdByName: Map<string, string>;
   /** Nome normalizado -> lista de IDs de pessoas ativas com esse nome (mais de um = ambíguo). */
   activePeopleByName: Map<string, string[]>;
@@ -289,6 +291,20 @@ export function classifyRow(
     }
   }
 
+  let cityId: string | null = null;
+  const cityName = rawData.cityName?.trim();
+  if (cityName) {
+    const found = refs.cityIdByName.get(normalizeHeader(cityName));
+    if (!found) {
+      errors.push({
+        field: "cityName",
+        message: `Cidade/RA não encontrada ou nome ambíguo: "${cityName}".`,
+      });
+    } else {
+      cityId = found;
+    }
+  }
+
   let teamId: string | null = null;
   const teamName = rawData.teamName?.trim();
   if (teamName) {
@@ -387,6 +403,7 @@ export function classifyRow(
   if (vehiclePresent && vehicleParsed?.success) normalizedData.vehicle = vehicleParsed.data;
   if (engagementPresent && engagementParsed?.success) normalizedData.engagement = engagementParsed.data;
   if (axisId) normalizedData.axisId = axisId;
+  if (cityId) normalizedData.cityId = cityId;
   if (teamId) normalizedData.teamId = teamId;
   if (jobFunctionId) normalizedData.jobFunctionId = jobFunctionId;
   if (coordinatorPersonId) normalizedData.coordinatorPersonId = coordinatorPersonId;

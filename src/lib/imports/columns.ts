@@ -35,6 +35,7 @@ export const IMPORT_COLUMNS: { header: string; key: string }[] = [
   { header: "RG", key: "rg" },
   { header: "Eixo", key: "axisName" },
   { header: "Equipe", key: "teamName" },
+  { header: "RA", key: "cityName" },
   { header: "Coordenador", key: "coordinatorName" },
   { header: "Função", key: "jobFunctionName" },
   { header: "Marca do veículo", key: "vehicleBrand" },
@@ -64,6 +65,14 @@ const HEADER_ALIASES: { header: string; key: string }[] = [
   { header: "Nº", key: "number" },
   { header: "Coord. Eixo", key: "coordinatorName" },
   { header: "Coord. SOD", key: "coordinatorName" },
+  // "Endereço" sozinho (sem "completo") — mesmo conceito de texto único.
+  { header: "Endereço", key: "fullAddress" },
+  { header: "Equipe/Campanha", key: "teamName" },
+  { header: "quem indicou/trouxe", key: "referralName" },
+  // Cabeçalho combinado visto numa planilha real — melhor esforço: trata
+  // como coordenador (é o dado estruturado que já sabemos resolver). Se o
+  // uso real for outro, precisa de uma coluna própria depois.
+  { header: "liderança/coordenador", key: "coordinatorName" },
 ];
 
 /**
